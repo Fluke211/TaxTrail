@@ -1,0 +1,9 @@
+{
+  "name": "ReceiptSnap Mobile",
+  "postCreateCommand": "bash setup-receiptsnap-mobile.sh 2>&1 | tee ~/receiptsnap-setup.log",
+  "customizations": {
+    "vscode": {
+      "settings": { "task.allowAutomaticTasks": "on" }
+    }
+  }
+}
