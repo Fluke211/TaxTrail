@@ -73,7 +73,7 @@ jobs:
             echo "No mobile/ yet - running setup-receiptsnap-mobile.sh."
             bash setup-receiptsnap-mobile.sh
             mkdir -p "$APP_DIR"
-            rsync -a --exclude node_modules --exclude ios --exclude android \
+            rsync -a --exclude .git --exclude node_modules --exclude ios --exclude android \
               "$HOME/receiptsnap-mobile/" "$APP_DIR/"
             cp -R "$HOME/receiptsnap-mobile/node_modules" "$APP_DIR/node_modules"
           fi
@@ -118,7 +118,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -rf "$APP_DIR/node_modules" "$APP_DIR/ios" "$APP_DIR/android"
+          # create-expo-app runs `git init` in the generated project, so mobile/
+          # arrives as a nested repo. Git refuses to index that as plain files
+          # ("does not have a commit checked out"), so drop the inner .git.
+          rm -rf "$APP_DIR/.git" "$APP_DIR/node_modules" "$APP_DIR/ios" "$APP_DIR/android"
           git add -A mobile
           if git diff --cached --quiet; then
             echo "Nothing to commit."
