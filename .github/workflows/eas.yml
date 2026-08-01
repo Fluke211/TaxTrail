@@ -91,7 +91,14 @@ jobs:
         working-directory: ${{ github.workspace }}/mobile
         run: |
           set -euo pipefail
-          ACCOUNT="$(npx eas-cli@latest whoami)"
+          # `eas whoami` prints two lines - "<username> (authenticated using
+          # EXPO_TOKEN)" then the account email. Take the bare username only:
+          # $GITHUB_ENV rejects multi-line values, and --account wants the name.
+          ACCOUNT="$(npx eas-cli@latest whoami | head -n1 | awk '{print $1}')"
+          if [ -z "$ACCOUNT" ]; then
+            echo "::error::Could not determine the Expo account from 'eas whoami'."
+            exit 1
+          fi
           echo "Logged in as: $ACCOUNT"
           echo "EAS_ACCOUNT=$ACCOUNT" >> "$GITHUB_ENV"
 
