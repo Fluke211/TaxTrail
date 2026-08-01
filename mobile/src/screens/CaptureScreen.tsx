@@ -1,0 +1,404 @@
+// Capture flow: hero → camera/library → OCR → review form with the photo pinned
+// at the top (scan controls hidden until Save or Discard — same UX as PWA v5.5).
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable,
+  ScrollView, StyleSheet, Text, TextInput, View,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as Clipboard from 'expo-clipboard';
+import * as StoreReview from 'expo-store-review';
+import { T } from '../lib/theme';
+import { addReceipt, countThisMonth, type Allocation } from '../lib/db';
+import { processReceiptPhoto } from '../lib/ocr';
+import { memLookup, memLearn, taxMemLookup, taxMemLearn } from '../lib/memory';
+import { isPro, presentPaywall } from '../lib/purchases';
+import { FREE_SCANS_PER_MONTH } from '../lib/config';
+import { SC_BY_NAME } from '../lib/rows';
+const C = require('../lib/classifier.js');
+
+const CATEGORY_NAMES: string[] = (C.CATEGORIES as { name: string }[]).map((c) => c.name);
+
+interface Pending {
+  imagePath: string;
+  thumbPath: string;
+  ocrText: string;
+  merchant: string;
+  date: string;
+  total: string;
+  salesTax: string;
+  taxRate: number | null;
+  rateSource: string;
+  category: string;
+  confidence: string;
+  merchantRemembered: boolean;
+  city: string | null;
+}
+
+export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [notes, setNotes] = useState('');
+  const [showRaw, setShowRaw] = useState(false);
+  const [showCats, setShowCats] = useState(false);
+  const [allocs, setAllocs] = useState<Allocation[]>([]);
+  const [splitCat, setSplitCat] = useState('Personal (non-deductible)');
+  const [splitAmt, setSplitAmt] = useState('');
+  const [splitTax, setSplitTax] = useState(true);
+  const [showSplits, setShowSplits] = useState(false);
+  const [showSplitCats, setShowSplitCats] = useState(false);
+
+  const startScan = useCallback(async (fromLibrary: boolean) => {
+    // Free-tier gate before the camera opens
+    if (!(await isPro())) {
+      const n = await countThisMonth();
+      if (n >= FREE_SCANS_PER_MONTH) {
+        const unlocked = await presentPaywall();
+        if (!unlocked) return;
+      }
+    }
+    const perm = fromLibrary
+      ? await ImagePicker.requestMediaLibraryPermissionsAsync()
+      : await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'ReceiptSnap needs access to scan receipts. Everything stays on this device.');
+      return;
+    }
+    const result = fromLibrary
+      ? await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 })
+      : await ImagePicker.launchCameraAsync({ quality: 1 });
+    if (result.canceled || !result.assets?.length) return;
+
+    setBusy(true);
+    try {
+      const { text, imagePath, thumbPath } = await processReceiptPhoto(result.assets[0].uri);
+      const parsed = C.parseReceipt(text);
+      const remembered = await memLookup(text);
+      const merchant = remembered || parsed.merchant || '';
+      let category = parsed.category;
+      if (remembered && parsed.category === 'Uncategorized') {
+        const recls = C.classify(text, remembered);
+        if (recls.name !== 'Uncategorized') category = recls.name;
+      }
+      // Tax-rate priority: printed on receipt > saved city rate > derived > last used
+      const mem = await taxMemLookup(parsed.city);
+      let taxRate: number | null = null; let rateSource = 'not detected';
+      if (parsed.taxRatePrinted) { taxRate = parsed.taxRatePrinted; rateSource = 'printed on receipt'; }
+      else if (mem?.fromCity) { taxRate = mem.rate; rateSource = 'remembered for this city'; }
+      else if (parsed.taxRate) { taxRate = parsed.taxRate; rateSource = 'derived from receipt'; }
+      else if (mem) { taxRate = mem.rate; rateSource = 'last used'; }
+
+      setPending({
+        imagePath, thumbPath, ocrText: text,
+        merchant,
+        date: parsed.date || new Date().toISOString().slice(0, 10),
+        total: parsed.total != null ? parsed.total.toFixed(2) : '',
+        salesTax: parsed.taxTotal && parsed.taxTotal > 0 ? parsed.taxTotal.toFixed(2) : '',
+        taxRate, rateSource,
+        category, confidence: parsed.confidence,
+        merchantRemembered: !!remembered,
+        city: parsed.city,
+      });
+      setNotes(''); setAllocs([]); setShowRaw(false); setShowSplits(false);
+    } catch (e) {
+      console.warn(e);
+      Alert.alert('Scan failed', 'Could not read that photo — try again with more light and the receipt flat.');
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const discard = useCallback(() => { setPending(null); }, []);
+
+  const save = useCallback(async () => {
+    if (!pending) return;
+    const total = parseFloat(pending.total) || 0;
+    const salesTax = parseFloat(pending.salesTax);
+    const merchant = pending.merchant.trim() || 'Unknown merchant';
+    const remainder = total - allocs.reduce((s, a) => s + a.amount, 0);
+    const fullAllocs: Allocation[] = allocs.length
+      ? [{ category: pending.category, scheduleC: SC_BY_NAME[pending.category] || '', amount: Math.round(remainder * 100) / 100 }, ...allocs]
+      : [];
+    const id = await addReceipt({
+      createdAt: new Date().toISOString(),
+      merchant,
+      date: pending.date,
+      total,
+      category: pending.category,
+      scheduleC: SC_BY_NAME[pending.category] || '',
+      notes: notes.trim(),
+      salesTax: salesTax > 0 ? Math.round(salesTax * 100) / 100 : null,
+      taxRate: pending.taxRate,
+      allocations: fullAllocs,
+      confidence: pending.confidence,
+      ocrText: pending.ocrText,
+      imagePath: pending.imagePath,
+      thumbPath: pending.thumbPath,
+    });
+    const learned = await memLearn(pending.ocrText, merchant);
+    await taxMemLearn(pending.city, pending.taxRate);
+    setPending(null);
+    onSaved();
+    Alert.alert('Saved ✓', learned ? `I'll remember this store as "${merchant}"` : `${merchant} — $${total.toFixed(2)}`);
+    // Ratings flywheel: ask after the 3rd successful scan (iOS throttles to 3/yr)
+    try {
+      const n = await countThisMonth();
+      if (n === 3 && (await StoreReview.hasAction())) StoreReview.requestReview();
+    } catch {}
+    // id used only to keep TS satisfied about the awaited insert
+    void id;
+  }, [pending, notes, allocs, onSaved]);
+
+  const addSplit = useCallback(() => {
+    if (!pending) return;
+    const amt = parseFloat(splitAmt);
+    if (!amt || amt <= 0) return;
+    const rate = pending.taxRate || 0;
+    const withTax = splitTax && rate > 0;
+    const alloc: Allocation = {
+      category: splitCat,
+      scheduleC: SC_BY_NAME[splitCat] || '',
+      amount: Math.round(amt * (withTax ? 1 + rate : 1) * 100) / 100,
+      ...(withTax ? { base: amt, tax: Math.round(amt * rate * 100) / 100 } : {}),
+    };
+    setAllocs((a) => [...a, alloc]);
+    setSplitAmt('');
+  }, [pending, splitAmt, splitCat, splitTax]);
+
+  const splitPreview = useMemo(() => {
+    const amt = parseFloat(splitAmt);
+    if (!pending || !amt || amt <= 0) return null;
+    const rate = pending.taxRate || 0;
+    if (!splitTax || rate <= 0) return `$${amt.toFixed(2)}`;
+    const tax = amt * rate;
+    return `$${amt.toFixed(2)} + $${tax.toFixed(2)} tax = $${(amt + tax).toFixed(2)}`;
+  }, [pending, splitAmt, splitTax]);
+
+  const allocated = allocs.reduce((s, a) => s + a.amount, 0);
+  const totalNum = pending ? parseFloat(pending.total) || 0 : 0;
+
+  return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView style={s.wrap} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+      {!pending && !busy && (
+        <>
+          <Pressable style={s.hero} onPress={() => startScan(false)}>
+            <Text style={s.heroIcon}>📷</Text>
+            <Text style={s.heroTitle}>Scan a receipt</Text>
+            <Text style={s.heroSub}>Read &amp; categorized entirely on your phone — nothing uploaded.</Text>
+          </Pressable>
+          <Pressable style={s.primaryBtn} onPress={() => startScan(false)}>
+            <Text style={s.primaryBtnText}>Scan Receipt</Text>
+          </Pressable>
+          <Pressable style={s.linkBtn} onPress={() => startScan(true)}>
+            <Text style={s.linkBtnText}>Choose from photo library</Text>
+          </Pressable>
+          <View style={s.privacy}>
+            <Text style={s.privacyText}>
+              <Text style={{ color: T.text, fontWeight: '600' }}>Your data never leaves this device. </Text>
+              OCR runs on-device (Apple Vision) and receipts are stored locally — no upload, no account.
+            </Text>
+          </View>
+        </>
+      )}
+
+      {busy && (
+        <View style={s.progress}>
+          <ActivityIndicator color={T.accent} size="large" />
+          <Text style={s.progressLabel}>Reading receipt (on-device OCR)…</Text>
+        </View>
+      )}
+
+      {pending && !busy && (
+        <>
+          {/* Snapped photo stays pinned at top until Save or Discard */}
+          <Image source={{ uri: pending.imagePath }} style={s.pinned} resizeMode="contain" />
+          <View style={s.review}>
+            <Text style={s.h3}>Check the details</Text>
+            <Text style={[s.conf, pending.merchantRemembered && { color: T.good }]}>
+              {pending.merchantRemembered
+                ? `★ Merchant remembered from a previous visit`
+                : pending.category === 'Uncategorized'
+                ? '⚠️ Couldn’t auto-categorize — please pick a category'
+                : `Auto-categorized as “${pending.category}” (${pending.confidence} confidence)`}
+            </Text>
+
+            <Text style={s.label}>MERCHANT</Text>
+            <TextInput style={s.input} value={pending.merchant}
+              onChangeText={(v) => setPending({ ...pending, merchant: v })} placeholder="Merchant name" placeholderTextColor={T.muted2} />
+
+            <View style={s.row3}>
+              <View style={{ flex: 1.2 }}>
+                <Text style={s.label}>DATE</Text>
+                <TextInput style={s.input} value={pending.date}
+                  onChangeText={(v) => setPending({ ...pending, date: v })} placeholder="YYYY-MM-DD" placeholderTextColor={T.muted2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>TOTAL ($)</Text>
+                <TextInput style={s.input} value={pending.total} keyboardType="decimal-pad"
+                  onChangeText={(v) => setPending({ ...pending, total: v })} placeholder="0.00" placeholderTextColor={T.muted2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>SALES TAX ($)</Text>
+                <TextInput style={s.input} value={pending.salesTax} keyboardType="decimal-pad"
+                  onChangeText={(v) => setPending({ ...pending, salesTax: v })} placeholder="0.00" placeholderTextColor={T.muted2} />
+              </View>
+            </View>
+            <Text style={s.hint}>Tax rate: {pending.taxRate ? `${(pending.taxRate * 100).toFixed(3).replace(/\.?0+$/, '')}%` : '—'} ({pending.rateSource})</Text>
+
+            <Text style={s.label}>MAIN TAX CATEGORY</Text>
+            <Pressable style={s.input} onPress={() => setShowCats(!showCats)}>
+              <Text style={{ color: T.text }}>{pending.category} ▾</Text>
+            </Pressable>
+            {showCats && (
+              <View style={s.catList}>
+                {CATEGORY_NAMES.map((name) => (
+                  <Pressable key={name} style={s.catItem}
+                    onPress={() => { setPending({ ...pending, category: name }); setShowCats(false); }}>
+                    <Text style={{ color: name === pending.category ? T.accent : T.text, fontSize: 14 }}>{name}</Text>
+                    <Text style={{ color: T.muted2, fontSize: 11 }}>{SC_BY_NAME[name]}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            <Text style={s.hint}>{SC_BY_NAME[pending.category] || ''}</Text>
+
+            {/* Splits */}
+            <Pressable onPress={() => setShowSplits(!showSplits)}>
+              <Text style={[s.label, { color: T.accent, marginTop: 14 }]}>
+                {showSplits ? 'HIDE SPLITS ▴' : `SPLIT THIS RECEIPT ▾${allocs.length ? ` (${allocs.length})` : ''}`}
+              </Text>
+            </Pressable>
+            {showSplits && (
+              <View style={s.splitBox}>
+                {allocs.map((a, i) => (
+                  <View key={i} style={s.allocRow}>
+                    <Text style={{ color: T.text, flex: 1, fontSize: 13 }} numberOfLines={1}>{a.category}</Text>
+                    <Text style={{ color: T.muted, fontSize: 13 }}>
+                      ${a.amount.toFixed(2)}{a.tax ? ` ($${a.base?.toFixed(2)} + $${a.tax.toFixed(2)} tax)` : ''}
+                    </Text>
+                    <Pressable onPress={() => setAllocs(allocs.filter((_, j) => j !== i))}>
+                      <Text style={{ color: T.danger, paddingLeft: 10 }}>✕</Text>
+                    </Pressable>
+                  </View>
+                ))}
+                <Pressable style={s.input} onPress={() => setShowSplitCats(!showSplitCats)}>
+                  <Text style={{ color: T.text, fontSize: 13 }}>{splitCat} ▾</Text>
+                </Pressable>
+                {showSplitCats && (
+                  <View style={s.catList}>
+                    {CATEGORY_NAMES.map((name) => (
+                      <Pressable key={name} style={s.catItem} onPress={() => { setSplitCat(name); setShowSplitCats(false); }}>
+                        <Text style={{ color: name === splitCat ? T.accent : T.text, fontSize: 14 }}>{name}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                  <TextInput style={[s.input, { flex: 1 }]} value={splitAmt} keyboardType="decimal-pad"
+                    onChangeText={setSplitAmt} placeholder="Amount $" placeholderTextColor={T.muted2} />
+                  <Pressable onPress={() => setSplitTax(!splitTax)} style={s.taxToggle}>
+                    <Text style={{ color: splitTax ? T.accent : T.muted2, fontSize: 13 }}>{splitTax ? '☑' : '☐'} + tax</Text>
+                  </Pressable>
+                </View>
+                {splitPreview && <Text style={s.hint}>{splitPreview}</Text>}
+                <Pressable style={s.ghostBtn} onPress={addSplit}>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>+ Add split</Text>
+                </Pressable>
+                {allocs.length > 0 && (
+                  <Text style={s.hint}>
+                    Remainder ${Math.max(0, totalNum - allocated).toFixed(2)} stays under “{pending.category}”.
+                  </Text>
+                )}
+              </View>
+            )}
+
+            <Text style={s.label}>NOTES</Text>
+            <TextInput style={[s.input, { minHeight: 60 }]} value={notes} onChangeText={setNotes} multiline
+              placeholder="e.g. Materials for the Nakamura job" placeholderTextColor={T.muted2} />
+
+            <Pressable onPress={() => setShowRaw(!showRaw)}>
+              <Text style={[s.label, { color: T.accent, marginTop: 12 }]}>{showRaw ? 'HIDE RAW TEXT ▴' : 'SHOW RAW SCANNED TEXT ▾'}</Text>
+            </Pressable>
+            {showRaw && (
+              <View style={s.rawBox}>
+                <Pressable style={s.copyBtn}
+                  onPress={async () => { await Clipboard.setStringAsync(pending.ocrText); Alert.alert('Copied'); }}>
+                  <Text style={{ color: T.accent, fontSize: 12 }}>Copy</Text>
+                </Pressable>
+                <Text style={s.rawText}>{pending.ocrText || '(no text found)'}</Text>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+              <Pressable style={[s.ghostBtn, { flex: 1 }]} onPress={discard}>
+                <Text style={{ color: T.text, fontWeight: '600' }}>Discard</Text>
+              </Pressable>
+              <Pressable style={[s.primaryBtn, { flex: 1, marginTop: 0 }]} onPress={save}>
+                <Text style={s.primaryBtnText}>Save Receipt</Text>
+              </Pressable>
+            </View>
+          </View>
+        </>
+      )}
+    </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const s = StyleSheet.create({
+  wrap: { flex: 1, paddingHorizontal: 16 },
+  hero: {
+    marginTop: 14, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
+    borderRadius: T.radiusLg, alignItems: 'center', paddingVertical: 44, paddingHorizontal: 24,
+  },
+  heroIcon: { fontSize: 40, marginBottom: 10 },
+  heroTitle: { color: T.text, fontSize: 19, fontWeight: '700' },
+  heroSub: { color: T.muted, fontSize: 13, marginTop: 5, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
+  primaryBtn: {
+    marginTop: 14, backgroundColor: T.accent, borderRadius: 12, paddingVertical: 16,
+    alignItems: 'center', shadowColor: T.accent, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
+  },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  linkBtn: { paddingVertical: 12, alignItems: 'center' },
+  linkBtnText: { color: T.muted, fontSize: 13 },
+  privacy: {
+    marginTop: 18, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
+    borderRadius: T.radius, padding: 14,
+  },
+  privacyText: { color: T.muted, fontSize: 12.5, lineHeight: 19 },
+  progress: { marginTop: 40, alignItems: 'center', gap: 14 },
+  progressLabel: { color: T.muted, fontSize: 13 },
+  pinned: {
+    marginTop: 10, width: '100%', height: 170, borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  review: {
+    marginTop: 12, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
+    borderRadius: T.radius, padding: 16, marginBottom: 20,
+  },
+  h3: { color: T.text, fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  conf: { color: T.muted, fontSize: 12.5, marginBottom: 12 },
+  label: { color: T.muted2, fontSize: 10, letterSpacing: 0.6, marginTop: 12, marginBottom: 5, fontWeight: '600' },
+  input: {
+    backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
+    color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15,
+  },
+  row3: { flexDirection: 'row', gap: 8 },
+  hint: { color: T.muted2, fontSize: 12, marginTop: 6 },
+  catList: {
+    backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
+    marginTop: 6, maxHeight: 300,
+  },
+  catItem: { paddingHorizontal: 12, paddingVertical: 9, borderBottomColor: T.line, borderBottomWidth: StyleSheet.hairlineWidth },
+  splitBox: { backgroundColor: T.bg2, borderRadius: 10, padding: 10, gap: 8, borderColor: T.line, borderWidth: 1 },
+  allocRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  taxToggle: { paddingHorizontal: 10, paddingVertical: 10 },
+  ghostBtn: {
+    backgroundColor: T.card2, borderColor: T.line, borderWidth: 1, borderRadius: 12,
+    paddingVertical: 13, alignItems: 'center',
+  },
+  rawBox: { backgroundColor: T.bg2, borderRadius: 10, padding: 10, borderColor: T.line, borderWidth: 1 },
+  copyBtn: { alignSelf: 'flex-end', padding: 4 },
+  rawText: { color: T.muted, fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+});

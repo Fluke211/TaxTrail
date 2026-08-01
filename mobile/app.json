@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "ReceiptSnap",
+    "slug": "receiptsnap",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "ios": {
+      "bundleIdentifier": "com.vaultvision.receiptsnap",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.vaultvision.receiptsnap",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "ReceiptSnap uses the camera to photograph receipts. Photos are processed entirely on this device and never uploaded.",
+          "photosPermission": "ReceiptSnap can import receipt photos from your library. Photos are processed entirely on this device and never uploaded."
+        }
+      ],
+      "expo-sqlite"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d98a6958-bf2b-43c6-8ced-6e3953f0d11f"
+      }
+    },
+    "owner": "tylerthornbrue",
+    "updates": {
+      "url": "https://u.expo.dev/d98a6958-bf2b-43c6-8ced-6e3953f0d11f"
+    }
+  }
+}
