@@ -1,0 +1,177 @@
+// Receipts list + detail modal (image, fields, edit, delete, raw-text copy).
+import React, { useCallback, useState } from 'react';
+import {
+  Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+} from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { T } from '../lib/theme';
+import { deleteReceipt, updateReceipt, type Receipt } from '../lib/db';
+import { deleteReceiptFiles } from '../lib/ocr';
+import { SC_BY_NAME, allocationsOf } from '../lib/rows';
+
+const CATEGORY_NAMES: string[] = (require('../lib/classifier.js').CATEGORIES as { name: string }[]).map((c) => c.name);
+
+export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Receipt[]; onChanged: () => void }) {
+  const [selected, setSelected] = useState<Receipt | null>(null);
+  const [showCats, setShowCats] = useState(false);
+
+  const remove = useCallback((r: Receipt) => {
+    Alert.alert('Delete receipt?', `${r.merchant} — $${r.total.toFixed(2)}`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          if (r.id != null) await deleteReceipt(r.id);
+          await deleteReceiptFiles(r);
+          setSelected(null);
+          onChanged();
+        },
+      },
+    ]);
+  }, [onChanged]);
+
+  const saveEdits = useCallback(async () => {
+    if (!selected) return;
+    await updateReceipt(selected);
+    setSelected(null);
+    onChanged();
+  }, [selected, onChanged]);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <FlatList
+        data={receipts}
+        keyExtractor={(r) => String(r.id)}
+        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+        ListEmptyComponent={
+          <Text style={{ color: T.muted, textAlign: 'center', marginTop: 60 }}>
+            No receipts yet — scan your first one on the Capture tab.
+          </Text>
+        }
+        renderItem={({ item }) => {
+          const allocs = allocationsOf(item);
+          return (
+            <Pressable style={s.card} onPress={() => setSelected({ ...item })}>
+              {item.thumbPath
+                ? <Image source={{ uri: item.thumbPath }} style={s.thumb} />
+                : <View style={[s.thumb, { alignItems: 'center', justifyContent: 'center' }]}><Text>🧾</Text></View>}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.cardM} numberOfLines={1}>{item.merchant}</Text>
+                <Text style={s.cardSub} numberOfLines={1}>
+                  {item.date} · {item.category}{allocs.length > 1 ? ` +${allocs.length - 1} splits` : ''}
+                </Text>
+              </View>
+              <Text style={s.cardAmt}>${item.total.toFixed(2)}</Text>
+            </Pressable>
+          );
+        }}
+      />
+
+      <Modal visible={!!selected} animationType="slide" onRequestClose={() => setSelected(null)}>
+        {selected && (
+          <ScrollView style={s.detail} contentContainerStyle={{ padding: 16, paddingBottom: 80, paddingTop: 60 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={s.detailTitle} numberOfLines={1}>{selected.merchant}</Text>
+              <Pressable onPress={() => setSelected(null)} style={{ padding: 8 }}>
+                <Text style={{ color: T.muted, fontSize: 22 }}>✕</Text>
+              </Pressable>
+            </View>
+            {selected.imagePath && (
+              <Image source={{ uri: selected.imagePath }} style={s.detailImg} resizeMode="contain" />
+            )}
+            <Text style={s.label}>MERCHANT</Text>
+            <TextInput style={s.input} value={selected.merchant}
+              onChangeText={(v) => setSelected({ ...selected, merchant: v })} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ flex: 1.2 }}>
+                <Text style={s.label}>DATE</Text>
+                <TextInput style={s.input} value={selected.date}
+                  onChangeText={(v) => setSelected({ ...selected, date: v })} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>TOTAL ($)</Text>
+                <TextInput style={s.input} keyboardType="decimal-pad" value={String(selected.total)}
+                  onChangeText={(v) => setSelected({ ...selected, total: parseFloat(v) || 0 })} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>SALES TAX ($)</Text>
+                <TextInput style={s.input} keyboardType="decimal-pad" value={selected.salesTax != null ? String(selected.salesTax) : ''}
+                  onChangeText={(v) => setSelected({ ...selected, salesTax: parseFloat(v) > 0 ? parseFloat(v) : null })} />
+              </View>
+            </View>
+            <Text style={s.label}>MAIN TAX CATEGORY</Text>
+            <Pressable style={s.input} onPress={() => setShowCats(!showCats)}>
+              <Text style={{ color: T.text }}>{selected.category} ▾</Text>
+            </Pressable>
+            {showCats && (
+              <View style={s.catList}>
+                {CATEGORY_NAMES.map((name) => (
+                  <Pressable key={name} style={s.catItem}
+                    onPress={() => { setSelected({ ...selected, category: name, scheduleC: SC_BY_NAME[name] || '' }); setShowCats(false); }}>
+                    <Text style={{ color: name === selected.category ? T.accent : T.text, fontSize: 14 }}>{name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            <Text style={s.hint}>{SC_BY_NAME[selected.category] || ''}</Text>
+            {allocationsOf(selected).length > 1 && (
+              <>
+                <Text style={s.label}>SPLITS</Text>
+                {allocationsOf(selected).map((a, i) => (
+                  <Text key={i} style={{ color: T.muted, fontSize: 13, marginBottom: 2 }}>
+                    · {a.category}: ${a.amount.toFixed(2)}{a.tax ? ` ($${a.base?.toFixed(2)} + $${a.tax.toFixed(2)} tax)` : ''}
+                  </Text>
+                ))}
+              </>
+            )}
+            <Text style={s.label}>NOTES</Text>
+            <TextInput style={[s.input, { minHeight: 50 }]} multiline value={selected.notes}
+              onChangeText={(v) => setSelected({ ...selected, notes: v })} />
+
+            <Pressable style={{ marginTop: 14 }}
+              onPress={async () => { await Clipboard.setStringAsync(selected.ocrText || ''); Alert.alert('Raw text copied'); }}>
+              <Text style={{ color: T.accent, fontSize: 12, fontWeight: '600' }}>COPY RAW SCANNED TEXT</Text>
+            </Pressable>
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+              <Pressable style={s.dangerBtn} onPress={() => remove(selected)}>
+                <Text style={{ color: T.danger, fontWeight: '600' }}>Delete</Text>
+              </Pressable>
+              <Pressable style={s.primaryBtn} onPress={saveEdits}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Save Changes</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        )}
+      </Modal>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  card: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: T.radius,
+    padding: 12, marginBottom: 10,
+  },
+  thumb: { width: 46, height: 46, borderRadius: 8, backgroundColor: T.bg2 },
+  cardM: { color: T.text, fontSize: 15, fontWeight: '600' },
+  cardSub: { color: T.muted2, fontSize: 12, marginTop: 2 },
+  cardAmt: { color: T.text, fontSize: 15, fontWeight: '700' },
+  detail: { flex: 1, backgroundColor: T.bg },
+  detailTitle: { color: T.text, fontSize: 18, fontWeight: '700', flex: 1 },
+  detailImg: { width: '100%', height: 260, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)', marginTop: 10 },
+  label: { color: T.muted2, fontSize: 10, letterSpacing: 0.6, marginTop: 14, marginBottom: 5, fontWeight: '600' },
+  input: {
+    backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
+    color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15,
+  },
+  hint: { color: T.muted2, fontSize: 12, marginTop: 6 },
+  catList: { backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10, marginTop: 6 },
+  catItem: { paddingHorizontal: 12, paddingVertical: 9, borderBottomColor: T.line, borderBottomWidth: StyleSheet.hairlineWidth },
+  dangerBtn: {
+    flex: 1, borderColor: 'rgba(255,107,107,0.45)', borderWidth: 1, borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  primaryBtn: { flex: 1, backgroundColor: T.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+});
