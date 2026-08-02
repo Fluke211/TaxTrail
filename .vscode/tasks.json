@@ -1,20 +1,29 @@
 {
   "version": "2.0.0",
   "tasks": [
-    { "label": "1 · Verify ReceiptSnap install", "type": "shell",
-      "command": "cd ~/receiptsnap-mobile && npm run test:unit && npx tsc --noEmit && echo '=== ALL GOOD — proceed to task 2 ==='",
-      "problemMatcher": [] },
-    { "label": "2 · EAS — log in", "type": "shell",
-      "command": "cd ~/receiptsnap-mobile && npx eas-cli@latest login",
-      "problemMatcher": [] },
-    { "label": "3 · EAS — create project + enable OTA updates", "type": "shell",
-      "command": "cd ~/receiptsnap-mobile && npx eas-cli@latest init && npx eas-cli@latest update:configure",
-      "problemMatcher": [] },
-    { "label": "4 · EAS — register this iPhone", "type": "shell",
-      "command": "cd ~/receiptsnap-mobile && npx eas-cli@latest device:create",
-      "problemMatcher": [] },
-    { "label": "5 · EAS — BUILD iOS dev client (the one build)", "type": "shell",
-      "command": "cd ~/receiptsnap-mobile && npx eas-cli@latest build --profile development --platform ios",
-      "problemMatcher": [] }
+    {
+      "label": "1 · Verify install",
+      "type": "shell",
+      "command": "cd \"${workspaceFolder}/mobile\" && npm run test:unit && npx tsc --noEmit && echo '=== ALL GOOD — proceed to task 2 ==='",
+      "problemMatcher": []
+    },
+    {
+      "label": "2 · Sign in to Expo",
+      "type": "shell",
+      "command": "cd \"${workspaceFolder}/mobile\" && npx eas-cli@latest login && npx eas-cli@latest whoami",
+      "problemMatcher": []
+    },
+    {
+      "label": "3 · Apple sign-in + create iOS credentials",
+      "type": "shell",
+      "command": "cd \"${workspaceFolder}/mobile\" && npx eas-cli@latest credentials:configure-build --platform ios --profile development",
+      "problemMatcher": []
+    },
+    {
+      "label": "4 · Show stored iOS credentials",
+      "type": "shell",
+      "command": "cd \"${workspaceFolder}/mobile\" && npx eas-cli@latest credentials --platform ios",
+      "problemMatcher": []
+    }
   ]
 }
