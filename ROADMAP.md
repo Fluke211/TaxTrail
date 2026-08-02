@@ -34,16 +34,29 @@ air.
 ## Then — monetization (all JS, no build required)
 
 Decided in `DECISIONS.md` D-002. Nothing here needs a native build; RevenueCat
-products are fetched at runtime.
+products are fetched at runtime. Dashboard/store config is being driven from
+Atlas via the RevenueCat MCP (2026-08-02, checkpointed session — see STATUS.md);
+the MCP's store-state tools proved able to create ASC products directly,
+including the `ONE_WEEK` trial, so most of the console work below is API work.
 
-- [ ] RevenueCat dashboard: entitlement `pro`, offering `default`
-- [ ] App Store Connect: subscription group **ReceiptSnap Pro** with
+- [x] RevenueCat project `proj63a7fa32` + restore behavior
+      "Transfer if there are no active subscriptions" (D-012)
+- [x] App Store Connect app record — **"ReceiptSnap: Expense Organizer"**
+      (name "ReceiptSnap" was taken; D-013)
+- [x] RevenueCat dashboard: iOS app `appc76b61980d`, entitlement `pro` (all
+      three products attached, incl. the non-consumable), offering `default`
+      with `$rc_monthly` / `$rc_annual` / `$rc_lifetime`; public SDK key
+      issued (see STATUS.md)
+- [x] App Store Connect: subscription group **ReceiptSnap Pro** with
       `receiptsnap_pro_monthly` ($6.99), `receiptsnap_pro_annual` ($39.99,
-      7-day trial), `receiptsnap_pro_lifetime` ($99.99 non-consumable)
+      7-day trial), `receiptsnap_pro_lifetime` ($99.99 non-consumable,
+      **outside** the group) — created via MCP 2026-08-02; submission-time
+      metadata (screenshots, privacy URL) still pending (STATUS.md)
 - [ ] Replace `appl_REPLACE_ME` in `src/lib/config.ts` with the public Apple key
 - [ ] Enforce the free tier (`FREE_SCANS_PER_MONTH = 10`)
 - [ ] Paywall at the 10-scan wall, annual trial highlighted
-- [ ] Enrol in the App Store Small Business Program (15%)
+- [ ] Enrol in the App Store Small Business Program (15%) — before the first
+      sale; not retroactive
 
 ## Sep–Oct 2026 — soft launch
 

@@ -102,8 +102,33 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 - **Android was never audited.** The duplicated `RECORD_AUDIO` permission was
   removed, but the whole Android surface needs a pass before Android is taken
   seriously.
-- **RevenueCat is unconfigured.** `src/lib/config.ts` holds the placeholder
-  `appl_REPLACE_ME`, which keeps the app functional in free mode.
+- **RevenueCat: dashboard side IN PROGRESS (2026-08-02, driven from Atlas via
+  the RevenueCat MCP).** Done: project **`proj63a7fa32`** created; restore
+  behavior set to "Transfer if there are no active subscriptions" (D-012);
+  App Store Connect app record created as **"ReceiptSnap: Expense Organizer"**
+  (D-013), bundle `com.tylerthornbrue.receiptsnap`. RC iOS app
+  **`appc76b61980d`**; products registered in RC —
+  `receiptsnap_pro_monthly`=`prod1b93a74c4b`,
+  `receiptsnap_pro_annual`=`prode8994cbc24`,
+  `receiptsnap_pro_lifetime`=`prodce9319f158` (**non-consumable**, verified
+  `type: non_consumable`); entitlement `pro`=`entl1fcff973a4` with ALL THREE
+  attached (incl. the lifetime); offering `default`=`ofrng6092a617e4` with
+  standard packages `$rc_monthly`/`$rc_annual`/`$rc_lifetime` (`$rc_lifetime`
+  accepted as-is). **Public SDK key:
+  `appl_lkFpBkvUDvsOfXJAZJluSWduCIv`** — goes in `src/lib/config.ts` replacing
+  `appl_REPLACE_ME` (deliberately NOT done here: app-code changes are out of
+  this session's scope). **ASC push COMPLETE (2026-08-02):** Apple keys
+  uploaded (same team-level keys as VaultVision, team `5M67JT29GJ`); all
+  three products created in App Store Connect — group **ReceiptSnap Pro**
+  holds the two subscriptions, `ONE_WEEK` free trial verified on annual only
+  (start 2026-08-02), lifetime created outside the group, US-only
+  availability, $6.99/$39.99/$99.99 with full territory price schedules
+  (Apple equalization from US base for the subscriptions). ASC status
+  `MISSING_METADATA` = expected until submission time (review screenshot per
+  product, privacy-policy URL, and the two first-submission-with-binary
+  requirements — Apple counts "first subscription" and "first non-consumable"
+  SEPARATELY). **No webhook — no backend exists, by design** (D-012); SDK
+  entitlement checks are client-side.
 - **Apple credentials expire 31 May 2027** and renewal is an interactive trip.
 - **Two Codespaces exist** (`curly guacamole`, `potential train`). Delete both
   once credential work is finished — idle ones consume the storage allowance.
@@ -116,6 +141,13 @@ credentials interactively; changed the bundle identifier; added native
 dependencies and audited the resulting permissions; wrote this documentation
 set. First build failed on the push entitlement; dropped `expo-notifications`
 and the second build succeeded. **Dev client v1.0.0 (build 1) is installable.**
+Separately (Atlas RevenueCat session): RevenueCat project `proj63a7fa32`
+created, restore behavior set, ASC app record created as "ReceiptSnap: Expense
+Organizer" — plain "ReceiptSnap" and several permutations were taken (D-013) —
+and the full dashboard + App Store Connect configuration executed: products
+(incl. the non-consumable lifetime), entitlement `pro`, offering, public SDK
+key, and the ASC push with the `ONE_WEEK` annual trial. See the RevenueCat
+open item above and D-012.
 
 **2026-08-01** — Repo seeded: installer script, devcontainer, task runner, GTM
 strategy, `CLAUDE.md` handoff.

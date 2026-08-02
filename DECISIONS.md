@@ -297,3 +297,43 @@ generating credentials, not after — and preflight cannot catch this, because
 
 `xlsx@0.18.5` is pure JS and Hermes-safe. **exceljs does not work in React
 Native** — it hangs at splash. Don't retry it.
+
+---
+
+## D-012 · RevenueCat dashboard config is API-driven from Atlas; restore behavior "Transfer if there are no active subscriptions"; no webhook
+
+**2026-08-02 · Settled**
+
+- Project **`proj63a7fa32`** was created via the RevenueCat MCP (OAuth-authed,
+  the same Atlas session driving VaultVision's T-020 config), and the rest of
+  the dashboard/store configuration runs the same way in checkpointed stages.
+  Only steps with genuinely no API fall to Tyler's browser — restore behavior
+  was one (done).
+- **Restore behavior: "Transfer if there are no active subscriptions"**, with a
+  deliberate nuance: `receiptsnap_pro_lifetime` will be a **non-consumable**,
+  and a non-consumable is not an "active subscription" — so under this setting
+  the lifetime unlock **transfers** between App User IDs on restore rather than
+  duplicating. That is the intended behavior for a device-migrating owner.
+- **No webhook integration will be created.** There is no backend, by design
+  (the privacy positioning — everything on-device). The SDK's client-side
+  entitlement checks are sufficient; a webhook can be added later without
+  touching any of this config.
+
+**Would change it:** building a backend (not planned; would contradict the
+"Data Not Collected" label that is the product's differentiator).
+
+---
+
+## D-013 · App Store name: "ReceiptSnap: Expense Organizer"
+
+**2026-08-02 · Settled**
+
+- Plain "ReceiptSnap" — and several permutations — were already taken
+  storewide. The ASC app record was created as **"ReceiptSnap: Expense
+  Organizer"** (30-char limit respected), bundle `com.tylerthornbrue.receiptsnap`
+  (D-005), iOS.
+- The store name is changeable at any later version submission; the
+  home-screen display name comes from the build (`app.json`), not this field —
+  so the on-device branding stays "ReceiptSnap" regardless.
+
+**Would change it:** a better name freeing up before first submission.
