@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | Live, deployed via GitHub Pages. Untouched this session. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r1** | Built and installable — see below |
+| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r2** | Built and installable; js r2 (RevenueCat key) ships via EAS Update — see below |
 
 ---
 
@@ -115,9 +115,11 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   attached (incl. the lifetime); offering `default`=`ofrng6092a617e4` with
   standard packages `$rc_monthly`/`$rc_annual`/`$rc_lifetime` (`$rc_lifetime`
   accepted as-is). **Public SDK key:
-  `appl_lkFpBkvUDvsOfXJAZJluSWduCIv`** — goes in `src/lib/config.ts` replacing
-  `appl_REPLACE_ME` (deliberately NOT done here: app-code changes are out of
-  this session's scope). **ASC push COMPLETE (2026-08-02):** Apple keys
+  `appl_lkFpBkvUDvsOfXJAZJluSWduCIv` — WIRED into `src/lib/config.ts`
+  (js r2, this PR).** Purchases configure at app start; free tier is
+  unchanged (every failure path resolves to free mode), and until the Paid
+  Applications agreement is signed, product fetches degrade to "Store
+  unavailable" — safe by design. **ASC push COMPLETE (2026-08-02):** Apple keys
   uploaded (same team-level keys as VaultVision, team `5M67JT29GJ`); all
   three products created in App Store Connect — group **ReceiptSnap Pro**
   holds the two subscriptions, `ONE_WEEK` free trial verified on annual only
