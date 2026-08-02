@@ -77,7 +77,7 @@ npx eas update --channel development --message "parser fix"
 ## RevenueCat setup (no build required — do anytime)
 
 1. app.revenuecat.com → new project "ReceiptSnap" → add App Store app with
-   bundle ID `com.vaultvision.receiptsnap`.
+   bundle ID `com.tylerthornbrue.receiptsnap`.
 2. App Store Connect → create subscription group **ReceiptSnap Pro** with:
    - `receiptsnap_pro_monthly` — $6.99/mo
    - `receiptsnap_pro_annual` — $39.99/yr with 7-day free trial

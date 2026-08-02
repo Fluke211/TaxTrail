@@ -16,7 +16,7 @@
       "backgroundColor": "#0f172a"
     },
     "ios": {
-      "bundleIdentifier": "com.vaultvision.receiptsnap",
+      "bundleIdentifier": "com.tylerthornbrue.receiptsnap",
       "buildNumber": "1",
       "supportsTablet": false,
       "infoPlist": {
@@ -24,7 +24,7 @@
       }
     },
     "android": {
-      "package": "com.vaultvision.receiptsnap",
+      "package": "com.tylerthornbrue.receiptsnap",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
