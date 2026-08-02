@@ -91,8 +91,20 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 - **Android was never audited.** The duplicated `RECORD_AUDIO` permission was
   removed, but the whole Android surface needs a pass before Android is taken
   seriously.
-- **RevenueCat is unconfigured.** `src/lib/config.ts` holds the placeholder
-  `appl_REPLACE_ME`, which keeps the app functional in free mode.
+- **RevenueCat: dashboard side IN PROGRESS (2026-08-02, driven from Atlas via
+  the RevenueCat MCP).** Done: project **`proj63a7fa32`** created; restore
+  behavior set to "Transfer if there are no active subscriptions" (D-012);
+  App Store Connect app record created as **"ReceiptSnap: Expense Organizer"**
+  (D-013), bundle `com.tylerthornbrue.receiptsnap`. Queued next in that
+  session (it works in checkpointed stages): RC iOS app + Apple keys, the
+  three products — `receiptsnap_pro_monthly` $6.99, `receiptsnap_pro_annual`
+  $39.99 with the 7-day (`ONE_WEEK`) trial, `receiptsnap_pro_lifetime` $99.99
+  as a **non-consumable outside the subscription group** — entitlement `pro`
+  (all three attached), offering `default` with standard `$rc_monthly` /
+  `$rc_annual` / `$rc_lifetime` packages, then the public `appl_` key.
+  `src/lib/config.ts` still holds `appl_REPLACE_ME` (app stays functional in
+  free mode) until that key exists. **No webhook — no backend exists, by
+  design** (D-012); SDK entitlement checks are client-side.
 - **Apple credentials expire 31 May 2027** and renewal is an interactive trip.
 - **Two Codespaces exist** (`curly guacamole`, `potential train`). Delete both
   once credential work is finished — idle ones consume the storage allowance.
@@ -104,6 +116,12 @@ configured the EAS project; committed the project to `mobile/`; set up Apple
 credentials interactively; changed the bundle identifier; added seven native
 dependencies and audited the resulting permissions; first build attempted and
 failed on the push entitlement; wrote this documentation set.
+Separately (Atlas RevenueCat session): RevenueCat project `proj63a7fa32`
+created, restore behavior set, and the App Store Connect app record created as
+"ReceiptSnap: Expense Organizer" — plain "ReceiptSnap" and several
+permutations were taken (D-013). Product/entitlement/offering configuration is
+queued behind that session's checkpoint flow; see the RevenueCat open item
+above and D-012.
 
 **2026-08-01** — Repo seeded: installer script, devcontainer, task runner, GTM
 strategy, `CLAUDE.md` handoff.
