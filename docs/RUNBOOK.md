@@ -13,11 +13,17 @@ because the expensive ones are worth avoiding.
 | `verify` CI run | Free | No |
 | `configure` CI run | Free | No |
 | Preflight (`build` step, no confirmation) | Free | No |
-| **EAS build** | **1 of ~15/month** | **Yes — explicit approval** |
+| Publish an EAS Update | Free | No |
+| **EAS build** | **1 of 30/month** | **Yes — explicit approval** |
 | Apple credential work | Free, but a Codespace trip | Yes — types Apple password + 2FA |
 
 **JS-only changes never need a build.** Anything in `src/`, including the
 classifier, screens, and exporters, ships over the air.
+
+Quota (free plan, verified 2026-08-02): **30 builds/month**, plus **10 waived
+builds/month** — a failed build is waived rather than charged, so a failure is
+cheap, though the waiver pool is account-wide and finite. Check consumption with
+the `usage` step rather than counting by hand.
 
 ---
 
@@ -27,9 +33,10 @@ classifier, screens, and exporters, ships over the air.
 2. Bump `JS_REVISION` in `mobile/src/lib/version.ts`.
 3. Run the tests: `cd mobile && npm run test:unit && npx tsc --noEmit`.
 4. Commit, push, open a PR, merge to `main`.
-5. Publish the update:
+5. Publish the update — dispatch the workflow with `step: update` and an
+   `update_message`. It runs:
    ```bash
-   cd mobile && eas update --channel development --message "what changed"
+   eas update --branch development --message "..." --non-interactive
    ```
 6. Tell Tyler the new `js r<N>` so he can confirm what he's running from the
    Summary footer.
@@ -49,6 +56,8 @@ API (an agent can do this directly) or from the Actions tab.
 | `verify` | Reconstructs or installs the project, runs unit tests + `tsc --noEmit` |
 | `configure` | `eas init` + `eas update:configure`, commits the result to an `eas-config` branch |
 | `build` | `expo-doctor` + `expo prebuild` preflight, then the iOS build |
+| `usage` | `eas build:list`, summarised by month and status |
+| `update` | Publishes the JS bundle to the `development` channel |
 
 **The build is double-gated.** The `build` step runs preflight unconditionally
 but refuses the actual build unless the `confirm_build` input is exactly
@@ -91,13 +100,20 @@ This costs a build, so batch them.
 
 ## Iterate on the device
 
+**Default: publish an update, don't run a dev server.** Dispatch `step: update`,
+then open the dev client — the published update appears in its launcher and
+launches with no server involved. See D-012.
+
+If live reload is genuinely worth it for a heavy editing session, a dev server
+still works from a Codespace:
+
 ```bash
 cd mobile && npx expo start --dev-client --tunnel
 ```
 
-Tyler scans the QR with the dev client installed. `--tunnel` is required when
-the dev server isn't on his local network — which, running from CI or a
-Codespace, it never is.
+`--tunnel` is required, since the dev server is never on the phone's local
+network. The terminal must stay alive for the whole session, which is why this
+is the exception rather than the default.
 
 ---
 

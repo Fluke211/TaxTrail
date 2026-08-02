@@ -22,6 +22,13 @@ on:
           - verify
           - configure
           - build
+          - usage
+          - update
+      update_message:
+        description: 'Message for the EAS Update (used by step: update)'
+        required: false
+        type: string
+        default: "dev client bundle"
       confirm_build:
         description: 'Type BUILD to authorize an EAS build (quota-limited, ignored for other steps)'
         required: false
@@ -79,6 +86,7 @@ jobs:
           fi
 
       - name: Verify (unit tests + TypeScript)
+        if: inputs.step != 'usage'
         working-directory: ${{ github.workspace }}/mobile
         run: |
           set -euo pipefail
@@ -101,6 +109,52 @@ jobs:
           fi
           echo "Logged in as: $ACCOUNT"
           echo "EAS_ACCOUNT=$ACCOUNT" >> "$GITHUB_ENV"
+
+      # Answers "how many builds have we actually spent?" — the EAS dashboard is
+      # unreachable from Claude Code sessions, so ask the API instead.
+      - name: Build usage
+        if: inputs.step == 'usage'
+        working-directory: ${{ github.workspace }}/mobile
+        run: |
+          set -euo pipefail
+          npx eas-cli@latest build:list --limit 50 --json --non-interactive > builds.json
+          python3 - <<'PY'
+          import json, collections, datetime
+          builds = json.load(open('builds.json'))
+          print(f"Total builds on record: {len(builds)}\n")
+          by_month = collections.Counter()
+          print(f"{'created':<22}{'platform':<10}{'status':<12}{'profile':<14}id")
+          print("-" * 92)
+          for b in builds:
+              created = (b.get('createdAt') or '')[:19].replace('T', ' ')
+              by_month[created[:7]] += 1
+              print(f"{created:<22}{(b.get('platform') or ''):<10}"
+                    f"{(b.get('status') or ''):<12}{(b.get('buildProfile') or ''):<14}{b.get('id')}")
+          print("\nBuilds per month:")
+          for m, n in sorted(by_month.items()):
+              print(f"  {m}: {n}")
+          statuses = collections.Counter(b.get('status') for b in builds)
+          print("\nBy status:", dict(statuses))
+          print("\nNote: whether a FAILED build counts against the monthly quota is an")
+          print("EAS billing policy question. This lists what EAS recorded; confirm")
+          print("remaining quota at https://expo.dev/accounts/tylerthornbrue/settings/billing")
+          PY
+          rm -f builds.json
+
+      # Publishes the JS bundle to the `development` channel so the dev client can
+      # launch it without a Metro dev server — which cannot be kept running from
+      # CI, and is impractical to babysit from a phone.
+      - name: Publish EAS Update
+        if: inputs.step == 'update'
+        working-directory: ${{ github.workspace }}/mobile
+        run: |
+          set -euo pipefail
+          npx eas-cli@latest update \
+            --branch development \
+            --message "${{ inputs.update_message }}" \
+            --non-interactive
+          echo "--- channels ---"
+          npx eas-cli@latest channel:view development --non-interactive || true
 
       - name: Configure EAS project + OTA updates
         if: inputs.step == 'configure'

@@ -5,44 +5,53 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | Live, deployed via GitHub Pages. Untouched this session. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r1** | Not yet built successfully — see blocker below |
+| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r1** | Built and installable — see below |
 
 ---
 
-## Current blocker
+## Current state
 
-**The first EAS build failed on code signing.** Not the app code — the profile.
+**The development client is built and installable.**
 
-```
-Provisioning profile "*[expo] com.tylerthornbrue.receiptsnap AdHoc ..."
-doesn't include the Push Notifications capability.
-... doesn't include the aps-environment entitlement.
-```
+| | |
+|---|---|
+| Build ID | `c0d5ebc3-8439-4333-aaa0-503feab787d2` |
+| Install | https://expo.dev/accounts/tylerthornbrue/projects/receiptsnap/builds/c0d5ebc3-8439-4333-aaa0-503feab787d2 |
+| Version | **v1.0.0 (build 1) · js r1** |
+| Profile | `development` — dev client, ad-hoc internal distribution |
+| Provisioned device | iPhone `00008110-000969302ED3A01E` |
 
-Cause: `expo-notifications` injects the `aps-environment` entitlement, and the
-provisioning profile was created ~40 minutes *before* that module was added. The
-profile has no Push Notifications capability, so Xcode refused to sign.
+Open the link on the registered iPhone to install.
 
-Confirmed there is no way around it in config — the plugin sets the entitlement
-unconditionally (`if (!config.modResults['aps-environment'])`, so any falsy
-override is overwritten). `expo-notifications` cannot exist without the push
-entitlement.
+**Resolved:** the first attempt failed on code signing because `expo-notifications`
+injects the `aps-environment` entitlement and the provisioning profile predated
+that module (D-011). Dropping the module cleared it.
 
-**Two ways forward:**
+**Answered:** `react-native-document-scanner-plugin` compiles against RN 0.83.
+The full Xcode build passed, so VisionKit document capture, camera, Face ID,
+print, haptics, and location are all live in this client.
 
-- **Drop `expo-notifications`, rebuild.** One build, no work for Tyler.
-  Notifications are a Nov–Dec feature, and the Sep–Oct production build needs
-  fresh credentials anyway (App Store profile, not ad-hoc) — the natural moment
-  to enable the capability.
-- **Keep it, regenerate the profile with Push Notifications.** Requires an
-  interactive Apple sign-in, so another Codespace trip, plus a build.
+### EAS quota — actual numbers
 
-**Not yet known:** whether the document scanner's Swift compiles against RN 0.83.
-The build failed at signing, before compilation, so that question is still open.
+Read from the billing page 2026-08-02, so this supersedes the earlier
+"~15 builds/month" estimate:
 
-Builds used: **1**. Quota is ~15/month.
+| Meter | Used | Limit |
+|---|---|---|
+| Total builds | 3 (iOS 2 · Android 1) | **30 / month** |
+| Waived builds (failed, not charged) | 6 | **10 / month** |
+| Uploaded builds | 0 | 10 / month |
+| Monthly active users | 0 | 1,000 |
+| Global edge bandwidth | 6.93 KiB | 100 GiB |
 
----
+Plan: Free, $0.00.
+
+Both iOS builds are this project's (the signing failure and the successful one);
+the Android build is from elsewhere in the account. **Failed builds are waived
+rather than charged**, which is why the signing failure cost nothing — but the
+waiver pool is account-wide and already at 6/10, so failures stop being free
+after four more. Query current build records any time with the workflow's
+`usage` step.
 
 ## Done
 
@@ -59,12 +68,14 @@ Builds used: **1**. Quota is ~15/month.
 - [x] Native dependency set chosen and installed
 - [x] Permission surface audited and minimized
 - [x] CI preflight green: **expo-doctor 19/19**, `expo prebuild` succeeds
+- [x] **iOS development client built successfully**
 
 ## Next
 
-1. Resolve the signing blocker (decision above), rebuild
-2. Install the dev client on Tyler's iPhone, confirm it scans and parses
-3. Wire the document scanner into the capture flow — the OCR accuracy work
+1. Install the dev client on Tyler's iPhone; confirm it launches, scans, and parses
+2. Wire the document scanner into the capture flow — the OCR accuracy work.
+   All JS from here, so it ships via `eas update` with no further builds
+3. Delete both Codespaces (`curly guacamole`, `potential train`) — done with them
 
 Full plan: [`ROADMAP.md`](ROADMAP.md).
 
@@ -126,15 +137,17 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 
 **2026-08-02** — Established the Actions-based EAS pipeline; created and
 configured the EAS project; committed the project to `mobile/`; set up Apple
-credentials interactively; changed the bundle identifier; added seven native
-dependencies and audited the resulting permissions; first build attempted and
-failed on the push entitlement; wrote this documentation set.
+credentials interactively; changed the bundle identifier; added native
+dependencies and audited the resulting permissions; wrote this documentation
+set. First build failed on the push entitlement; dropped `expo-notifications`
+and the second build succeeded. **Dev client v1.0.0 (build 1) is installable.**
 Separately (Atlas RevenueCat session): RevenueCat project `proj63a7fa32`
-created, restore behavior set, and the App Store Connect app record created as
-"ReceiptSnap: Expense Organizer" — plain "ReceiptSnap" and several
-permutations were taken (D-013). Product/entitlement/offering configuration is
-queued behind that session's checkpoint flow; see the RevenueCat open item
-above and D-012.
+created, restore behavior set, ASC app record created as "ReceiptSnap: Expense
+Organizer" — plain "ReceiptSnap" and several permutations were taken (D-013) —
+and the full dashboard + App Store Connect configuration executed: products
+(incl. the non-consumable lifetime), entitlement `pro`, offering, public SDK
+key, and the ASC push with the `ONE_WEEK` annual trial. See the RevenueCat
+open item above and D-012.
 
 **2026-08-01** — Repo seeded: installer script, devcontainer, task runner, GTM
 strategy, `CLAUDE.md` handoff.
