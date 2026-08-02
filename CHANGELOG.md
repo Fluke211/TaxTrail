@@ -11,12 +11,19 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
-### v1.0.0 (build 1) · js r1 — unreleased
+### v1.0.0 (build 1) · js r1 — 2026-08-02
 
-First development client. Not yet successfully built — the initial attempt
-failed on code signing (see `STATUS.md`).
+First development client. Built and installable.
 
-Contents at time of first build attempt:
+- Build ID `c0d5ebc3-8439-4333-aaa0-503feab787d2`
+- Profile `development` — dev client, ad-hoc internal distribution
+- Provisioned to iPhone `00008110-000969302ED3A01E`
+
+An earlier attempt errored at code signing: `expo-notifications` injects the
+`aps-environment` entitlement and the provisioning profile predated that module
+(D-011). The module was removed and the rebuild succeeded.
+
+Contents:
 
 - Expo SDK 55, RN 0.83, New Architecture, TypeScript, min iOS 15.1
 - On-device OCR via `expo-text-extractor` (Apple Vision)
@@ -28,8 +35,11 @@ Contents at time of first build attempt:
 - Exports: CSV, XLSX (SheetJS), TXF, QuickBooks CSV
 - Custom 3-tab shell, no navigation library
 - Bundle ID `com.tylerthornbrue.receiptsnap`
-- Native modules added ahead of the build: document scanner (VisionKit), camera,
-  notifications, local authentication, print, haptics, location
+- Native modules: document scanner (VisionKit), camera, local authentication,
+  print, haptics, location. `expo-notifications` deliberately excluded — it
+  requires the push entitlement and is not needed until the Nov-Dec reminders
+  work, which lands alongside the production build's fresh credentials.
+- `react-native-document-scanner-plugin` confirmed to compile against RN 0.83
 - Permissions: camera, Face ID, photo library, when-in-use location
 
 ---
@@ -50,6 +60,8 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 
 ### 2026-08-02
 
+- `expo-notifications` dropped; `usage` step added to report real build
+  consumption from `eas build:list` (#14)
 - Documentation set: `README.md`, `STATUS.md`, `DECISIONS.md`, `ROADMAP.md`,
   `CHANGELOG.md`, `docs/RUNBOOK.md`, PR template
 - Native dependencies added and permission surface audited (#12)
