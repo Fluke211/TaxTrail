@@ -106,13 +106,18 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   accepted as-is). **Public SDK key:
   `appl_lkFpBkvUDvsOfXJAZJluSWduCIv`** — goes in `src/lib/config.ts` replacing
   `appl_REPLACE_ME` (deliberately NOT done here: app-code changes are out of
-  this session's scope). **Remaining, blocked on Apple keys:** upload the
-  In-App Purchase `.p8` + App Store Connect API key (same team-level keys as
-  VaultVision's, team `5M67JT29GJ`) to the RC app, then the ASC push creates
-  the products in App Store Connect (group **ReceiptSnap Pro** for the two
-  subscriptions, `ONE_WEEK` trial on annual only, lifetime outside the group,
-  US pricing + territory equalization). **No webhook — no backend exists, by
-  design** (D-012); SDK entitlement checks are client-side.
+  this session's scope). **ASC push COMPLETE (2026-08-02):** Apple keys
+  uploaded (same team-level keys as VaultVision, team `5M67JT29GJ`); all
+  three products created in App Store Connect — group **ReceiptSnap Pro**
+  holds the two subscriptions, `ONE_WEEK` free trial verified on annual only
+  (start 2026-08-02), lifetime created outside the group, US-only
+  availability, $6.99/$39.99/$99.99 with full territory price schedules
+  (Apple equalization from US base for the subscriptions). ASC status
+  `MISSING_METADATA` = expected until submission time (review screenshot per
+  product, privacy-policy URL, and the two first-submission-with-binary
+  requirements — Apple counts "first subscription" and "first non-consumable"
+  SEPARATELY). **No webhook — no backend exists, by design** (D-012); SDK
+  entitlement checks are client-side.
 - **Apple credentials expire 31 May 2027** and renewal is an interactive trip.
 - **Two Codespaces exist** (`curly guacamole`, `potential train`). Delete both
   once credential work is finished — idle ones consume the storage allowance.

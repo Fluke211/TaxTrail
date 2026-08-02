@@ -47,11 +47,11 @@ including the `ONE_WEEK` trial, so most of the console work below is API work.
       three products attached, incl. the non-consumable), offering `default`
       with `$rc_monthly` / `$rc_annual` / `$rc_lifetime`; public SDK key
       issued (see STATUS.md)
-- [ ] App Store Connect: subscription group **ReceiptSnap Pro** with
+- [x] App Store Connect: subscription group **ReceiptSnap Pro** with
       `receiptsnap_pro_monthly` ($6.99), `receiptsnap_pro_annual` ($39.99,
       7-day trial), `receiptsnap_pro_lifetime` ($99.99 non-consumable,
-      **outside** the group) — ready to run via MCP, blocked only on
-      uploading the Apple keys to the RC app (STATUS.md)
+      **outside** the group) — created via MCP 2026-08-02; submission-time
+      metadata (screenshots, privacy URL) still pending (STATUS.md)
 - [ ] Replace `appl_REPLACE_ME` in `src/lib/config.ts` with the public Apple key
 - [ ] Enforce the free tier (`FREE_SCANS_PER_MONTH = 10`)
 - [ ] Paywall at the 10-scan wall, annual trial highlighted
