@@ -28,21 +28,46 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "plugins": [
       [
         "expo-image-picker",
         {
           "cameraPermission": "ReceiptSnap uses the camera to photograph receipts. Photos are processed entirely on this device and never uploaded.",
-          "photosPermission": "ReceiptSnap can import receipt photos from your library. Photos are processed entirely on this device and never uploaded."
+          "photosPermission": "ReceiptSnap can import receipt photos from your library. Photos are processed entirely on this device and never uploaded.",
+          "microphonePermission": false
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ReceiptSnap uses the camera to photograph receipts. Photos are processed entirely on this device and never uploaded.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "react-native-document-scanner-plugin",
+        {
+          "cameraPermission": "ReceiptSnap uses the camera to scan receipts. Scanning and text recognition happen entirely on this device and images are never uploaded."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "ReceiptSnap uses Face ID to unlock your receipts on this device."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ReceiptSnap uses your location only to log mileage for business trips. Trip data stays on this device and is never uploaded.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ]
     ],
     "extra": {
       "eas": {
