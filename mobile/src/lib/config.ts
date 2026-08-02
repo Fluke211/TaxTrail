@@ -5,7 +5,7 @@
 // app.revenuecat.com → Project → API keys (starts with "appl_").
 // Leaving the placeholder keeps the app fully functional in free mode:
 // purchases are simply disabled until the key is set.
-export const REVENUECAT_APPLE_API_KEY = 'appl_REPLACE_ME';
+export const REVENUECAT_APPLE_API_KEY = 'appl_lkFpBkvUDvsOfXJAZJluSWduCIv';
 
 // Entitlement / product identifiers (must match the RevenueCat dashboard).
 export const ENTITLEMENT_PRO = 'pro';
