@@ -23,6 +23,12 @@ on:
           - configure
           - build
           - usage
+          - update
+      update_message:
+        description: 'Message for the EAS Update (used by step: update)'
+        required: false
+        type: string
+        default: "dev client bundle"
       confirm_build:
         description: 'Type BUILD to authorize an EAS build (quota-limited, ignored for other steps)'
         required: false
@@ -134,6 +140,21 @@ jobs:
           print("remaining quota at https://expo.dev/accounts/tylerthornbrue/settings/billing")
           PY
           rm -f builds.json
+
+      # Publishes the JS bundle to the `development` channel so the dev client can
+      # launch it without a Metro dev server — which cannot be kept running from
+      # CI, and is impractical to babysit from a phone.
+      - name: Publish EAS Update
+        if: inputs.step == 'update'
+        working-directory: ${{ github.workspace }}/mobile
+        run: |
+          set -euo pipefail
+          npx eas-cli@latest update \
+            --branch development \
+            --message "${{ inputs.update_message }}" \
+            --non-interactive
+          echo "--- channels ---"
+          npx eas-cli@latest channel:view development --non-interactive || true
 
       - name: Configure EAS project + OTA updates
         if: inputs.step == 'configure'

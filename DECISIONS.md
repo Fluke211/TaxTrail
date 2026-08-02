@@ -128,8 +128,12 @@ production build is a separate future build regardless — that's where the
 surface gets trimmed — so the dev client is deliberately generous.
 
 Added: `react-native-document-scanner-plugin`, `expo-camera`,
-`expo-notifications`, `expo-local-authentication`, `expo-print`,
-`expo-haptics`, `expo-location`.
+`expo-local-authentication`, `expo-print`, `expo-haptics`, `expo-location`.
+
+`expo-notifications` was in this set and then **removed** — it injects the
+`aps-environment` entitlement, which broke signing against a provisioning
+profile created before it (D-011). It is not needed until the Nov–Dec reminders
+work, which coincides with the production build's fresh credentials.
 
 **The document scanner is the important one.** The OCR engine is already Apple
 Vision and cannot be improved on. What limits accuracy is the *image* handed to
@@ -198,6 +202,55 @@ single dev build. Every native addition requires a new build.
 
 **Would change it:** enough screens that hand-rolled navigation becomes the
 bigger cost. Not yet.
+
+---
+
+## D-012 · The dev client loads JS from EAS Update, not a dev server
+
+**2026-08-02 · Settled**
+
+The dev client's launcher wants a Metro dev server URL. We don't use one.
+
+A dev server has to keep running somewhere the phone can reach. Claude Code
+sessions can't host it (Expo domains blocked, container is ephemeral), and from
+a Codespace it means babysitting a terminal on a phone while testing. Fragile
+in exactly the situation where you want to be paying attention to the app.
+
+Instead, publish the JS bundle to the `development` channel with `eas update`.
+The client lists published updates and launches them — no server, nothing to
+keep alive, and it works offline once fetched. The binary already carries
+`https://u.expo.dev/d98a6958-...` from `update:configure`, and the development
+build profile sets `channel: development`, so the two match.
+
+`runtimeVersion` policy is `appVersion` (1.0.0), so updates only load into a
+build with the same app version. Bumping `version` in `app.json` therefore
+orphans existing installs from new updates — that is the intended safety
+behaviour, not a bug.
+
+Dispatched via the workflow's `update` step.
+
+**Would change it:** heavy interactive iteration where live reload genuinely
+pays for itself. Then a Codespace dev server with `--tunnel` is still available.
+
+---
+
+## D-013 · Real EAS quota, measured
+
+**2026-08-02 · Corrects an earlier estimate**
+
+The GTM doc's "free tier: 15 iOS builds/mo" was wrong. From the billing page:
+
+- **30 total builds/month**
+- **10 waived builds/month** — failed builds are waived rather than charged
+- 10 uploaded builds/month, 1,000 MAU, 100 GiB edge bandwidth
+
+The first signing failure cost nothing because it was waived. The waiver pool is
+account-wide, and stood at 6/10 after that failure, so failures stop being free
+after four more.
+
+**Practical effect:** a failed build is cheap but not free forever, and the
+30-build ceiling is far less tight than assumed. Tyler's one-build-per-approval
+rule still stands as discipline — but a failure is not a crisis.
 
 ---
 

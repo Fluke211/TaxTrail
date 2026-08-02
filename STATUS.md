@@ -31,10 +31,27 @@ that module (D-011). Dropping the module cleared it.
 The full Xcode build passed, so VisionKit document capture, camera, Face ID,
 print, haptics, and location are all live in this client.
 
-**Builds used: 2** — one ERRORED (signing), one FINISHED. Verified via the
-workflow's `usage` step, not by hand. Quota is ~15/month; whether the errored
-build is billed is an EAS policy question, checkable at
-https://expo.dev/accounts/tylerthornbrue/settings/billing
+### EAS quota — actual numbers
+
+Read from the billing page 2026-08-02, so this supersedes the earlier
+"~15 builds/month" estimate:
+
+| Meter | Used | Limit |
+|---|---|---|
+| Total builds | 3 (iOS 2 · Android 1) | **30 / month** |
+| Waived builds (failed, not charged) | 6 | **10 / month** |
+| Uploaded builds | 0 | 10 / month |
+| Monthly active users | 0 | 1,000 |
+| Global edge bandwidth | 6.93 KiB | 100 GiB |
+
+Plan: Free, $0.00.
+
+Both iOS builds are this project's (the signing failure and the successful one);
+the Android build is from elsewhere in the account. **Failed builds are waived
+rather than charged**, which is why the signing failure cost nothing — but the
+waiver pool is account-wide and already at 6/10, so failures stop being free
+after four more. Query current build records any time with the workflow's
+`usage` step.
 
 ## Done
 
