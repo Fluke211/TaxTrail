@@ -95,15 +95,23 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   the RevenueCat MCP).** Done: project **`proj63a7fa32`** created; restore
   behavior set to "Transfer if there are no active subscriptions" (D-012);
   App Store Connect app record created as **"ReceiptSnap: Expense Organizer"**
-  (D-013), bundle `com.tylerthornbrue.receiptsnap`. Queued next in that
-  session (it works in checkpointed stages): RC iOS app + Apple keys, the
-  three products — `receiptsnap_pro_monthly` $6.99, `receiptsnap_pro_annual`
-  $39.99 with the 7-day (`ONE_WEEK`) trial, `receiptsnap_pro_lifetime` $99.99
-  as a **non-consumable outside the subscription group** — entitlement `pro`
-  (all three attached), offering `default` with standard `$rc_monthly` /
-  `$rc_annual` / `$rc_lifetime` packages, then the public `appl_` key.
-  `src/lib/config.ts` still holds `appl_REPLACE_ME` (app stays functional in
-  free mode) until that key exists. **No webhook — no backend exists, by
+  (D-013), bundle `com.tylerthornbrue.receiptsnap`. RC iOS app
+  **`appc76b61980d`**; products registered in RC —
+  `receiptsnap_pro_monthly`=`prod1b93a74c4b`,
+  `receiptsnap_pro_annual`=`prode8994cbc24`,
+  `receiptsnap_pro_lifetime`=`prodce9319f158` (**non-consumable**, verified
+  `type: non_consumable`); entitlement `pro`=`entl1fcff973a4` with ALL THREE
+  attached (incl. the lifetime); offering `default`=`ofrng6092a617e4` with
+  standard packages `$rc_monthly`/`$rc_annual`/`$rc_lifetime` (`$rc_lifetime`
+  accepted as-is). **Public SDK key:
+  `appl_lkFpBkvUDvsOfXJAZJluSWduCIv`** — goes in `src/lib/config.ts` replacing
+  `appl_REPLACE_ME` (deliberately NOT done here: app-code changes are out of
+  this session's scope). **Remaining, blocked on Apple keys:** upload the
+  In-App Purchase `.p8` + App Store Connect API key (same team-level keys as
+  VaultVision's, team `5M67JT29GJ`) to the RC app, then the ASC push creates
+  the products in App Store Connect (group **ReceiptSnap Pro** for the two
+  subscriptions, `ONE_WEEK` trial on annual only, lifetime outside the group,
+  US pricing + territory equalization). **No webhook — no backend exists, by
   design** (D-012); SDK entitlement checks are client-side.
 - **Apple credentials expire 31 May 2027** and renewal is an interactive trip.
 - **Two Codespaces exist** (`curly guacamole`, `potential train`). Delete both

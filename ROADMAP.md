@@ -43,12 +43,15 @@ including the `ONE_WEEK` trial, so most of the console work below is API work.
       "Transfer if there are no active subscriptions" (D-012)
 - [x] App Store Connect app record — **"ReceiptSnap: Expense Organizer"**
       (name "ReceiptSnap" was taken; D-013)
-- [ ] RevenueCat dashboard: entitlement `pro`, offering `default` with
-      `$rc_monthly` / `$rc_annual` / `$rc_lifetime` (queued, Atlas session)
+- [x] RevenueCat dashboard: iOS app `appc76b61980d`, entitlement `pro` (all
+      three products attached, incl. the non-consumable), offering `default`
+      with `$rc_monthly` / `$rc_annual` / `$rc_lifetime`; public SDK key
+      issued (see STATUS.md)
 - [ ] App Store Connect: subscription group **ReceiptSnap Pro** with
       `receiptsnap_pro_monthly` ($6.99), `receiptsnap_pro_annual` ($39.99,
       7-day trial), `receiptsnap_pro_lifetime` ($99.99 non-consumable,
-      **outside** the group) (queued, Atlas session)
+      **outside** the group) — ready to run via MCP, blocked only on
+      uploading the Apple keys to the RC app (STATUS.md)
 - [ ] Replace `appl_REPLACE_ME` in `src/lib/config.ts` with the public Apple key
 - [ ] Enforce the free tier (`FREE_SCANS_PER_MONTH = 10`)
 - [ ] Paywall at the 10-scan wall, annual trial highlighted
