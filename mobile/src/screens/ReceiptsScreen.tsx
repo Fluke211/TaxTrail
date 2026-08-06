@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { T } from '../lib/theme';
+import { ZoomableImage } from '../components/ZoomableImage';
 import { deleteReceipt, updateReceipt, type Receipt } from '../lib/db';
 import { deleteReceiptFiles } from '../lib/ocr';
 import { SC_BY_NAME, allocationsOf } from '../lib/rows';
@@ -77,7 +78,7 @@ export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Rece
               </Pressable>
             </View>
             {selected.imagePath && (
-              <Image source={{ uri: selected.imagePath }} style={s.detailImg} resizeMode="contain" />
+              <ZoomableImage uri={selected.imagePath} style={s.detailImg} />
             )}
             <Text style={s.label}>MERCHANT</Text>
             <TextInput style={s.input} value={selected.merchant}

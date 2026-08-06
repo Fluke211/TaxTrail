@@ -16,6 +16,7 @@ import { memLookup, memLearn, taxMemLookup, taxMemLearn } from '../lib/memory';
 import { isPro, presentPaywall } from '../lib/purchases';
 import { FREE_SCANS_PER_MONTH } from '../lib/config';
 import { SC_BY_NAME } from '../lib/rows';
+import { ZoomableImage } from '../components/ZoomableImage';
 const C = require('../lib/classifier.js');
 
 const CATEGORY_NAMES: string[] = (C.CATEGORIES as { name: string }[]).map((c) => c.name);
@@ -237,7 +238,7 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
       {pending && !busy && (
         <>
           {/* Snapped photo stays pinned at top until Save or Discard */}
-          <Image source={{ uri: pending.imagePath }} style={s.pinned} resizeMode="contain" />
+          <ZoomableImage uri={pending.imagePath} style={s.pinned} />
           <View style={s.review}>
             <Text style={s.h3}>Check the details</Text>
             <Text style={[s.conf, pending.merchantRemembered && { color: T.good }]}>
