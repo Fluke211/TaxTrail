@@ -98,6 +98,9 @@ Two artifacts:
   the top of this file.
 - More than one session runs in this repo. `git fetch origin main` before
   starting and before claiming a `DECISIONS.md` ID; they have collided before.
+- **PRs are squash-merged, so reset the branch from `main` before every change**
+  (`git checkout -B <branch> origin/main`). Skipping this makes the next PR
+  conflict with your own already-merged commits — see `docs/RUNBOOK.md`.
 
 ## Architecture notes (Expo app)
 

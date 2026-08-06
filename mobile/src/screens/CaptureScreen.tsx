@@ -17,6 +17,7 @@ import { isPro, presentPaywall } from '../lib/purchases';
 import { FREE_SCANS_PER_MONTH } from '../lib/config';
 import { SC_BY_NAME } from '../lib/rows';
 import { ZoomableImage } from '../components/ZoomableImage';
+import { CategoryPicker } from '../components/CategoryPicker';
 const C = require('../lib/classifier.js');
 
 const CATEGORY_NAMES: string[] = (C.CATEGORIES as { name: string }[]).map((c) => c.name);
@@ -276,17 +277,15 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
             <Pressable style={s.input} onPress={() => setShowCats(!showCats)}>
               <Text style={{ color: T.text }}>{pending.category} ▾</Text>
             </Pressable>
-            {showCats && (
-              <View style={s.catList}>
-                {CATEGORY_NAMES.map((name) => (
-                  <Pressable key={name} style={s.catItem}
-                    onPress={() => { setPending({ ...pending, category: name }); setShowCats(false); }}>
-                    <Text style={{ color: name === pending.category ? T.accent : T.text, fontSize: 14 }}>{name}</Text>
-                    <Text style={{ color: T.muted2, fontSize: 11 }}>{SC_BY_NAME[name]}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
+            <CategoryPicker
+              visible={showCats}
+              categories={CATEGORY_NAMES}
+              lineFor={SC_BY_NAME}
+              selected={pending.category}
+              title="Main tax category"
+              onSelect={(name) => setPending({ ...pending, category: name })}
+              onClose={() => setShowCats(false)}
+            />
             <Text style={s.hint}>{SC_BY_NAME[pending.category] || ''}</Text>
 
             {/* Splits */}
@@ -311,15 +310,15 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
                 <Pressable style={s.input} onPress={() => setShowSplitCats(!showSplitCats)}>
                   <Text style={{ color: T.text, fontSize: 13 }}>{splitCat} ▾</Text>
                 </Pressable>
-                {showSplitCats && (
-                  <View style={s.catList}>
-                    {CATEGORY_NAMES.map((name) => (
-                      <Pressable key={name} style={s.catItem} onPress={() => { setSplitCat(name); setShowSplitCats(false); }}>
-                        <Text style={{ color: name === splitCat ? T.accent : T.text, fontSize: 14 }}>{name}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
+                <CategoryPicker
+                  visible={showSplitCats}
+                  categories={CATEGORY_NAMES}
+                  lineFor={SC_BY_NAME}
+                  selected={splitCat}
+                  title="Split category"
+                  onSelect={setSplitCat}
+                  onClose={() => setShowSplitCats(false)}
+                />
                 <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                   <TextInput style={[s.input, { flex: 1 }]} value={splitAmt} keyboardType="decimal-pad"
                     onChangeText={setSplitAmt} placeholder="Amount $" placeholderTextColor={T.muted2} />
@@ -412,11 +411,6 @@ const s = StyleSheet.create({
   },
   row3: { flexDirection: 'row', gap: 8 },
   hint: { color: T.muted2, fontSize: 12, marginTop: 6 },
-  catList: {
-    backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
-    marginTop: 6, maxHeight: 300,
-  },
-  catItem: { paddingHorizontal: 12, paddingVertical: 9, borderBottomColor: T.line, borderBottomWidth: StyleSheet.hairlineWidth },
   splitBox: { backgroundColor: T.bg2, borderRadius: 10, padding: 10, gap: 8, borderColor: T.line, borderWidth: 1 },
   allocRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   taxToggle: { paddingHorizontal: 10, paddingVertical: 10 },
