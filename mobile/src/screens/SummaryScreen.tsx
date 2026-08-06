@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { T } from '../lib/theme';
 import type { Receipt } from '../lib/db';
 import { exportRows, isBusiness, allocationsOf } from '../lib/rows';
-import { exportCSV, exportTXF, exportQBO, exportXLSX, exportBackup } from '../lib/exportShare';
+import { exportCSV, exportTXF, exportQBO, exportXLSX, exportBackup, exportArchive } from '../lib/exportShare';
 import { isPro, presentPaywall } from '../lib/purchases';
 import { versionStamp } from '../lib/version';
 const C = require('../lib/classifier.js');
@@ -93,7 +93,8 @@ export default function SummaryScreen({ receipts, pro, onProChanged }: {
           ['xlsx', 'Excel workbook (.xlsx)' + (pro ? '' : '  ·  PRO'), true, () => exportXLSX(receipts)],
           ['txf', 'TXF for tax software' + (pro ? '' : '  ·  PRO'), true, () => exportTXF(receipts)],
           ['qbo', 'QuickBooks 3-column CSV' + (pro ? '' : '  ·  PRO'), true, () => exportQBO(receipts)],
-          ['backup', 'Full JSON backup', false, () => exportBackup(receipts)],
+          ['archive', 'Receipt archive (.zip — images + data)', false, () => exportArchive(receipts)],
+          ['backup', 'Full JSON backup (data only)', false, () => exportBackup(receipts)],
         ] as [string, string, boolean, () => Promise<void>][]).map(([key, label, needsPro, fn]) => (
           <Pressable key={key} style={s.exportBtn} disabled={busyExport != null}
             onPress={() => gated(key, fn, needsPro)}>
