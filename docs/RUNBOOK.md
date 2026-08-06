@@ -27,8 +27,32 @@ the `usage` step rather than counting by hand.
 
 ---
 
+## Reset the branch after every merge — do this first
+
+PRs are **squash**-merged, so the feature branch's commits never become
+ancestors of `main`. Keep working on the old branch and the next PR conflicts
+with your own already-merged work. This has bitten four times.
+
+Before starting any change:
+
+```bash
+git fetch origin main && git checkout -B <branch> origin/main
+```
+
+If you only notice after committing, replay just the unmerged commits — do not
+resolve a conflict against yourself:
+
+```bash
+git rebase --onto origin/main <last-already-merged-commit> HEAD
+git checkout -B <branch>
+git push --force-with-lease
+```
+
+---
+
 ## Ship a JS change (the common case)
 
+0. **Reset the branch from `main`** — see above.
 1. Edit under `mobile/src/`.
 2. Bump `JS_REVISION` in `mobile/src/lib/version.ts`.
 3. Run the tests: `cd mobile && npm run test:unit && npx tsc --noEmit`.
