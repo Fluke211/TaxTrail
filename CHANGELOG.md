@@ -11,6 +11,21 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r3 — 2026-08-06
+
+Shipped over the air; no new build.
+
+- **VisionKit document scanning** on the camera path. Edge detection,
+  perspective correction and contrast enhancement now happen before Apple
+  Vision sees the image — the image was always the bottleneck, not the
+  recognizer. Falls back to the plain camera if the scanner fails.
+- **Multi-page capture**, so long receipts that don't fit one frame parse as a
+  single blob. The first page is stored and displayed.
+- **Receipt archive export** (`.zip`: images, CSV, backup.json, README) so the
+  photographs can leave the device — the prerequisite for treating the app as
+  a record of receipts you've thrown away (D-016).
+- Decision IDs deduplicated after two sessions collided on D-012/D-013.
+
 ### v1.0.0 (build 1) · js r1 — 2026-08-02
 
 First development client. Built and installable.

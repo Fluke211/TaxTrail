@@ -343,3 +343,32 @@ after four more.
 **Practical effect:** a failed build is cheap but not free forever, and the
 30-build ceiling is far less tight than assumed. Tyler's one-build-per-approval
 rule still stands as discipline — but a failure is not a crisis.
+
+---
+
+## D-016 · Receipt images are exportable, and not behind the paywall
+
+**2026-08-06 · Settled**
+
+Until now the photographs never left the app container. Every export was
+data-only, and the JSON backup stored absolute `file://` paths that go stale on
+reinstall — so the images existed in exactly one place, invisibly.
+
+That quietly broke the core promise. The IRS accepts electronic records
+(Rev. Proc. 97-22) provided the system can reproduce legible copies on demand.
+A user who cannot get their images out cannot meet that bar, so the app could
+not honestly tell anyone to throw away the paper.
+
+`exportArchive()` produces a single zip — `images/`, `receipts.csv`,
+`backup.json` (v3, each entry naming its `imageFile`), `README.txt` — through
+the share sheet, so the user picks the destination. No account, no server.
+
+**Not gated behind Pro**, deliberately. The existing JSON backup is free, so
+gating images would be inconsistent; and putting a paywall between a user and
+their own tax records is how a privacy-first app earns one-star reviews. The
+Pro boundary stays where it is: XLSX, TXF, QuickBooks, unlimited scans.
+
+**Would change it:** Tyler's call — it is a one-word change to the export row.
+
+**Still missing:** restore. Reading an archive back needs `expo-document-picker`,
+a native module, so it waits for the production build.
