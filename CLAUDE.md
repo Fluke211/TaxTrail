@@ -3,8 +3,33 @@
 Instructions for AI agents working on this repo. Tyler works with you directly —
 he should never need to relay between assistants.
 
-**Read [`STATUS.md`](STATUS.md) first** — it holds the current state and any
-active blocker. This file holds the rules; `STATUS.md` holds the situation.
+## Read the canon before you start. Update it as you go.
+
+These five files are the project's memory. **Read them before touching
+anything** — they exist so you don't rediscover what already cost someone time,
+and so you don't reopen a settled question.
+
+| File | What it answers |
+|---|---|
+| [`STATUS.md`](STATUS.md) | Where things stand right now, and what's blocked |
+| [`DECISIONS.md`](DECISIONS.md) | Why things are the way they are — check before re-litigating |
+| [`ROADMAP.md`](ROADMAP.md) | What's next, and what's deliberately parked |
+| [`CHANGELOG.md`](CHANGELOG.md) | What shipped, and which version carries it |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | How to do a thing, and what it costs |
+
+**Log as you go, in the same PR as the change** — not at the end of a session,
+which is when it gets skipped. Concretely:
+
+- Shipped something? `CHANGELOG.md`, under the version that carries it.
+- Made a non-obvious call? `DECISIONS.md`, next free ID (check `git fetch` first
+  — more than one session runs here, and IDs have collided before).
+- Changed where the project stands, or hit a blocker? `STATUS.md`, and update
+  its "Last updated" date.
+- Finished or added a work item? `ROADMAP.md`.
+- Worked out a procedure? `docs/RUNBOOK.md`, with what it costs.
+
+A change that alters the situation and doesn't touch the canon is unfinished.
+This file holds the rules; `STATUS.md` holds the situation.
 
 ## What this project is
 

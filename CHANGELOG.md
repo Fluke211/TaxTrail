@@ -11,6 +11,20 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r4 — 2026-08-06
+
+Shipped over the air; no new build.
+
+- **Pinch-zoom on receipt photos**, in both the capture review and the saved
+  receipt detail. Checking a parse means reading the line items, which a 170px
+  thumbnail can't support. Uses iOS ScrollView's native zoom — no new native
+  dependency.
+- **Parser diagnostics export** — raw Apple Vision output beside what the
+  classifier made of it, so a scanning session becomes fixtures in bulk.
+- **Classifier scoring harness** (`npm run test:score`) over
+  `__tests__/corpus/`. Triage mode needs no expected values; `.expected.json`
+  files add hard assertions. Seeded with the three existing fixtures.
+
 ### v1.0.0 (build 1) · js r3 — 2026-08-06
 
 Shipped over the air; no new build.

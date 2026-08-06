@@ -30,8 +30,10 @@ air.
       the production build
 - [ ] Store every page of a multi-page receipt, not just the first (schema
       migration: one image per receipt today)
-- [ ] Port the PWA's diagnostic long-press pipeline to the app, so parser bugs
-      can be reported with the raw OCR text attached
+- [x] Parser diagnostics export — raw OCR text + what the parser made of it
+      (js r4)
+- [x] Classifier scoring harness, `npm run test:score` (js r4)
+- [x] Pinch-zoom on receipt photos in review and detail (js r4)
 - [ ] Add a regression fixture for every parser bug Tyler hits in real use
 
 ## Then — monetization (all JS, no build required)
@@ -55,8 +57,8 @@ including the `ONE_WEEK` trial, so most of the console work below is API work.
       7-day trial), `receiptsnap_pro_lifetime` ($99.99 non-consumable,
       **outside** the group) — created via MCP 2026-08-02; submission-time
       metadata (screenshots, privacy URL) still pending (STATUS.md)
-- [ ] Replace `appl_REPLACE_ME` in `src/lib/config.ts` with the public Apple key
-- [ ] Enforce the free tier (`FREE_SCANS_PER_MONTH = 10`)
+- [x] Public RevenueCat Apple key wired into `src/lib/config.ts` (js r2)
+- [x] Free tier enforced — `CaptureScreen` gates on `FREE_SCANS_PER_MONTH`
 - [ ] Paywall at the 10-scan wall, annual trial highlighted
 - [ ] Enrol in the App Store Small Business Program (15%) — before the first
       sale; not retroactive
