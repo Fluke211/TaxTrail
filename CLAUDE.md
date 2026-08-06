@@ -64,8 +64,10 @@ Two artifacts:
   in chat. **Terminal paste does NOT work on his phone; typing does.** Browser
   paste works fine.
 - **EAS build quota.** At most ONE build submission per explicit approval from
-  Tyler. Always preflight first (free). The free tier is ~15 iOS builds/month, so
-  a failure is recoverable — but never spend one without asking.
+  Tyler. Always preflight first (free). The free tier is 30 builds/month plus 10
+  waived (failed builds aren't charged) — measured, see D-015 — so a failure is
+  recoverable. Never spend one without asking. `step: usage` reports actual
+  consumption.
 - **JS-only changes NEVER need a build.** Use `eas update` or the dev server.
 
 ## Environment intelligence (hard-won — do not re-litigate)
@@ -92,12 +94,10 @@ Two artifacts:
 
 - Work on the designated feature branch, open a PR, merge to `main`. `main` is
   the single source of truth.
-- **Update `STATUS.md` at the end of every session.** It is how the next session
-  — or the next agent — knows where things stand.
-- Record non-obvious choices in `DECISIONS.md`. If you find yourself about to
-  re-litigate something, check there first.
-- Operational procedures live in `docs/RUNBOOK.md`. Extend it rather than
-  re-deriving a procedure.
+- Canon updates ship **with the change**, not at session end — see the rule at
+  the top of this file.
+- More than one session runs in this repo. `git fetch origin main` before
+  starting and before claiming a `DECISIONS.md` ID; they have collided before.
 
 ## Architecture notes (Expo app)
 
@@ -124,7 +124,8 @@ Two artifacts:
   Dice-similarity fingerprints with a street-number digit gate.
 - XLSX: SheetJS (`xlsx@0.18.5`, pure JS). exceljs does NOT work in RN — don't try.
 - Tests: `npm run test:unit` — keep green; **add a fixture for every parser bug
-  Tyler reports.**
+  Tyler reports.** `npm run test:score` scores the parser over
+  `__tests__/corpus/`, grown from the app's diagnostics export.
 
 ## Monetization
 
