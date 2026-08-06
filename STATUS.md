@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | Live, deployed via GitHub Pages. Untouched this session. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r4** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
+| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r5** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
 
 ---
 
@@ -19,7 +19,7 @@ pipeline is proven end to end on device.
 |---|---|
 | Build ID | `c0d5ebc3-8439-4333-aaa0-503feab787d2` |
 | Install | https://expo.dev/accounts/tylerthornbrue/projects/receiptsnap/builds/c0d5ebc3-8439-4333-aaa0-503feab787d2 |
-| Version | **v1.0.0 (build 1) · js r4** |
+| Version | **v1.0.0 (build 1) · js r5** |
 | Profile | `development` — dev client, ad-hoc internal distribution |
 | Provisioned device | iPhone `00008110-000969302ED3A01E` |
 
@@ -148,7 +148,10 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 
 ## Session log
 
-**2026-08-06** — js r3 then r4 shipped over the air. r3: VisionKit document
+**2026-08-06** — js r5: category picker rebuilt as a modal after Tyler hit it
+overflowing over the Save button (D-017); the same bug existed in two other
+call sites. Second real receipt (camera, not library) also parsed correctly.
+Earlier the same day, js r3 then r4 shipped over the air. r3: VisionKit document
 scanning, multi-page capture, receipt archive export (D-016), decision-ID
 collision resolved. Tyler installed it and scanned a real receipt successfully.
 r4: pinch-zoom on receipt photos (reviewing a parse means reading line items),

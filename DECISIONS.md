@@ -372,3 +372,31 @@ Pro boundary stays where it is: XLSX, TXF, QuickBooks, unlimited scans.
 
 **Still missing:** restore. Reading an archive back needs `expo-document-picker`,
 a native module, so it waits for the production build.
+
+---
+
+## D-017 · Long option lists are modals, not inline dropdowns
+
+**2026-08-06 · Settled**
+
+The category picker rendered all 29 options inline in a `<View>` carrying
+`maxHeight: 300`. **`maxHeight` on a React Native `View` does not clip or scroll
+its children** — the default `overflow` is visible, so every option drew past
+the bound and painted over the notes field and the Save/Discard buttons. Both
+layers were visible through each other. `ReceiptsScreen` had the same pattern
+with no `maxHeight` at all.
+
+`CategoryPicker` is a full-screen modal with a `FlatList`, used by all three
+call sites (main category, split category, receipt edit).
+
+A modal is the right shape here beyond fixing the overflow: 29 options don't fit
+a cramped inline box; a nested vertical `ScrollView` inside the form's own
+`ScrollView` fights it for gestures on iOS; and going full-screen dismisses the
+keyboard instead of competing with it.
+
+The dead `catList`/`catItem` styles were deleted rather than left behind, so the
+pattern can't be copied forward.
+
+**Rule:** an option list that can exceed a few items gets a modal. If something
+inline ever needs bounding, it must be a `ScrollView` — `maxHeight` on a `View`
+is not a bound.

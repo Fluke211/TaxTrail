@@ -11,6 +11,18 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r5 — 2026-08-06
+
+Shipped over the air; no new build.
+
+- **Fixed the category picker overflowing the screen.** All 29 categories
+  rendered inline and painted over the notes field and the Save/Discard
+  buttons — `maxHeight` on a React Native `View` neither clips nor scrolls
+  (D-017). Now a full-screen modal with a scrollable list, the current
+  selection marked, and the Schedule C line shown per option.
+- Same fix applied to the split-category and saved-receipt-edit pickers, which
+  had the same bug; the receipt-edit one had no height bound at all.
+
 ### v1.0.0 (build 1) · js r4 — 2026-08-06
 
 Shipped over the air; no new build.

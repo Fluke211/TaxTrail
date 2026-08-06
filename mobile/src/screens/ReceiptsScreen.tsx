@@ -6,6 +6,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { T } from '../lib/theme';
 import { ZoomableImage } from '../components/ZoomableImage';
+import { CategoryPicker } from '../components/CategoryPicker';
 import { deleteReceipt, updateReceipt, type Receipt } from '../lib/db';
 import { deleteReceiptFiles } from '../lib/ocr';
 import { SC_BY_NAME, allocationsOf } from '../lib/rows';
@@ -104,16 +105,15 @@ export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Rece
             <Pressable style={s.input} onPress={() => setShowCats(!showCats)}>
               <Text style={{ color: T.text }}>{selected.category} ▾</Text>
             </Pressable>
-            {showCats && (
-              <View style={s.catList}>
-                {CATEGORY_NAMES.map((name) => (
-                  <Pressable key={name} style={s.catItem}
-                    onPress={() => { setSelected({ ...selected, category: name, scheduleC: SC_BY_NAME[name] || '' }); setShowCats(false); }}>
-                    <Text style={{ color: name === selected.category ? T.accent : T.text, fontSize: 14 }}>{name}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
+            <CategoryPicker
+              visible={showCats}
+              categories={CATEGORY_NAMES}
+              lineFor={SC_BY_NAME}
+              selected={selected.category}
+              title="Main tax category"
+              onSelect={(name) => setSelected({ ...selected, category: name, scheduleC: SC_BY_NAME[name] || '' })}
+              onClose={() => setShowCats(false)}
+            />
             <Text style={s.hint}>{SC_BY_NAME[selected.category] || ''}</Text>
             {allocationsOf(selected).length > 1 && (
               <>
@@ -168,8 +168,6 @@ const s = StyleSheet.create({
     color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15,
   },
   hint: { color: T.muted2, fontSize: 12, marginTop: 6 },
-  catList: { backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10, marginTop: 6 },
-  catItem: { paddingHorizontal: 12, paddingVertical: 9, borderBottomColor: T.line, borderBottomWidth: StyleSheet.hairlineWidth },
   dangerBtn: {
     flex: 1, borderColor: 'rgba(255,107,107,0.45)', borderWidth: 1, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
