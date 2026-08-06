@@ -102,7 +102,7 @@ This costs a build, so batch them.
 
 **Default: publish an update, don't run a dev server.** Dispatch `step: update`,
 then open the dev client — the published update appears in its launcher and
-launches with no server involved. See D-012.
+launches with no server involved. See D-014.
 
 If live reload is genuinely worth it for a heavy editing session, a dev server
 still works from a Codespace:

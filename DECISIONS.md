@@ -5,6 +5,12 @@ re-litigating something — most of these cost real time to establish.
 
 Each entry: what was decided, when, why, and what would change it.
 
+> **Claiming an ID:** more than one session can be working in this repo at once.
+> Before adding an entry, `git fetch origin main` and take the next unused
+> number. If two sessions collide anyway, the later merge renumbers itself and
+> fixes any cross-references — IDs are cited from `ROADMAP.md`, `STATUS.md`, and
+> `docs/RUNBOOK.md`.
+
 ---
 
 ## D-001 · No ads, ever — especially not OCR-derived targeting
@@ -205,52 +211,12 @@ bigger cost. Not yet.
 
 ---
 
-## D-012 · The dev client loads JS from EAS Update, not a dev server
+## D-010 · XLSX via SheetJS, not exceljs
 
-**2026-08-02 · Settled**
+**Inherited · Settled**
 
-The dev client's launcher wants a Metro dev server URL. We don't use one.
-
-A dev server has to keep running somewhere the phone can reach. Claude Code
-sessions can't host it (Expo domains blocked, container is ephemeral), and from
-a Codespace it means babysitting a terminal on a phone while testing. Fragile
-in exactly the situation where you want to be paying attention to the app.
-
-Instead, publish the JS bundle to the `development` channel with `eas update`.
-The client lists published updates and launches them — no server, nothing to
-keep alive, and it works offline once fetched. The binary already carries
-`https://u.expo.dev/d98a6958-...` from `update:configure`, and the development
-build profile sets `channel: development`, so the two match.
-
-`runtimeVersion` policy is `appVersion` (1.0.0), so updates only load into a
-build with the same app version. Bumping `version` in `app.json` therefore
-orphans existing installs from new updates — that is the intended safety
-behaviour, not a bug.
-
-Dispatched via the workflow's `update` step.
-
-**Would change it:** heavy interactive iteration where live reload genuinely
-pays for itself. Then a Codespace dev server with `--tunnel` is still available.
-
----
-
-## D-013 · Real EAS quota, measured
-
-**2026-08-02 · Corrects an earlier estimate**
-
-The GTM doc's "free tier: 15 iOS builds/mo" was wrong. From the billing page:
-
-- **30 total builds/month**
-- **10 waived builds/month** — failed builds are waived rather than charged
-- 10 uploaded builds/month, 1,000 MAU, 100 GiB edge bandwidth
-
-The first signing failure cost nothing because it was waived. The waiver pool is
-account-wide, and stood at 6/10 after that failure, so failures stop being free
-after four more.
-
-**Practical effect:** a failed build is cheap but not free forever, and the
-30-build ceiling is far less tight than assumed. Tyler's one-build-per-approval
-rule still stands as discipline — but a failure is not a crisis.
+`xlsx@0.18.5` is pure JS and Hermes-safe. **exceljs does not work in React
+Native** — it hangs at splash. Don't retry it.
 
 ---
 
@@ -291,15 +257,6 @@ generating credentials, not after — and preflight cannot catch this, because
 
 ---
 
-## D-010 · XLSX via SheetJS, not exceljs
-
-**Inherited · Settled**
-
-`xlsx@0.18.5` is pure JS and Hermes-safe. **exceljs does not work in React
-Native** — it hangs at splash. Don't retry it.
-
----
-
 ## D-012 · RevenueCat dashboard config is API-driven from Atlas; restore behavior "Transfer if there are no active subscriptions"; no webhook
 
 **2026-08-02 · Settled**
@@ -337,3 +294,52 @@ Native** — it hangs at splash. Don't retry it.
   so the on-device branding stays "ReceiptSnap" regardless.
 
 **Would change it:** a better name freeing up before first submission.
+
+---
+
+## D-014 · The dev client loads JS from EAS Update, not a dev server
+
+**2026-08-02 · Settled**
+
+The dev client's launcher wants a Metro dev server URL. We don't use one.
+
+A dev server has to keep running somewhere the phone can reach. Claude Code
+sessions can't host it (Expo domains blocked, container is ephemeral), and from
+a Codespace it means babysitting a terminal on a phone while testing. Fragile
+in exactly the situation where you want to be paying attention to the app.
+
+Instead, publish the JS bundle to the `development` channel with `eas update`.
+The client lists published updates and launches them — no server, nothing to
+keep alive, and it works offline once fetched. The binary already carries
+`https://u.expo.dev/d98a6958-...` from `update:configure`, and the development
+build profile sets `channel: development`, so the two match.
+
+`runtimeVersion` policy is `appVersion` (1.0.0), so updates only load into a
+build with the same app version. Bumping `version` in `app.json` therefore
+orphans existing installs from new updates — that is the intended safety
+behaviour, not a bug.
+
+Dispatched via the workflow's `update` step.
+
+**Would change it:** heavy interactive iteration where live reload genuinely
+pays for itself. Then a Codespace dev server with `--tunnel` is still available.
+
+---
+
+## D-015 · Real EAS quota, measured
+
+**2026-08-02 · Corrects an earlier estimate**
+
+The GTM doc's "free tier: 15 iOS builds/mo" was wrong. From the billing page:
+
+- **30 total builds/month**
+- **10 waived builds/month** — failed builds are waived rather than charged
+- 10 uploaded builds/month, 1,000 MAU, 100 GiB edge bandwidth
+
+The first signing failure cost nothing because it was waived. The waiver pool is
+account-wide, and stood at 6/10 after that failure, so failures stop being free
+after four more.
+
+**Practical effect:** a failed build is cheap but not free forever, and the
+30-build ceiling is far less tight than assumed. Tyler's one-build-per-approval
+rule still stands as discipline — but a failure is not a crisis.
