@@ -45,6 +45,43 @@ export async function exportXLSX(receipts: Receipt[]): Promise<void> {
   );
 }
 
+/**
+ * Parser diagnostics: the raw Apple Vision output for every receipt, next to
+ * what the classifier made of it.
+ *
+ * Parser bugs can only be found on real receipts — synthetic images do not
+ * reproduce thermal fade, curl or glare. This is the handoff: one tap here
+ * turns a scanning session into regression fixtures, and every step after
+ * capture (fixtures, fixes, scoring) can then be automated.
+ *
+ * Contains receipt text, so it goes through the share sheet like everything
+ * else — the user chooses where it goes, and nothing is uploaded.
+ */
+export async function exportDiagnostics(receipts: Receipt[]): Promise<void> {
+  const payload = {
+    app: 'ReceiptSnap',
+    kind: 'parser-diagnostics',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    count: receipts.length,
+    receipts: receipts.map((r) => ({
+      id: r.id,
+      parsed: {
+        merchant: r.merchant, date: r.date, total: r.total,
+        salesTax: r.salesTax, taxRate: r.taxRate,
+        category: r.category, scheduleC: r.scheduleC,
+        confidence: r.confidence,
+      },
+      ocrText: r.ocrText,
+    })),
+  };
+  await shareText(
+    `receiptsnap-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
+    JSON.stringify(payload, null, 1),
+    'application/json',
+  );
+}
+
 // Filename-safe, human-browsable name: 0007-costco-2026-08-02.jpg
 function imageFileName(r: Receipt, i: number): string {
   const slug = (r.merchant || 'receipt').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);

@@ -1,23 +1,25 @@
 # Status
 
-**Last updated:** 2026-08-02 · Update this file at the end of every working session.
+**Last updated:** 2026-08-06 · Update this file at the end of every working session.
 
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | Live, deployed via GitHub Pages. Untouched this session. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r3** | Built and installable; js r3 (document scanner, archive export) ships via EAS Update |
+| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r4** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
 
 ---
 
 ## Current state
 
-**The development client is built and installable.**
+**The development client is installed and working.** Tyler scanned a real
+receipt on 2026-08-06 and it parsed correctly — the capture -> OCR -> classify
+pipeline is proven end to end on device.
 
 | | |
 |---|---|
 | Build ID | `c0d5ebc3-8439-4333-aaa0-503feab787d2` |
 | Install | https://expo.dev/accounts/tylerthornbrue/projects/receiptsnap/builds/c0d5ebc3-8439-4333-aaa0-503feab787d2 |
-| Version | **v1.0.0 (build 1) · js r1** |
+| Version | **v1.0.0 (build 1) · js r4** |
 | Profile | `development` — dev client, ad-hoc internal distribution |
 | Provisioned device | iPhone `00008110-000969302ED3A01E` |
 
@@ -72,13 +74,15 @@ after four more. Query current build records any time with the workflow's
 
 ## Next
 
-1. **Scan real receipts** on the dev client and report what the parser gets
-   wrong — that is the only input the OCR work still needs from Tyler
-2. Diagnostic export: dump `ocrText` for selected receipts so parser bugs
-   become regression fixtures in bulk
+1. **Scan a batch of real receipts**, then Summary -> Parser diagnostics and
+   send the file. That export is now the handoff: it turns a scanning session
+   into corpus fixtures, and everything downstream is automatable
+2. Grow `mobile/__tests__/corpus/` from those dumps; fix what `npm run
+   test:score` flags
 3. Restore from archive — needs `expo-document-picker`, so it batches into the
    production build
-4. Delete both Codespaces (`curly guacamole`, `potential train`) — done with them
+4. Store every page of a multi-page receipt (schema migration)
+5. Delete both Codespaces (`curly guacamole`, `potential train`) — done with them
 
 Full plan: [`ROADMAP.md`](ROADMAP.md).
 
@@ -134,11 +138,22 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   requirements — Apple counts "first subscription" and "first non-consumable"
   SEPARATELY). **No webhook — no backend exists, by design** (D-012); SDK
   entitlement checks are client-side.
+- **Category inference is weak without a merchant hint.** `npm run test:score`
+  flags both Costco fixtures as `uncategorized, low-confidence` — totals and
+  sales tax are correct, but the category falls through unless merchant memory
+  supplies a name. Worth attacking once the corpus is bigger than three.
 - **Apple credentials expire 31 May 2027** and renewal is an interactive trip.
 - **Two Codespaces exist** (`curly guacamole`, `potential train`). Delete both
   once credential work is finished — idle ones consume the storage allowance.
 
 ## Session log
+
+**2026-08-06** — js r3 then r4 shipped over the air. r3: VisionKit document
+scanning, multi-page capture, receipt archive export (D-016), decision-ID
+collision resolved. Tyler installed it and scanned a real receipt successfully.
+r4: pinch-zoom on receipt photos (reviewing a parse means reading line items),
+parser diagnostics export, and a classifier scoring harness with a seeded
+corpus. Canon rule added to CLAUDE.md after this file was found stale.
 
 **2026-08-02** — Established the Actions-based EAS pipeline; created and
 configured the EAS project; committed the project to `mobile/`; set up Apple
