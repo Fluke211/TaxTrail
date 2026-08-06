@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | Live, deployed via GitHub Pages. Untouched this session. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r2** | Built and installable; js r2 (RevenueCat key) ships via EAS Update — see below |
+| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r3** | Built and installable; js r3 (document scanner, archive export) ships via EAS Update |
 
 ---
 
@@ -72,10 +72,13 @@ after four more. Query current build records any time with the workflow's
 
 ## Next
 
-1. Install the dev client on Tyler's iPhone; confirm it launches, scans, and parses
-2. Wire the document scanner into the capture flow — the OCR accuracy work.
-   All JS from here, so it ships via `eas update` with no further builds
-3. Delete both Codespaces (`curly guacamole`, `potential train`) — done with them
+1. **Scan real receipts** on the dev client and report what the parser gets
+   wrong — that is the only input the OCR work still needs from Tyler
+2. Diagnostic export: dump `ocrText` for selected receipts so parser bugs
+   become regression fixtures in bulk
+3. Restore from archive — needs `expo-document-picker`, so it batches into the
+   production build
+4. Delete both Codespaces (`curly guacamole`, `potential train`) — done with them
 
 Full plan: [`ROADMAP.md`](ROADMAP.md).
 

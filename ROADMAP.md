@@ -22,11 +22,14 @@ Full reasoning: `MARKET_AND_GTM_STRATEGY.md` §5.3.
 The native modules are compiled in; the work is now all JS and ships over the
 air.
 
-- [ ] Wire the **document scanner** into the capture flow, replacing the raw
-      `expo-image-picker` photo path. This is the largest expected accuracy
-      gain — perspective correction and contrast enhancement before Vision ever
-      sees the image.
-- [ ] Multi-page capture for long receipts a single frame can't hold
+- [x] Wire the **document scanner** into the capture flow, replacing the raw
+      `expo-image-picker` photo path (js r3)
+- [x] Multi-page capture for long receipts a single frame can't hold (js r3)
+- [x] Receipt archive export — images can leave the device (js r3, D-016)
+- [ ] Restore from an archive — needs `expo-document-picker`, so it waits for
+      the production build
+- [ ] Store every page of a multi-page receipt, not just the first (schema
+      migration: one image per receipt today)
 - [ ] Port the PWA's diagnostic long-press pipeline to the app, so parser bugs
       can be reported with the raw OCR text attached
 - [ ] Add a regression fixture for every parser bug Tyler hits in real use

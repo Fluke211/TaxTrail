@@ -6,11 +6,12 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
 import * as Clipboard from 'expo-clipboard';
 import * as StoreReview from 'expo-store-review';
 import { T } from '../lib/theme';
 import { addReceipt, countThisMonth, type Allocation } from '../lib/db';
-import { processReceiptPhoto } from '../lib/ocr';
+import { processReceiptPages } from '../lib/ocr';
 import { memLookup, memLearn, taxMemLookup, taxMemLearn } from '../lib/memory';
 import { isPro, presentPaywall } from '../lib/purchases';
 import { FREE_SCANS_PER_MONTH } from '../lib/config';
@@ -64,14 +65,38 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
       Alert.alert('Permission needed', 'ReceiptSnap needs access to scan receipts. Everything stays on this device.');
       return;
     }
-    const result = fromLibrary
-      ? await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 })
-      : await ImagePicker.launchCameraAsync({ quality: 1 });
-    if (result.canceled || !result.assets?.length) return;
+    // Camera path goes through VisionKit's document scanner: it finds the
+    // receipt's edges, corrects perspective and boosts contrast before Apple
+    // Vision ever sees the image. A flat, deskewed scan is worth far more than
+    // any amount of parser tuning on a photo of a curled receipt. It also
+    // captures multiple pages, which a single frame cannot do for long receipts.
+    // The library path stays on ImagePicker — the scanner is camera-only.
+    let uris: string[] = [];
+    if (fromLibrary) {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+      if (result.canceled || !result.assets?.length) return;
+      uris = [result.assets[0].uri];
+    } else {
+      try {
+        const { scannedImages } = await DocumentScanner.scanDocument({
+          croppedImageQuality: 100,
+          responseType: ResponseType.ImageFilePath,
+        });
+        // Empty means the user backed out of the scanner.
+        if (!scannedImages?.length) return;
+        uris = scannedImages;
+      } catch (e) {
+        // Never let a scanner problem block capture — fall back to a plain photo.
+        console.warn('document scanner unavailable, falling back to camera', e);
+        const result = await ImagePicker.launchCameraAsync({ quality: 1 });
+        if (result.canceled || !result.assets?.length) return;
+        uris = [result.assets[0].uri];
+      }
+    }
 
     setBusy(true);
     try {
-      const { text, imagePath, thumbPath } = await processReceiptPhoto(result.assets[0].uri);
+      const { text, imagePath, thumbPath } = await processReceiptPages(uris);
       const parsed = C.parseReceipt(text);
       const remembered = await memLookup(text);
       const merchant = remembered || parsed.merchant || '';
