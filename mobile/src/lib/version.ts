@@ -3,7 +3,7 @@
 // every OTA (EAS Update) push so Tyler can verify which JS he's running.
 export const APP_VERSION = '1.0.0';
 export const APP_BUILD = 1;
-export const JS_REVISION = 5;
+export const JS_REVISION = 6;
 
 export function versionStamp(): string {
   return `ReceiptSnap v${APP_VERSION} (build ${APP_BUILD}) · js r${JS_REVISION}`;
