@@ -506,40 +506,41 @@ at its current address — replacing the file would strand the data.
 
 ---
 
-## D-022 · "Data Not Collected" is probably unachievable with RevenueCat
+## D-022 · The App Privacy label is "Purchases, not linked to you"
 
-**2026-08-07 · OPEN — needs Tyler's decision**
+**2026-08-07 · RESOLVED**
 
-`react-native-purchases` is compiled into the app. RevenueCat is a server-side
-receipt-validation service: purchase records, an app-generated user identifier,
-and device metadata are sent to its servers. Apple requires third-party SDK
-collection to be declared, so the App Privacy label would likely show
-**Purchases** and **Identifiers** rather than **Data Not Collected**.
+Resolved against RevenueCat's own App Privacy guidance, which Tyler retrieved —
+revenuecat.com is blocked from Claude Code sessions.
 
-This is load-bearing. `MARKET_AND_GTM_STRATEGY.md` §1 and D-001 both treat the
-"Data Not Collected" label as the moat and the hero screenshot.
+**"Data Not Collected" is not available.** RevenueCat requires disclosing
+Purchase History. But the outcome is far narrower than feared, because of how
+this app uses the SDK — each verified in `src/lib/purchases.ts`, not assumed:
 
-**Not verified.** `revenuecat.com` and `docs.revenuecat.com` are blocked from
-Claude Code sessions, and the iOS privacy manifest ships in the CocoaPod rather
-than the npm package, so the exact declarations could not be checked. The
-direction is structural, not a detail — but the specifics need confirming.
+| Check | This app | Consequence |
+|---|---|---|
+| `Purchases.configure({apiKey})` with no `appUserID` | anonymous IDs | Linked to identity → **No** |
+| No `setAttributes` / `setEmail` / `setDisplayName` | no customer attributes | Contact Info → **not required** |
+| No IDFA, attribution or analytics SDK | none | Device ID → **not required**; Tracking → **No** |
 
-**What survives regardless:** the substantive claim. Receipt images and
-recognized text genuinely never leave the device; only billing metadata does, and
-only for users who purchase. "Your receipts never leave your phone" is accurate,
-provable, and still unmatched in the category.
+**The label is one row:**
 
-**Options, for Tyler:**
+> **Data Not Linked to You** — Purchases (Purchase History)
+> Purposes: Analytics, App Functionality. Not used for tracking.
 
-1. Ship with an honest label (Purchases + Identifiers, not linked to identity,
-   not used for tracking) and market the receipt claim rather than the label.
-   Still far stronger than Keeper/QuickBooks/Wave, which collect financial data
-   for advertising.
-2. Drop RevenueCat and use StoreKit 2 directly. Preserves the strictest label,
-   but means writing entitlement logic, and loses remote paywall configuration
-   and price experiments (D-002 depends on those).
-3. Verify first — read RevenueCat's App Privacy guidance from an unblocked
-   browser before deciding.
+RevenueCat requires both purposes: *App Functionality* covers receipt validation
+and entitlements, *Analytics* covers their dashboard features.
 
-**Recommendation: option 1**, after verifying. The label is a proxy for the real
-claim, and the real claim is intact.
+Everything else is not collected per their table: no health, financial info,
+location (locale and currency code only), sensitive info, contacts, browsing or
+search history, or diagnostics.
+
+**The marketing claim survives nearly intact.** The hero comparison cannot say
+"Data Not Collected", but it can say **"Data Not Linked to You — purchases
+only"** against Keeper, QuickBooks and Wave, which show identity-linked financial
+data used for advertising. That contrast is still stark, and it is now provable
+rather than aspirational.
+
+**Would change it:** a custom app user ID, customer attributes, an analytics SDK,
+or any attribution integration. Each adds rows to the label — so each is now a
+marketing decision, not merely a technical one.

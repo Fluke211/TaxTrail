@@ -142,10 +142,13 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   does NOT mean the device is running it — the dev client does not poll the
   channel. Confirm by asking for the version stamp. From js r6, Summary has a
   "Tap to check for updates" button; before that it needs dev menu -> Go home.
-- **DECISION NEEDED — the App Privacy label (D-022).** RevenueCat almost
-  certainly makes "Data Not Collected" unachievable, and the GTM plan treats
-  that label as the moat. Unverified from here (revenuecat.com is blocked). The
-  substantive claim — receipts never leave the device — is unaffected.
+- **App Privacy label RESOLVED (D-022).** Not "Data Not Collected" — RevenueCat
+  requires disclosing Purchase History. But it is one row, **not linked to
+  identity and not used for tracking**, because the app uses anonymous app user
+  IDs, no customer attributes and no ad SDKs. Label reads **"Data Not Linked to
+  You — Purchases"**. Exact questionnaire answers in
+  `docs/APP_STORE_LISTING.md`. The GTM hero comparison needs rewording away from
+  "Data Not Collected"; the contrast against competitors survives.
 - **Support and privacy pages need a contact email.** `privacy.html` and
   `support.html` carry `CONTACT_EMAIL_PLACEHOLDER`; App Store submission
   requires a working support URL, so this blocks submission.
