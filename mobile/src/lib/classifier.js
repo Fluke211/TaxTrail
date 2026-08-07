@@ -452,24 +452,57 @@
         if (pr > 0 && pr < 0.25) { printedRate = pr; break; }   // sane sales-tax range
       }
     }
+    // Sales tax is a small fraction of the bill. Anything above a quarter of the
+    // grand total is something else that happened to sit near a "TAX" label —
+    // an item price, or the taxable base. Without this the largest-wins rule
+    // below happily picks the wrong number.
+    var grandTotal = extractTotal(lines);
+    function plausibleTax(v) {
+      if (v === null || v <= 0) return false;
+      return grandTotal ? v <= grandTotal * 0.25 : true;
+    }
+
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
       var m = line.match(moneyRe);
       var v = m ? normalizeAmount(m[1]) : null;
+      var vLine = m ? line : null;
       if (v === null) {
         // OCR often scrambles order — amount may sit on the next OR previous line
         var nm = (lines[i + 1] || '').match(moneyRe);
-        if (nm && !NOT_ITEM.test(lines[i + 1] || '')) v = normalizeAmount(nm[1]);
+        if (nm && !NOT_ITEM.test(lines[i + 1] || '')) { v = normalizeAmount(nm[1]); vLine = lines[i + 1]; }
         if (v === null) {
           var pm = (lines[i - 1] || '').match(moneyRe);
-          if (pm && !/[a-z]{3}/i.test((lines[i - 1] || '').replace(pm[0], ''))) v = normalizeAmount(pm[1]);
+          if (pm && !/[a-z]{3}/i.test((lines[i - 1] || '').replace(pm[0], ''))) { v = normalizeAmount(pm[1]); vLine = lines[i - 1]; }
         }
       }
       if (v === null || v < 0) continue;
       if (/sub\s*-?\s*total|subtotal/i.test(line) && subtotal === null) subtotal = v;
       else if (/(total\s*tax|sales\s*tax|\btax\b|\bget\b|\bgst\b|\bhst\b|\bvat\b)/i.test(line) &&
                !/taxable/i.test(line) && !/\bfsa\b/i.test(line)) {   // FSA N/TAX AMT is not sales tax
-        if (tax === null || v > tax) tax = v;      // "TOTAL TAX" usually prints last/largest
+        var cand = v;
+        // "$13.98 @ 6.0%" — the amount is the TAXABLE BASE, not the tax. Bass Pro
+        // prints it this way and the tax itself is often OCR-mangled ("$0. 8-"),
+        // so compute it instead of trying to read it.
+        var atRate = vLine && vLine.match(/@\s*(\d{1,2}(?:[.,]\d{1,4})?)\s*%/);
+        if (atRate) {
+          var r = parseFloat(atRate[1].replace(',', '.')) / 100;
+          if (r > 0 && r < 0.25) cand = Math.round(cand * r * 100) / 100;
+        }
+        // Column layouts (Safeway) separate the "TAX" label from its value by
+        // several header lines, so the adjacent amount is an item price. When
+        // the neighbour is implausible, scan ahead for the first amount that
+        // could actually be a tax.
+        if (!plausibleTax(cand)) {
+          for (var k = i + 1; k < Math.min(lines.length, i + 7); k++) {
+            var fm = lines[k].match(moneyRe);
+            if (!fm) continue;
+            var fv = normalizeAmount(fm[1]);
+            if (plausibleTax(fv)) { cand = fv; break; }
+          }
+        }
+        if (!plausibleTax(cand)) continue;
+        if (tax === null || cand > tax) tax = cand;   // "TOTAL TAX" usually prints last/largest
       }
     }
     var rate = printedRate;

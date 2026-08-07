@@ -11,6 +11,19 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r7 — 2026-08-07
+
+Shipped over the air; no new build.
+
+- **Sales tax parsed correctly on two real-world layouts** (D-020). Bass Pro's
+  `$13.98 @ 6.0%` was read as the tax rather than the taxable base; Safeway's
+  column layout put an item price next to the `TAX` label. Adds a plausibility
+  bound (tax ≤ 25% of total), computes `$X @ Y%` properly, and scans ahead when
+  the adjacent amount is implausible.
+- **The update-check button is hidden outside dev/preview channels** (D-019), so
+  it cannot reach the App Store — a guard rather than a reminder.
+- Corpus grown to five receipts from the first diagnostics export.
+
 ### v1.0.0 (build 1) · js r6 — 2026-08-06
 
 Shipped over the air; no new build.
