@@ -17,6 +17,14 @@ export default function SummaryScreen({ receipts, pro, onProChanged }: {
   const [busyExport, setBusyExport] = useState<string | null>(null);
   const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'none' | 'error'>('idle');
 
+  // Dev/preview affordance only — never in the shipped app.
+  //
+  // Fails CLOSED: shown only when the channel is explicitly a non-production
+  // one, so an unset or unrecognised channel hides it. Production builds use
+  // channel "production" (mobile/eas.json), which is why this needs no manual
+  // step before submitting — there is nothing to remember to turn off.
+  const showUpdateCheck = Updates.channel === 'development' || Updates.channel === 'preview';
+
   // A dev client pins whichever update was launched from its launcher and does
   // not poll the channel, so getting a new JS revision otherwise means the dev
   // menu -> Go home -> pick the newest build. This does it in one tap.
@@ -142,15 +150,19 @@ export default function SummaryScreen({ receipts, pro, onProChanged }: {
         </Pressable>
       )}
 
-      <Pressable onPress={checkForUpdate} disabled={updateState === 'checking'} hitSlop={10}>
+      {showUpdateCheck ? (
+        <Pressable onPress={checkForUpdate} disabled={updateState === 'checking'} hitSlop={10}>
+          <Text style={s.version}>{versionStamp()}</Text>
+          <Text style={[s.version, s.updateLink, { marginTop: 4 }]}>
+            {updateState === 'checking' ? 'Checking…'
+              : updateState === 'none' ? 'Up to date · tap to check again'
+              : updateState === 'error' ? 'Check failed · tap to retry'
+              : 'Tap to check for updates'}
+          </Text>
+        </Pressable>
+      ) : (
         <Text style={s.version}>{versionStamp()}</Text>
-        <Text style={[s.version, s.updateLink, { marginTop: 4 }]}>
-          {updateState === 'checking' ? 'Checking…'
-            : updateState === 'none' ? 'Up to date · tap to check again'
-            : updateState === 'error' ? 'Check failed · tap to retry'
-            : 'Tap to check for updates'}
-        </Text>
-      </Pressable>
+      )}
       <Text style={[s.version, { marginTop: 2 }]}>
         {pro ? '★ Pro' : 'Free plan'} · {receipts.length} receipt{receipts.length === 1 ? '' : 's'} · 100% on-device
       </Text>

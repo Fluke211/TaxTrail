@@ -430,3 +430,59 @@ Two consequences:
 
 **Note:** this only helps from r6 onward, since the button ships *in* an update.
 Reaching r6 the first time still needs the launcher.
+
+---
+
+## D-019 · Dev-only UI is gated on the release channel, not on a reminder
+
+**2026-08-06 · Settled**
+
+The "Tap to check for updates" affordance (D-018) must not ship in the released
+app. Rather than a pre-submission checklist item — which is exactly the sort of
+thing that gets forgotten — it is gated on `Updates.channel`:
+
+```js
+const showUpdateCheck = Updates.channel === 'development' || Updates.channel === 'preview';
+```
+
+`mobile/eas.json` gives the production profile `channel: "production"`, verified,
+so the button disappears in a production build with no manual step.
+
+The check **fails closed**: it shows only for explicitly-named non-production
+channels, so an unset or unrecognised channel hides it. The safe default is
+hidden.
+
+**Rule:** any developer affordance gets the same treatment. A guard that cannot
+be forgotten beats a checklist that can.
+
+---
+
+## D-020 · Sales tax must be plausible relative to the total
+
+**2026-08-07 · Settled**
+
+Two real receipts from Tyler both had tax parsed wrong, in different ways:
+
+- **Bass Pro** printed `SALESTAX` / `$13.98 @ 6.0%`. The parser took `13.98` —
+  the taxable *base*. The actual tax was OCR-mangled to `$0. 8-`, unreadable.
+- **Safeway (Honolulu)** used a column layout where `TAX` is separated from its
+  value by header lines, so the adjacent-line fallback grabbed `3.49`, an item
+  price. Correct tax was `0.40`.
+
+`tax = max(candidates)` meant a wrong-but-large value always won.
+
+Three changes to `extractTaxInfo`:
+
+1. **Plausibility bound** — a tax candidate above 25% of the grand total is not
+   sales tax. This alone rejects both wrong values (94% and 39% of total).
+2. **`$X @ Y%` is a base, not a tax** — compute `X × Y` instead. Bass Pro yields
+   `13.98 × 6% = 0.84`, which is also more robust than reading a mangled glyph.
+3. **Forward scan** — when the adjacent amount is implausible, look ahead up to
+   six lines for the first plausible one. Recovers Safeway's `0.40`.
+
+All 10 unit tests still pass, including the Costco FSA exclusion, and the
+five-receipt corpus scores zero mismatches.
+
+**Note:** `classifier.js` is shared with the PWA, which inlines its own copy and
+therefore still has both bugs. Porting means editing the live `index.html`, so
+it needs Tyler's go-ahead.

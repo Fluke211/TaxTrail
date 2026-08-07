@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | Live, deployed via GitHub Pages. Untouched this session. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r6** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
+| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r7** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
 
 ---
 
@@ -19,7 +19,7 @@ pipeline is proven end to end on device.
 |---|---|
 | Build ID | `c0d5ebc3-8439-4333-aaa0-503feab787d2` |
 | Install | https://expo.dev/accounts/tylerthornbrue/projects/receiptsnap/builds/c0d5ebc3-8439-4333-aaa0-503feab787d2 |
-| Version | **v1.0.0 (build 1) · js r6** |
+| Version | **v1.0.0 (build 1) · js r7** |
 | Profile | `development` — dev client, ad-hoc internal distribution |
 | Provisioned device | iPhone `00008110-000969302ED3A01E` |
 
@@ -142,6 +142,9 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   does NOT mean the device is running it — the dev client does not poll the
   channel. Confirm by asking for the version stamp. From js r6, Summary has a
   "Tap to check for updates" button; before that it needs dev menu -> Go home.
+- **The PWA still has both tax bugs fixed in D-020.** `classifier.js` is shared,
+  but `index.html` inlines its own copy and is live and untouched per the
+  guardrail. Porting needs Tyler's go-ahead.
 - **Category inference is weak without a merchant hint.** `npm run test:score`
   flags both Costco fixtures as `uncategorized, low-confidence` — totals and
   sales tax are correct, but the category falls through unless merchant memory
