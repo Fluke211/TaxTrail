@@ -5,8 +5,37 @@ import { Alert } from 'react-native';
 import Purchases from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { ENTITLEMENT_PRO, REVENUECAT_APPLE_API_KEY } from './config';
+import type { PaywallPackage } from '../components/FallbackPaywall';
 
 let configured = false;
+
+// The fallback paywall must be a real screen with the disclosures Apple requires
+// (Guideline 3.1.2), which an Alert cannot carry. This module can't render, so
+// App.tsx registers a presenter and we call into it.
+type FallbackPresenter = (
+  packages: PaywallPackage[],
+  onChoice: (id: string | 'restore' | 'cancel') => void,
+) => void;
+
+let presentFallback: FallbackPresenter | null = null;
+
+export function registerFallbackPaywall(fn: FallbackPresenter | null): void {
+  presentFallback = fn;
+}
+
+function periodLabelFor(p: any): { periodLabel: string; autoRenewing: boolean; introLabel?: string } {
+  const period: string | undefined = p.product?.subscriptionPeriod;   // ISO 8601, e.g. P1M / P1Y
+  if (!period) return { periodLabel: 'one-time purchase', autoRenewing: false };
+  const label = period === 'P1M' ? 'per month'
+    : period === 'P1Y' ? 'per year'
+    : period === 'P1W' ? 'per week'
+    : `per ${period.replace('P', '').toLowerCase()}`;
+  const intro = p.product?.introPrice;
+  const introLabel = intro && intro.price === 0
+    ? `${intro.periodNumberOfUnits}-${String(intro.periodUnit || '').toLowerCase()} free trial, then`
+    : undefined;
+  return { periodLabel: label, autoRenewing: true, introLabel };
+}
 
 export function initPurchases(): void {
   if (configured) return;
@@ -54,29 +83,38 @@ export async function presentPaywall(): Promise<boolean> {
         Alert.alert('Store unavailable', 'Could not load products. Check the RevenueCat offering configuration.');
         return false;
       }
+      if (!presentFallback) {
+        // Refuse to offer a purchase through a non-compliant surface.
+        Alert.alert('Store unavailable', 'Could not open the purchase screen. Please try again.');
+        return false;
+      }
+      const described: PaywallPackage[] = pkgs.map((p) => {
+        const meta = periodLabelFor(p);
+        return {
+          id: p.identifier,
+          title: p.product.title,
+          priceString: p.product.priceString,
+          periodLabel: meta.periodLabel,
+          introLabel: meta.introLabel,
+          autoRenewing: meta.autoRenewing,
+        };
+      });
       return await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          'ReceiptSnap Pro',
-          'Unlimited scans + all export formats.',
-          [
-            ...pkgs.map((p) => ({
-              text: `${p.product.title} — ${p.product.priceString}`,
-              onPress: async () => {
-                try {
-                  const { customerInfo } = await Purchases.purchasePackage(p);
-                  resolve(customerInfo.entitlements.active[ENTITLEMENT_PRO] != null);
-                } catch { resolve(false); }
-              },
-            })),
-            { text: 'Restore purchases', onPress: async () => {
-              try {
-                const info = await Purchases.restorePurchases();
-                resolve(info.entitlements.active[ENTITLEMENT_PRO] != null);
-              } catch { resolve(false); }
-            } },
-            { text: 'Not now', style: 'cancel' as const, onPress: () => resolve(false) },
-          ]
-        );
+        presentFallback!(described, async (choice) => {
+          if (choice === 'cancel') return resolve(false);
+          if (choice === 'restore') {
+            try {
+              const info = await Purchases.restorePurchases();
+              return resolve(info.entitlements.active[ENTITLEMENT_PRO] != null);
+            } catch { return resolve(false); }
+          }
+          const pkg = pkgs.find((p) => p.identifier === choice);
+          if (!pkg) return resolve(false);
+          try {
+            const { customerInfo } = await Purchases.purchasePackage(pkg);
+            resolve(customerInfo.entitlements.active[ENTITLEMENT_PRO] != null);
+          } catch { resolve(false); }
+        });
       });
     } catch (e) {
       console.warn('purchase flow failed', e);

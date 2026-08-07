@@ -6,7 +6,8 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { StatusBar } from 'expo-status-bar';
 import { T } from './src/lib/theme';
 import { allReceipts, type Receipt } from './src/lib/db';
-import { initPurchases, isPro } from './src/lib/purchases';
+import { initPurchases, isPro, registerFallbackPaywall } from './src/lib/purchases';
+import { FallbackPaywall, type PaywallPackage } from './src/components/FallbackPaywall';
 import CaptureScreen from './src/screens/CaptureScreen';
 import ReceiptsScreen from './src/screens/ReceiptsScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
@@ -15,6 +16,18 @@ type Tab = 'capture' | 'receipts' | 'summary';
 
 function Root() {
   const insets = useSafeAreaInsets();
+  // Compliant fallback paywall, shown only if RevenueCat's remote template fails
+  // to load. Rendered here so it sits above the tab shell (see purchases.ts).
+  const [fallback, setFallback] = useState<{
+    packages: PaywallPackage[];
+    onChoice: (id: string | 'restore' | 'cancel') => void;
+  } | null>(null);
+
+  useEffect(() => {
+    registerFallbackPaywall((packages, onChoice) => setFallback({ packages, onChoice }));
+    return () => registerFallbackPaywall(null);
+  }, []);
+
   const [tab, setTab] = useState<Tab>('capture');
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [pro, setPro] = useState(false);
@@ -31,6 +44,13 @@ function Root() {
 
   return (
     <View style={[s.app, { paddingTop: insets.top }]}>
+      <FallbackPaywall
+        visible={fallback != null}
+        packages={fallback?.packages ?? []}
+        onPurchase={(id) => { fallback?.onChoice(id); setFallback(null); }}
+        onRestore={() => { fallback?.onChoice('restore'); setFallback(null); }}
+        onClose={() => { fallback?.onChoice('cancel'); setFallback(null); }}
+      />
       <View style={s.header}>
         <Text style={s.brand}>
           Receipt<Text style={{ color: T.accent }}>Snap</Text>
