@@ -11,6 +11,16 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r6 — 2026-08-06
+
+Shipped over the air; no new build.
+
+- **"Tap to check for updates"** under the version stamp in Summary. A dev
+  client pins whichever update was launched from its launcher and does not poll
+  the channel, so picking up a new JS revision otherwise means shake -> dev menu
+  -> Go home -> select the newest build. This fetches and reloads in one tap.
+  Harmless in a production build, where it just forces an early check.
+
 ### v1.0.0 (build 1) · js r5 — 2026-08-06
 
 Shipped over the air; no new build.

@@ -400,3 +400,33 @@ pattern can't be copied forward.
 **Rule:** an option list that can exceed a few items gets a modal. If something
 inline ever needs bounding, it must be a `ScrollView` — `maxHeight` on a `View`
 is not a bound.
+
+---
+
+## D-018 · Dev clients don't auto-update; the app offers a manual check
+
+**2026-08-06 · Settled**
+
+Tyler was still on `js r3` after r4 and r5 published successfully. The channel
+was correct — `eas channel:view development` showed r5 as the most recent group
+at runtime version 1.0.0, matching the build.
+
+The cause is deliberate `expo-dev-client` behaviour: it **pins whichever update
+was launched from its launcher and does not poll the channel**, so you aren't
+yanked off the build you're debugging. Force-quitting relaunches the pinned
+update. A production build behaves differently — it checks on start, downloads
+in the background, and applies on the next launch.
+
+Two consequences:
+
+1. Getting a new revision onto a dev client means dev menu -> Go home -> pick
+   the newest entry. Publishing is necessary but not sufficient.
+2. **A successful publish is not evidence the device is running it.** Ask for
+   the version stamp; don't infer it.
+
+`SummaryScreen` now has "Tap to check for updates" under the version stamp —
+`checkForUpdateAsync` -> `fetchUpdateAsync` -> `reloadAsync`, guarded by
+`Updates.isEnabled` so it degrades cleanly when running from a dev server.
+
+**Note:** this only helps from r6 onward, since the button ships *in* an update.
+Reaching r6 the first time still needs the launcher.

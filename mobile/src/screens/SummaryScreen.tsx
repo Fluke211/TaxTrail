@@ -1,6 +1,6 @@
 // Summary: totals by tax form/category, sales-tax tracking, exports (CSV free;
 // XLSX/TXF/QBO are Pro), JSON backup, version stamp.
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { T } from '../lib/theme';
 import type { Receipt } from '../lib/db';
@@ -8,12 +8,39 @@ import { exportRows, isBusiness, allocationsOf } from '../lib/rows';
 import { exportCSV, exportTXF, exportQBO, exportXLSX, exportBackup, exportArchive, exportDiagnostics } from '../lib/exportShare';
 import { isPro, presentPaywall } from '../lib/purchases';
 import { versionStamp } from '../lib/version';
+import * as Updates from 'expo-updates';
 const C = require('../lib/classifier.js');
 
 export default function SummaryScreen({ receipts, pro, onProChanged }: {
   receipts: Receipt[]; pro: boolean; onProChanged: () => void;
 }) {
   const [busyExport, setBusyExport] = useState<string | null>(null);
+  const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'none' | 'error'>('idle');
+
+  // A dev client pins whichever update was launched from its launcher and does
+  // not poll the channel, so getting a new JS revision otherwise means the dev
+  // menu -> Go home -> pick the newest build. This does it in one tap.
+  // Harmless in production builds, where it just forces an early check.
+  const checkForUpdate = useCallback(async () => {
+    if (!Updates.isEnabled) {
+      Alert.alert('Not available', 'This build loads JS from a dev server, so there is nothing to fetch.');
+      return;
+    }
+    setUpdateState('checking');
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (result.isAvailable) {
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();   // does not return
+      } else {
+        setUpdateState('none');
+      }
+    } catch (e) {
+      console.warn('update check failed', e);
+      setUpdateState('error');
+    }
+  }, []);
+
 
   const stats = useMemo(() => {
     const byForm = new Map<string, Map<string, number>>();
@@ -115,7 +142,15 @@ export default function SummaryScreen({ receipts, pro, onProChanged }: {
         </Pressable>
       )}
 
-      <Text style={s.version}>{versionStamp()}</Text>
+      <Pressable onPress={checkForUpdate} disabled={updateState === 'checking'} hitSlop={10}>
+        <Text style={s.version}>{versionStamp()}</Text>
+        <Text style={[s.version, s.updateLink, { marginTop: 4 }]}>
+          {updateState === 'checking' ? 'Checking…'
+            : updateState === 'none' ? 'Up to date · tap to check again'
+            : updateState === 'error' ? 'Check failed · tap to retry'
+            : 'Tap to check for updates'}
+        </Text>
+      </Pressable>
       <Text style={[s.version, { marginTop: 2 }]}>
         {pro ? '★ Pro' : 'Free plan'} · {receipts.length} receipt{receipts.length === 1 ? '' : 's'} · 100% on-device
       </Text>
@@ -146,4 +181,5 @@ const s = StyleSheet.create({
     backgroundColor: T.accent, borderRadius: T.radius, padding: 16, alignItems: 'center', marginTop: 14,
   },
   version: { color: T.muted2, fontSize: 11, textAlign: 'center', marginTop: 18, letterSpacing: 0.3 },
+  updateLink: { color: T.accent, marginTop: 4 },
 });
