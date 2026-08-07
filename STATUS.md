@@ -4,7 +4,7 @@
 
 | Artifact | Version | State |
 |---|---|---|
-| PWA (`index.html`) | **v5.5** | Live, deployed via GitHub Pages. Untouched this session. |
+| PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
 | iOS app (`mobile/`) | **v1.0.0 (build 1) · js r7** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
 
 ---
@@ -142,9 +142,13 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   does NOT mean the device is running it — the dev client does not poll the
   channel. Confirm by asking for the version stamp. From js r6, Summary has a
   "Tap to check for updates" button; before that it needs dev menu -> Go home.
-- **The PWA still has both tax bugs fixed in D-020.** `classifier.js` is shared,
-  but `index.html` inlines its own copy and is live and untouched per the
-  guardrail. Porting needs Tyler's go-ahead.
+- **DECISION NEEDED — the App Privacy label (D-022).** RevenueCat almost
+  certainly makes "Data Not Collected" unachievable, and the GTM plan treats
+  that label as the moat. Unverified from here (revenuecat.com is blocked). The
+  substantive claim — receipts never leave the device — is unaffected.
+- **Support and privacy pages need a contact email.** `privacy.html` and
+  `support.html` carry `CONTACT_EMAIL_PLACEHOLDER`; App Store submission
+  requires a working support URL, so this blocks submission.
 - **Category inference is weak without a merchant hint.** `npm run test:score`
   flags both Costco fixtures as `uncategorized, low-confidence` — totals and
   sales tax are correct, but the category falls through unless merchant memory
