@@ -41,12 +41,13 @@ receipt splitting with tax-aware math, sales-tax tracking, CPA-ready exports
 
 Two artifacts:
 
-1. **PWA** — `index.html` at repo root. LIVE and deployed via GitHub Pages
-   (Tyler's daily driver), currently **v5.5**. Single-file build; classifier and
-   exporters are inlined. Do not modify unless Tyler explicitly asks.
-2. **iOS app (Expo)** — `mobile/`, **v1.0.0 (build 1)**. EAS-configured and
-   committed, so it is durable across sessions. Do not reconstruct it from the
-   installer unless it is genuinely missing.
+1. **iOS app (Expo)** — `mobile/`. **The product.** EAS-configured and committed,
+   so it is durable across sessions. Do not reconstruct it from the installer
+   unless it is genuinely missing.
+2. **PWA** — `index.html` at repo root, **RETIRED** at v5.5 (D-021). It was the
+   proof of concept. **Do not modify or delete it**: Tyler still has receipts in
+   its browser storage that he may export, and that storage is tied to the page
+   at its current address.
 
 ## Tyler's standing rules (do not drop these)
 
@@ -121,7 +122,9 @@ Two artifacts:
 - OCR: `expo-text-extractor` (Apple Vision) — returns ordered text lines, joined
   with `\n` and fed to `src/lib/classifier.js`. The engine is as good as it gets;
   **what limits accuracy is the image quality handed to it.**
-- `classifier.js` + `exporters.js` are SHARED with the PWA and must stay in sync.
+- `classifier.js` + `exporters.js` originated in the PWA but are no longer kept
+  in sync with it — the PWA is retired (D-021). `mobile/` is the only copy that
+  matters; fix parser bugs there and do not port back.
 - Storage: expo-sqlite (`src/lib/db.ts`); images as JPEGs under documentDirectory.
 - Merchant / city tax-rate memory: `src/lib/memory.ts` (AsyncStorage),
   Dice-similarity fingerprints with a street-number digit gate.

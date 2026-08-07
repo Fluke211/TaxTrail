@@ -486,3 +486,60 @@ five-receipt corpus scores zero mismatches.
 **Note:** `classifier.js` is shared with the PWA, which inlines its own copy and
 therefore still has both bugs. Porting means editing the live `index.html`, so
 it needs Tyler's go-ahead.
+
+---
+
+## D-021 · The PWA is retired; the Expo app is the product
+
+**2026-08-07 · Settled by Tyler**
+
+`index.html` was the proof of concept. The Expo app now does everything it did
+and more, so the PWA is no longer maintained and parser fixes are **not** ported
+back to it. It stays at v5.5 with the two tax bugs fixed in D-020.
+
+This retires the "keep `classifier.js` and `exporters.js` in sync" rule that had
+been in `CLAUDE.md` since the handoff. `mobile/` is the only copy that matters.
+
+**`index.html` must not be modified or deleted.** Tyler still has receipts in the
+PWA's browser storage that he may export, and that storage is bound to the page
+at its current address — replacing the file would strand the data.
+
+---
+
+## D-022 · "Data Not Collected" is probably unachievable with RevenueCat
+
+**2026-08-07 · OPEN — needs Tyler's decision**
+
+`react-native-purchases` is compiled into the app. RevenueCat is a server-side
+receipt-validation service: purchase records, an app-generated user identifier,
+and device metadata are sent to its servers. Apple requires third-party SDK
+collection to be declared, so the App Privacy label would likely show
+**Purchases** and **Identifiers** rather than **Data Not Collected**.
+
+This is load-bearing. `MARKET_AND_GTM_STRATEGY.md` §1 and D-001 both treat the
+"Data Not Collected" label as the moat and the hero screenshot.
+
+**Not verified.** `revenuecat.com` and `docs.revenuecat.com` are blocked from
+Claude Code sessions, and the iOS privacy manifest ships in the CocoaPod rather
+than the npm package, so the exact declarations could not be checked. The
+direction is structural, not a detail — but the specifics need confirming.
+
+**What survives regardless:** the substantive claim. Receipt images and
+recognized text genuinely never leave the device; only billing metadata does, and
+only for users who purchase. "Your receipts never leave your phone" is accurate,
+provable, and still unmatched in the category.
+
+**Options, for Tyler:**
+
+1. Ship with an honest label (Purchases + Identifiers, not linked to identity,
+   not used for tracking) and market the receipt claim rather than the label.
+   Still far stronger than Keeper/QuickBooks/Wave, which collect financial data
+   for advertising.
+2. Drop RevenueCat and use StoreKit 2 directly. Preserves the strictest label,
+   but means writing entitlement logic, and loses remote paywall configuration
+   and price experiments (D-002 depends on those).
+3. Verify first — read RevenueCat's App Privacy guidance from an unblocked
+   browser before deciding.
+
+**Recommendation: option 1**, after verifying. The label is a proxy for the real
+claim, and the real claim is intact.
