@@ -131,20 +131,27 @@ the free tier permits 10 scans per month with full parsing and CSV export.
 
 ## App Privacy questionnaire
 
-**Resolve D-022 before filling this in.** RevenueCat is a server-side
-receipt-validation service, so "Data Not Collected" is likely unavailable. Expect
-to declare, at minimum:
+Resolved — see D-022. Answer exactly this:
 
-| Data type | Linked to identity? | Used for tracking? | Purpose |
-|---|---|---|---|
-| Purchases | No | No | App Functionality |
-| Identifiers (app-generated user ID) | No | No | App Functionality |
+**Data collected: Purchases → Purchase History**
 
-**Nothing about receipts is collected** — no photos, no recognized text, no
-merchants, amounts, or categories. That is the claim worth defending, and it is
-true.
+| Question | Answer |
+|---|---|
+| Purposes | **Analytics** and **App Functionality** (RevenueCat requires both) |
+| Linked to the user's identity? | **No** — anonymous app user IDs, no server of ours |
+| Used for tracking? | **No** — no advertising or attribution SDKs |
 
-Verify against RevenueCat's own App Privacy guidance before submitting.
+**Everything else: not collected.** No contact info, health, financial info,
+location, sensitive info, contacts, browsing or search history, identifiers, or
+diagnostics. Identifiers is *not* required — RevenueCat needs it only if purchase
+history is linked to identity or an ad identifier is used, and neither applies.
+
+Resulting label:
+
+> **Data Not Linked to You** — Purchases
+
+Nothing about receipts is collected: no photos, no recognized text, no merchants,
+amounts, or categories. That is the claim to defend, and it is true.
 
 ## Screenshots
 
