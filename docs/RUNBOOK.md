@@ -141,6 +141,74 @@ is the exception rather than the default.
 
 ---
 
+## Publish taxtrail.app — Cloudflare, one-time
+
+The domain is on Cloudflare Registrar, so DNS is already Cloudflare's. Reasoning
+for this split is D-029; do these in order, each is verifiable on its own.
+
+### 1. Email routing (do this first — it is the App Store blocker)
+
+Cloudflare dash → **Compute → Email Service → Email Routing → Onboard Domain**,
+pick `taxtrail.app`, accept the DNS records it offers. It adds MX, SPF and DKIM
+on the root domain itself; do not hand-write them.
+
+Then **Routing Rules → Create routing rule**:
+
+| Field | Value |
+|---|---|
+| Email pattern | `support` |
+| Action | Send to an email |
+| Destination | Tyler's real inbox |
+
+Add a **catch-all** rule to the same destination so a guessed address still
+lands. Cloudflare emails the destination a verification link — the rule does not
+work until that link is clicked.
+
+**Verify before relying on it:** send a message to `support@taxtrail.app` from a
+*different* account than the destination — some providers drop mail that appears
+to come from the same account it is delivered to — and check spam. Propagation
+is usually 5–15 minutes, up to 24 hours.
+
+### 2. Site hosting
+
+Cloudflare dash → **Workers & Pages → Create application → Pages → Import an
+existing Git repository** → `Fluke211/TaxTrail`:
+
+| Setting | Value |
+|---|---|
+| Production branch | `main` |
+| Framework preset | None |
+| Build command | **leave empty** |
+| Build output directory | **`site`** |
+
+`site` is the whole point — it serves only the three public pages and never the
+retired PWA at the repo root. Then **Custom domains → Set up a custom domain →
+`taxtrail.app`**. Cloudflare adds the DNS record itself.
+
+### 3. Switch the app and the listing over — only after step 2 answers 200
+
+```bash
+curl -sSL -o /dev/null -w "%{http_code}\n" https://taxtrail.app/privacy.html
+```
+
+Must print `200`. Only then update `PRIVACY_URL` in
+`mobile/src/components/FallbackPaywall.tsx` and the two URLs in
+`docs/APP_STORE_LISTING.md`, and ship via `eas update`.
+
+**Do not skip the check.** js r10 exists because the repo rename moved the Pages
+path and left the paywall pointing at a 404 — and Guideline 3.1.2 requires a
+working privacy link on the purchase screen.
+
+### What NOT to do
+
+**Never set a custom domain on this repo's GitHub Pages site.** GitHub then
+redirects `fluke211.github.io/TaxTrail/` to it, which moves the origin. The
+retired PWA's `localStorage` — holding Tyler's unexported receipts — is scoped to
+`https://fluke211.github.io`, so the data would survive but nothing would be able
+to read it. See D-029.
+
+---
+
 ## Apple credential work (rare)
 
 Needed when certificates expire (**31 May 2027**), a new test device is added,

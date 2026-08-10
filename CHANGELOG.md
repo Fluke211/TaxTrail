@@ -11,6 +11,18 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r10 — 2026-08-10
+
+- **Fixed a broken privacy link in the paywall.** The repo rename to `TaxTrail`
+  moved the GitHub Pages path, so `FallbackPaywall`'s `PRIVACY_URL` was pointing
+  at a URL that now returns 404 — verified. Guideline 3.1.2 requires a working
+  privacy link on the purchase screen, so this would have failed review.
+- Support and privacy pages carry a real contact address, `taxtrail@vaultvision.team`
+  (D-027). Submission is no longer blocked on it.
+- Expo `slug` stays `receiptsnap` (D-028). Renaming the project on expo.dev
+  changed its display name only; two controlled `usage` runs showed the flip
+  breaks `eas build:list`. Developer-facing plumbing, invisible to users.
+
 ### v1.0.0 (build 1) · js r9 — 2026-08-10
 
 **Renamed from ReceiptSnap to TaxTrail** (D-026). Not yet published — ships
@@ -135,6 +147,17 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 ---
 
 ## Repository
+
+### 2026-08-10 (later)
+
+- `site/` — the public taxtrail.app site: landing page, privacy policy and
+  support page, on `support@taxtrail.app` (D-030). Deployed by Cloudflare Pages
+  from that subdirectory, which keeps the retired PWA at the repo root out of it
+- D-029: hosting split, and why a custom domain must never go on this repo's
+  GitHub Pages — it would move the origin and strand the PWA's stored receipts
+- D-030: one support address, via Cloudflare Email Routing
+- `docs/RUNBOOK.md`: the one-time Cloudflare procedure, with the 200-check that
+  must pass before the app's privacy link is repointed
 
 ### 2026-08-10
 

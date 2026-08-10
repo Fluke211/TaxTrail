@@ -739,7 +739,8 @@ RevenueCat entitlement `pro` and offering `default` are unaffected. **They are
 not hardcoded anywhere in `src/`** — offerings are fetched at runtime — so this
 costs nothing in the codebase.
 
-**3. `"slug": "receiptsnap"` in `app.json` stays, for now.** EAS CLI validates
+**3. `"slug": "receiptsnap"` in `app.json` stays — permanently, as it turns
+out.** (Amended 2026-08-10 after testing; see D-028.) EAS CLI validates
 the slug against the project identified by `extra.eas.projectId` and errors on a
 mismatch. The project is `@tylerthornbrue/receiptsnap` on expo.dev, which cannot
 be renamed from here — **every Expo domain returns a gateway 403** in these
@@ -774,3 +775,176 @@ regenerated provisioning profile — an interactive Codespace trip, since
 `eas credentials` has no non-interactive mode (D-004) — and a build. The build
 was already required for the URL scheme (D-024) and `expo-document-picker`, so
 they share one.
+
+---
+
+## D-027
+
+**Launch on a borrowed email; buy the domain anyway.**
+
+Date: 2026-08-10 · Status: accepted (with a dissent recorded)
+
+Tyler's call: hold off on `taxtrail.app` and use `taxtrail@vaultvision.team` —
+an address on a domain he already owns — so the app can ship and prove it earns
+anything before more money goes in. That is now wired into `privacy.html` and
+`support.html`, unblocking submission.
+
+**The principle is right.** Apple requires a working support URL, a privacy
+policy URL and a reachable contact. None of those require owning the brand's
+domain. GitHub Pages serves both documents free, and the support email only has
+to deliver. Spending before evidence is how projects die slowly, and this one
+has already lost a week to an unverified assumption.
+
+**The specific call is a bad trade, and this records why.** The sum is $10.98
+a year, against $99 already committed to the Apple Developer Program and a
+month of Tyler's evenings. Deferring it does not preserve meaningful
+optionality — it is not the marginal dollar that decides whether this ships.
+
+What it does do is create an asymmetric risk. `taxtrail.app` is unregistered
+*today*. The moment the app is listed, the name becomes public and searchable,
+and the domain becomes a thing someone can take for the same $10.98 — to park
+it, resell it, or point it at something we would not want our users to find.
+For an app whose entire pitch is "your receipts never leave your phone",
+`taxtrail.app` resolving to somebody else's page is a trust problem that no
+amount of listing copy repairs. The downside is small but effectively
+irreversible; the cost of avoiding it is eleven dollars.
+
+There is a second, softer cost: a support address on `vaultvision.team` reads
+as unrelated to the product. App Review will not care. A privacy-conscious user
+looking up who they are emailing might.
+
+**What makes this reversible:** the support and privacy contact fields are App
+Store *metadata*. Changing them later needs neither a build nor a review cycle,
+so switching to `support@taxtrail.app` whenever the domain is bought costs
+nothing. That is what makes shipping on the placeholder genuinely safe.
+
+**Recommendation on the record:** buy `taxtrail.app` as a defensive
+registration, not as a website. Keep the `vaultvision.team` address until there
+is revenue. The $10.98 buys the name, not the infrastructure.
+
+**Before submission, confirm `taxtrail@vaultvision.team` actually delivers** —
+forwarding is configured per-address on that domain, and a support address that
+bounces is worse than one on the wrong domain.
+
+
+---
+
+## D-028
+
+**The Expo slug stays `receiptsnap` for good. Renaming the project did not
+change it, and it is invisible to users.**
+
+Date: 2026-08-10 · Status: accepted · Amends D-026
+
+D-026 held the slug back and called it a two-step: Tyler renames the project at
+expo.dev, then the slug flips. He renamed it. The flip still failed.
+
+**Tested, not assumed** — two free `usage` runs, which cost nothing:
+
+| Ref | `slug` in `app.json` | Result |
+|---|---|---|
+| `claude/receiptsnap-github-work-4rcvdf` | `taxtrail` | **failure** — `eas build:list` errored after a successful login |
+| `main` | `receiptsnap` | **success** |
+
+Identical workflow, identical token, minutes apart. The only difference was the
+slug, so the server-side slug is still `receiptsnap`. Renaming a project in the
+expo.dev dashboard changes its **display name**; the slug that
+`extra.eas.projectId` resolves against does not follow.
+
+**Decision: stop chasing it.** The slug appears in exactly one place a human
+ever sees — the `expo.dev/accounts/tylerthornbrue/projects/<slug>` URL. It is
+not in the app, not in the App Store listing, not in the bundle identifier, and
+not in the OTA update URL (`updates.url` is the project UUID). The upside of
+changing it is zero; the downside is breaking the Actions workflow, which is the
+only EAS interface these sessions have, since every Expo domain returns a
+gateway 403.
+
+A future SDK upgrade or a fresh EAS project would be a natural moment to let it
+change. Until then it is a piece of internal plumbing wearing the old name, like
+`receiptsnap.db` and the three product IDs.
+
+**Method note worth keeping:** the `usage` step is free and touches EAS for
+real, which makes it a general-purpose probe for "did I just break the Expo
+project config?" Running it on `main` as a control is what turned a vague
+`build:list command failed` into a one-variable answer.
+
+---
+
+## D-029
+
+**taxtrail.app is hosted on Cloudflare Pages from `site/`. GitHub Pages is left
+alone on purpose — a custom domain there would strand Tyler's PWA receipts.**
+
+Date: 2026-08-10 · Status: accepted · Answers "do we need the GitHub site or
+the taxtrail.app website?"
+
+**Answer: one canonical home, and it should be `taxtrail.app`.** GitHub Pages
+was the stopgap while there was no domain. But the two are not
+interchangeable, and the obvious move — pointing `taxtrail.app` at the existing
+GitHub Pages site — is the one that must not be made.
+
+**The hazard.** Setting a custom domain on a GitHub Pages site makes GitHub
+redirect `<user>.github.io/<repo>` to that domain. The retired PWA
+(`index.html`) is served from this repo's root, and Tyler still has unexported
+receipts in its browser storage. **`localStorage` is scoped to the origin** —
+`https://fluke211.github.io` — not to the path. That is why renaming the repo
+from `receipt-snap` to `TaxTrail` was harmless: verified, the PWA still answers
+200 at `https://fluke211.github.io/TaxTrail/` and the origin never moved. A
+custom domain *does* move it. His receipts would still exist in the browser
+under the old origin with no page left able to read them.
+
+So GitHub Pages keeps serving the repo root, with no custom domain, until those
+receipts are exported.
+
+**The split:**
+
+| | Serves | From |
+|---|---|---|
+| **Cloudflare Pages → `taxtrail.app`** | Landing page, privacy policy, support | `site/` |
+| **GitHub Pages → `fluke211.github.io/TaxTrail/`** | The retired PWA, plus the current App Store URLs | repo root |
+
+Cloudflare Pages' Git import takes a **build output directory**, so pointing it
+at `site/` serves only those three files and never the PWA at the root. The repo
+stays the single source of truth for both, which is the property Tyler actually
+cares about — nothing is authored in a dashboard.
+
+**Sequencing, deliberately.** The App Store URLs and the app's `PRIVACY_URL`
+still point at GitHub Pages and **do not move until `taxtrail.app` answers 200**.
+Switching them first is exactly the bug that shipped in js r10 — the repo rename
+moved the Pages path and left the paywall linking to a 404. Guideline 3.1.2
+requires a working privacy link on the purchase screen, so an unverified URL
+there fails review.
+
+**Later, once the PWA receipts are exported:** collapse the duplication by
+turning the root `privacy.html` / `support.html` into redirects to
+`taxtrail.app`. Two copies of a privacy policy is a drift hazard, and it is
+accepted only while both addresses have to work.
+
+---
+
+## D-030
+
+**Email is `support@taxtrail.app` via Cloudflare Email Routing. One address, not
+three.**
+
+Date: 2026-08-10 · Status: accepted · Supersedes the placeholder in D-027
+
+D-027 shipped `taxtrail@vaultvision.team` as a borrowed address. Tyler bought
+`taxtrail.app` (Cloudflare Registrar, $14.20), so that is resolved.
+
+**One address, not a set.** `support@`, `privacy@`, `hello@` and `legal@` is
+what a company with a support team does. For a solo developer it is four routing
+rules, four things to check, and four ways to silently drop a customer email.
+`support@taxtrail.app` goes in the privacy policy, the support page, the landing
+page, and the App Store listing. A catch-all rule backstops anything else, so
+mail to a guessed address still arrives.
+
+**Cloudflare Email Routing rather than a mail host** — free, requires no
+mailbox, and forwards to the inbox Tyler already reads. It configures its own
+MX, SPF and DKIM records on the root domain automatically, and requires the
+domain to use Cloudflare DNS, which a Cloudflare Registrar domain does by
+default. Procedure in `docs/RUNBOOK.md`.
+
+**It bounces until Tyler enables it**, which is why the app and the App Store
+listing are not switched to it in the same change. Verify delivery first — a
+support address that bounces is worse than one on the wrong domain.
