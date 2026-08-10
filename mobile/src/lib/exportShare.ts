@@ -24,23 +24,23 @@ const year = () => String(new Date().getFullYear());
 
 export async function exportCSV(receipts: Receipt[]): Promise<void> {
   const csv: string = X.buildCpaCSV(exportRows(receipts));
-  await shareText(`receiptsnap-${year()}.csv`, csv, 'text/csv');
+  await shareText(`taxtrail-${year()}.csv`, csv, 'text/csv');
 }
 
 export async function exportTXF(receipts: Receipt[]): Promise<void> {
   const txf = X.buildTXF(exportRows(receipts), new Date());
-  await shareText(`receiptsnap-${year()}.txf`, txf.content, 'application/octet-stream');
+  await shareText(`taxtrail-${year()}.txf`, txf.content, 'application/octet-stream');
 }
 
 export async function exportQBO(receipts: Receipt[]): Promise<void> {
   const qbo: string = X.buildQBO(exportRows(receipts));
-  await shareText(`receiptsnap-quickbooks-${year()}.csv`, qbo, 'text/csv');
+  await shareText(`taxtrail-quickbooks-${year()}.csv`, qbo, 'text/csv');
 }
 
 export async function exportXLSX(receipts: Receipt[]): Promise<void> {
   const b64 = buildXlsxBase64(exportRows(receipts), year());
   await shareBase64(
-    `receiptsnap-${year()}.xlsx`, b64,
+    `taxtrail-${year()}.xlsx`, b64,
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   );
 }
@@ -59,7 +59,7 @@ export async function exportXLSX(receipts: Receipt[]): Promise<void> {
  */
 export async function exportDiagnostics(receipts: Receipt[]): Promise<void> {
   const payload = {
-    app: 'ReceiptSnap',
+    app: 'TaxTrail',
     kind: 'parser-diagnostics',
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -76,7 +76,7 @@ export async function exportDiagnostics(receipts: Receipt[]): Promise<void> {
     })),
   };
   await shareText(
-    `receiptsnap-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
+    `taxtrail-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
     JSON.stringify(payload, null, 1),
     'application/json',
   );
@@ -125,28 +125,28 @@ export async function exportArchive(receipts: Receipt[]): Promise<void> {
 
   const stamp = new Date().toISOString().slice(0, 10);
   zip.file('backup.json', JSON.stringify({
-    app: 'ReceiptSnap', version: 3, exportedAt: new Date().toISOString(),
+    app: 'TaxTrail', version: 3, exportedAt: new Date().toISOString(),
     receiptCount: manifest.length, imageCount: withImages,
     receipts: manifest,
   }, null, 1));
   zip.file('receipts.csv', X.buildCpaCSV(exportRows(receipts)));
   zip.file('README.txt',
-    `ReceiptSnap archive — ${stamp}\n\n` +
+    `TaxTrail archive — ${stamp}\n\n` +
     `${manifest.length} receipts, ${withImages} images.\n\n` +
     `images/     the receipt photographs\n` +
     `receipts.csv  the same data as a spreadsheet, organized by IRS form\n` +
     `backup.json   full records; each entry's "imageFile" names its image\n\n` +
     `Keep this file somewhere durable. Everything in it was produced on your\n` +
-    `device — ReceiptSnap has no servers and never uploaded any of it.\n`);
+    `device — TaxTrail has no servers and never uploaded any of it.\n`);
 
   const b64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
-  await shareBase64(`receiptsnap-archive-${stamp}.zip`, b64, 'application/zip');
+  await shareBase64(`taxtrail-archive-${stamp}.zip`, b64, 'application/zip');
 }
 
 // Full JSON backup (same v2 schema family as the PWA backup).
 // Data only — image paths in here go stale on reinstall. Use exportArchive for
 // anything meant to outlive the current install.
 export async function exportBackup(receipts: Receipt[]): Promise<void> {
-  const payload = JSON.stringify({ app: 'ReceiptSnap', version: 2, exportedAt: new Date().toISOString(), receipts }, null, 1);
-  await shareText(`receiptsnap-backup-${new Date().toISOString().slice(0, 10)}.json`, payload, 'application/json');
+  const payload = JSON.stringify({ app: 'TaxTrail', version: 2, exportedAt: new Date().toISOString(), receipts }, null, 1);
+  await shareText(`taxtrail-backup-${new Date().toISOString().slice(0, 10)}.json`, payload, 'application/json');
 }

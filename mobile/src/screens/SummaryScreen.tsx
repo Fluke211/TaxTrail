@@ -143,7 +143,7 @@ export default function SummaryScreen({ receipts, pro, onProChanged }: {
 
       {!pro && (
         <Pressable style={s.proBtn} onPress={async () => { if (await presentPaywall()) onProChanged(); }}>
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Upgrade to ReceiptSnap Pro</Text>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Upgrade to TaxTrail Pro</Text>
           <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 3 }}>
             Unlimited scans · every export format · $39.99/yr
           </Text>

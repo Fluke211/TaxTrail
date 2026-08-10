@@ -1,6 +1,6 @@
 {
-  "name": "ReceiptSnap Mobile",
-  "postCreateCommand": "bash .devcontainer/setup.sh 2>&1 | tee ~/receiptsnap-setup.log",
+  "name": "TaxTrail Mobile",
+  "postCreateCommand": "bash .devcontainer/setup.sh 2>&1 | tee ~/taxtrail-setup.log",
   "customizations": {
     "vscode": {
       "settings": { "task.allowAutomaticTasks": "on" }

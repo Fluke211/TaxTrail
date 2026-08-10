@@ -1,4 +1,4 @@
-# ReceiptSnap — Project Instructions (CLAUDE.md)
+# TaxTrail — Project Instructions (CLAUDE.md)
 
 Instructions for AI agents working on this repo. Tyler works with you directly —
 he should never need to relay between assistants.
@@ -33,7 +33,7 @@ This file holds the rules; `STATUS.md` holds the situation.
 
 ## What this project is
 
-ReceiptSnap: a privacy-first receipt scanner for US small-business taxes.
+TaxTrail: a privacy-first receipt scanner for US small-business taxes.
 100% on-device OCR, no account, no cloud. Auto-categorizes into 29 tax categories
 mapped to IRS Schedule C lines (+ Schedule A / Form 8829 / 4562 / COGS / Personal),
 receipt splitting with tax-aware math, sales-tax tracking, CPA-ready exports

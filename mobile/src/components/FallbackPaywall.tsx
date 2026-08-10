@@ -41,7 +41,7 @@ export function FallbackPaywall({ visible, packages, onPurchase, onRestore, onCl
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={s.sheet}>
         <ScrollView contentContainerStyle={s.body}>
-          <Text style={s.title}>ReceiptSnap Pro</Text>
+          <Text style={s.title}>TaxTrail Pro</Text>
           <Text style={s.sub}>
             Unlimited scans, plus Excel, TXF and QuickBooks exports. Everything
             still stays on your device.

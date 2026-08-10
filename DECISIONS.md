@@ -706,3 +706,71 @@ cross-surface*, so they go in **profile custom instructions**, where every
 surface picks them up. Everything project-specific stays in `CLAUDE.md`. The
 exact text to paste is `docs/CROSS_SURFACE_RULES.md` — kept in the repo so it is
 reviewable, versioned, and reachable from a phone browser.
+
+---
+
+## D-026
+
+**Renamed to TaxTrail — and six identifiers deliberately still say ReceiptSnap.**
+
+Date: 2026-08-10 · Status: accepted
+
+Closes D-023. Tyler cleared **`TaxTrail: Receipt Scanner`** in App Store Connect
+with subtitle *"Categorization for Schedule C"*, confirmed **zero USPTO hits**
+for TAXTRAIL (searches for "tax trail" return only TAX and TRAIL separately),
+and confirmed `taxtrail.app` is available at $10.98. Due diligence is in
+`docs/NAMING_2026-08.md` §6. He asked for every instance to change "if we can
+do it" — this records where we could not, and why.
+
+84 strings across 21 files were renamed. The exceptions:
+
+**1. `receiptsnap.db` — the SQLite filename stays.** `src/lib/db.ts` opens the
+database by name. Renaming it makes the app open a fresh, empty database and
+Tyler's scanned receipts become invisible — still on disk, but unreachable
+without a migration. A cosmetic rename is not worth a data-loss path. The
+filename is never shown to a user.
+
+**2. `receiptsnap_pro_monthly` / `_annual` / `_lifetime` — the product IDs
+stay.** These are App Store Connect product identifiers and are permanent once
+created. Renaming means deleting and recreating them, which discards the
+`ONE_WEEK` trial on the annual and the full territory price schedules already
+configured (STATUS.md). They are internal strings no user ever sees. The
+RevenueCat entitlement `pro` and offering `default` are unaffected. **They are
+not hardcoded anywhere in `src/`** — offerings are fetched at runtime — so this
+costs nothing in the codebase.
+
+**3. `"slug": "receiptsnap"` in `app.json` stays, for now.** EAS CLI validates
+the slug against the project identified by `extra.eas.projectId` and errors on a
+mismatch. The project is `@tylerthornbrue/receiptsnap` on expo.dev, which cannot
+be renamed from here — **every Expo domain returns a gateway 403** in these
+sessions. Changing the slug before the server side would break the Actions
+workflow, which is the only EAS interface we have. Two-step: Tyler renames the
+project at expo.dev in a browser, then the slug flips. The `projectId` and the
+`updates.url` are UUIDs and carry no name, so OTA updates are unaffected either
+way.
+
+**4. `index.html` and `setup-receiptsnap-mobile.sh` — untouched, per the
+guardrail.** The PWA is retired but live, and Tyler still has unexported
+receipts in its browser storage, which is bound to the page at its current
+address. The installer is kept byte-unchanged deliberately.
+
+**5. History is not rewritten.** `DECISIONS.md`, `CHANGELOG.md`,
+`ROADMAP.md`, `docs/MARKET_REASSESSMENT_2026-08.md`, `docs/NAMING_2026-08.md`
+and `docs/CROSS_SURFACE_RULES.md` keep "ReceiptSnap" wherever it refers to the
+old name. D-013 and D-023 are *about* that name — find-and-replacing them would
+erase the record of the mistake, which is the one thing guaranteeing we do not
+repeat it. Renaming history to match the present is how a project forgets.
+
+**6. `receipt-snap` — the GitHub repo name.** Tyler's to change. It is in the
+GitHub Pages URLs that `privacy.html` and `support.html` are served from, and in
+`FallbackPaywall.tsx`'s `PRIVACY_URL`, so those three change together with it or
+they 404. Left correct-as-of-today rather than pre-emptively broken.
+
+**The bundle identifier DID change** — `com.tylerthornbrue.receiptsnap` →
+`com.tylerthornbrue.taxtrail`, on both iOS and Android. This is the one
+expensive part, and it was Tyler's explicit call. It is permanent once shipped
+(D-005) and nothing has shipped, so the window is now. It costs a new App ID, a
+regenerated provisioning profile — an interactive Codespace trip, since
+`eas credentials` has no non-interactive mode (D-004) — and a build. The build
+was already required for the URL scheme (D-024) and `expo-document-picker`, so
+they share one.

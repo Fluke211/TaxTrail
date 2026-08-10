@@ -11,6 +11,20 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r9 — 2026-08-10
+
+**Renamed from ReceiptSnap to TaxTrail** (D-026). Not yet published — ships
+after PR merge.
+
+- App name, version stamp, paywall copy and every export filename now read
+  **TaxTrail**: `taxtrail-2026.csv`, `taxtrail-archive-<stamp>.zip`,
+  `taxtrail-diagnostics-<date>.json`, and the `app` field in `backup.json`.
+- Bundle identifier **`com.tylerthornbrue.taxtrail`** on iOS and Android.
+  Permanent once shipped, and nothing has shipped — this was the window.
+  **Requires a new provisioning profile and a build.**
+- The on-device database filename is deliberately unchanged, so existing
+  receipts survive the rename. Same for the App Store Connect product IDs.
+
 ### v1.0.0 (build 1) · js r7 — 2026-08-07
 
 Shipped over the air; no new build.

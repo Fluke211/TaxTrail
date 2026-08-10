@@ -1,4 +1,4 @@
-// ReceiptSnap — root component. Custom three-tab shell (no navigation library:
+// TaxTrail — root component. Custom three-tab shell (no navigation library:
 // fewer native deps = safer single EAS build), same layout as the PWA.
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';

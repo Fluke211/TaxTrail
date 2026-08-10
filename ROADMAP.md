@@ -87,9 +87,9 @@ including the `ONE_WEEK` trial, so most of the console work below is API work.
 The rename forces a new bundle identifier, which forces a build. Anything else
 that touches `Info.plist` or entitlements should ride along in the same one.
 
-- [ ] **Clear a name and rename everywhere** — shortlist and procedure in
-      `docs/NAMING_2026-08.md`; blocked on Tyler running the App Store Connect
-      and USPTO checks
+- [x] **Clear a name and rename everywhere** — now **TaxTrail** (D-026).
+      Bundle identifier changed, so a new provisioning profile is required
+      before this build
 - [ ] **URL scheme + `capture` deep link** (D-024). `mobile/app.json` has no
       `scheme` today. Unlocks a Control Center / Lock Screen / Action Button
       button via a one-action user shortcut, plus Android launcher shortcuts

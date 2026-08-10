@@ -1,5 +1,5 @@
 /*
- * ReceiptSnap — export builders (CPA CSV, Excel workbook, TXF, QuickBooks CSV).
+ * TaxTrail — export builders (CPA CSV, Excel workbook, TXF, QuickBooks CSV).
  * Shared between the web app and Node tests. Organized by IRS form:
  * Schedule C (by line number) → COGS → Form 8829 → Form 4562 → Schedule A → review → personal.
  */
@@ -64,7 +64,7 @@
     });
     var d = exportDate || new Date();
     var ds = (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
-    var out = ['V042', 'AReceiptSnap', 'D' + ds, '^'];
+    var out = ['V042', 'ATaxTrail', 'D' + ds, '^'];
     Object.keys(byCode).sort(function (a, b) { return a - b; }).forEach(function (code) {
       out.push('TS', 'N' + code, 'C1', 'L1', '$-' + byCode[code].sum.toFixed(2),
         'X' + ascii(Object.keys(byCode[code].cats).join('; ')), '^');
@@ -76,7 +76,7 @@
   // Tabs: Summary (by IRS form, DIY-software entry guide) · Schedule C · Other Forms + Personal
   function buildWorkbook(ExcelJS, rows, year) {
     var wb = new ExcelJS.Workbook();
-    wb.creator = 'ReceiptSnap';
+    wb.creator = 'TaxTrail';
     var sorted = sortRows(rows);
     var HDR_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF5' } };
     var CUR = '"$"#,##0.00';

@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r7** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
+| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r9** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
 
 ---
 
@@ -18,7 +18,7 @@ pipeline is proven end to end on device.
 | | |
 |---|---|
 | Build ID | `c0d5ebc3-8439-4333-aaa0-503feab787d2` |
-| Install | https://expo.dev/accounts/tylerthornbrue/projects/receiptsnap/builds/c0d5ebc3-8439-4333-aaa0-503feab787d2 |
+| Install | https://expo.dev/accounts/tylerthornbrue/projects/taxtrail/builds/c0d5ebc3-8439-4333-aaa0-503feab787d2 |
 | Version | **v1.0.0 (build 1) · js r7** |
 | Profile | `development` — dev client, ad-hoc internal distribution |
 | Provisioned device | iPhone `00008110-000969302ED3A01E` |
@@ -66,7 +66,7 @@ after four more. Query current build records any time with the workflow's
 - [x] Apple credentials: distribution certificate + ad-hoc provisioning profile,
       Team `5M67JT29GJ`, valid to **31 May 2027**
 - [x] iPhone `00008110-000969302ED3A01E` registered and provisioned
-- [x] Bundle ID settled: `com.tylerthornbrue.receiptsnap`
+- [x] Bundle ID settled: `com.tylerthornbrue.taxtrail`
 - [x] Native dependency set chosen and installed
 - [x] Permission surface audited and minimized
 - [x] CI preflight green: **expo-doctor 19/19**, `expo prebuild` succeeds
@@ -100,26 +100,27 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 
 ## Open items and known issues
 
-- **BLOCKING — the app needs a new name (D-023).** "ReceiptSnap" is used by four
-  shipping apps, and the on-device/no-account position is occupied by at least
-  three competitors. See `docs/MARKET_REASSESSMENT_2026-08.md`. Nothing has
-  shipped publicly, so the change is cheap now and expensive later. The bundle
-  identifier changes with the name.
+- **RESOLVED — the app is now TaxTrail (D-026).** App Store Connect record is
+  **`TaxTrail: Receipt Scanner`**, subtitle *"Categorization for Schedule C"*.
+  USPTO returns **zero hits** for TAXTRAIL; Google Play is clear; the only
+  same-root app is [MyTaxTrail](https://apps.apple.com/us/app/mytaxtrail/id6756753200)
+  (0 ratings, manual entry, no OCR). Diligence: `docs/NAMING_2026-08.md` §6.
+  Bundle identifier is now `com.tylerthornbrue.taxtrail`.
 
-  **Name chosen: `TaxTrail: Receipt Scanner`**, subtitle *"Categorization for
-  Schedule C"* — cleared in App Store Connect and set on the app record
-  2026-08-10. Bare "TaxTrail" and "Tax Trail" were both refused, which means
-  another developer holds those strings on an unreleased record.
+  **Six identifiers still say ReceiptSnap on purpose** — reasons in D-026:
+  the on-device SQLite file `receiptsnap.db` (renaming orphans Tyler's
+  receipts), the three App Store Connect product IDs (permanent; recreating
+  discards the annual trial and price schedules), the Expo `slug`, the two
+  guardrailed files, the historical docs, and the GitHub repo name.
 
-  Due diligence is in `docs/NAMING_2026-08.md` §6. Verdict: **usable, not
-  clean** — one same-root app exists ([MyTaxTrail](https://apps.apple.com/us/app/mytaxtrail/id6756753200),
-  0 ratings, manual entry, no OCR, same privacy pitch), TaxTrail is a live
-  B2B tax-software brand in Switzerland and New Zealand, and `taxtrail.com` has
-  been held since 2006. Google Play is clear and `taxtrail.app` is free.
-
-  **Two things still open, both Tyler's:** run the USPTO search for live class
-  9 / 36 marks (every trademark route is blocked by this environment's egress
-  proxy), and buy `taxtrail.app`. The rename is not started until both land.
+  **Three follow-ups, all Tyler's, none blocking each other:**
+  1. **Buy `taxtrail.app`** ($10.98, Namecheap). Also unblocks the support and
+     privacy contact address below.
+  2. **Rename the Expo project** to `taxtrail` at expo.dev → project settings.
+     Then the `slug` in `app.json` can flip. Until then it must stay, or the
+     Actions workflow breaks — every Expo domain is 403 from these sessions.
+  3. **Rename the GitHub repo** to `taxtrail`. `privacy.html`, `support.html`
+     and `FallbackPaywall.tsx`'s `PRIVACY_URL` all change with it.
 
 - **No standalone CI on pull requests.** Tests only run when the EAS workflow is
   dispatched manually. A push/PR-triggered test workflow would catch regressions
@@ -134,7 +135,7 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   the RevenueCat MCP).** Done: project **`proj63a7fa32`** created; restore
   behavior set to "Transfer if there are no active subscriptions" (D-012);
   App Store Connect app record created as **"ReceiptSnap: Expense Organizer"**
-  (D-013), bundle `com.tylerthornbrue.receiptsnap`. RC iOS app
+  (D-013), bundle `com.tylerthornbrue.taxtrail`. RC iOS app
   **`appc76b61980d`**; products registered in RC —
   `receiptsnap_pro_monthly`=`prod1b93a74c4b`,
   `receiptsnap_pro_annual`=`prode8994cbc24`,
@@ -183,8 +184,12 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 
 ## Session log
 
-**2026-08-10** — Name settled as **TaxTrail: Receipt Scanner** after Tyler ran
-the App Store Connect check; full due diligence in `docs/NAMING_2026-08.md` §6.
+**2026-08-10** — **Renamed to TaxTrail** (D-026): 84 strings across 21 files,
+bundle identifier now `com.tylerthornbrue.taxtrail`, js r9. Six identifiers held
+back deliberately, including the SQLite filename and the App Store Connect
+product IDs. Tests 10/10, `tsc --noEmit` clean, score harness unchanged at 3/5
+clean. Name settled as **TaxTrail: Receipt Scanner** after Tyler ran
+the App Store Connect check, USPTO (zero hits) and the domain check; full due diligence in `docs/NAMING_2026-08.md` §6.
 Corrected an error in that document: domain availability was first judged by DNS
 lookup, which cannot distinguish an undelegated registered domain from a free
 one — re-verified by RDAP, four `.com` candidates were in fact taken. Earlier the
@@ -216,8 +221,8 @@ dependencies and audited the resulting permissions; wrote this documentation
 set. First build failed on the push entitlement; dropped `expo-notifications`
 and the second build succeeded. **Dev client v1.0.0 (build 1) is installable.**
 Separately (Atlas RevenueCat session): RevenueCat project `proj63a7fa32`
-created, restore behavior set, ASC app record created as "ReceiptSnap: Expense
-Organizer" — plain "ReceiptSnap" and several permutations were taken (D-013) —
+created, restore behavior set, ASC app record created as "TaxTrail: Expense
+Organizer" — plain "TaxTrail" and several permutations were taken (D-013) —
 and the full dashboard + App Store Connect configuration executed: products
 (incl. the non-consumable lifetime), entitlement `pro`, offering, public SDK
 key, and the ASC push with the `ONE_WEEK` annual trial. See the RevenueCat

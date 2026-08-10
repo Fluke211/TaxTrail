@@ -1,4 +1,4 @@
-// ReceiptSnap dark theme — same tokens as the PWA (web/index.html :root).
+// TaxTrail dark theme — same tokens as the PWA (web/index.html :root).
 export const T = {
   accent: '#4f7cff',
   accentSoft: 'rgba(79,124,255,0.16)',
