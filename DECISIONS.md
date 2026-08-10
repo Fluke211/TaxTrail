@@ -739,7 +739,8 @@ RevenueCat entitlement `pro` and offering `default` are unaffected. **They are
 not hardcoded anywhere in `src/`** — offerings are fetched at runtime — so this
 costs nothing in the codebase.
 
-**3. `"slug": "receiptsnap"` in `app.json` stays, for now.** EAS CLI validates
+**3. `"slug": "receiptsnap"` in `app.json` stays — permanently, as it turns
+out.** (Amended 2026-08-10 after testing; see D-028.) EAS CLI validates
 the slug against the project identified by `extra.eas.projectId` and errors on a
 mismatch. The project is `@tylerthornbrue/receiptsnap` on expo.dev, which cannot
 be renamed from here — **every Expo domain returns a gateway 403** in these
@@ -824,3 +825,45 @@ is revenue. The $10.98 buys the name, not the infrastructure.
 **Before submission, confirm `taxtrail@vaultvision.team` actually delivers** —
 forwarding is configured per-address on that domain, and a support address that
 bounces is worse than one on the wrong domain.
+
+
+---
+
+## D-028
+
+**The Expo slug stays `receiptsnap` for good. Renaming the project did not
+change it, and it is invisible to users.**
+
+Date: 2026-08-10 · Status: accepted · Amends D-026
+
+D-026 held the slug back and called it a two-step: Tyler renames the project at
+expo.dev, then the slug flips. He renamed it. The flip still failed.
+
+**Tested, not assumed** — two free `usage` runs, which cost nothing:
+
+| Ref | `slug` in `app.json` | Result |
+|---|---|---|
+| `claude/receiptsnap-github-work-4rcvdf` | `taxtrail` | **failure** — `eas build:list` errored after a successful login |
+| `main` | `receiptsnap` | **success** |
+
+Identical workflow, identical token, minutes apart. The only difference was the
+slug, so the server-side slug is still `receiptsnap`. Renaming a project in the
+expo.dev dashboard changes its **display name**; the slug that
+`extra.eas.projectId` resolves against does not follow.
+
+**Decision: stop chasing it.** The slug appears in exactly one place a human
+ever sees — the `expo.dev/accounts/tylerthornbrue/projects/<slug>` URL. It is
+not in the app, not in the App Store listing, not in the bundle identifier, and
+not in the OTA update URL (`updates.url` is the project UUID). The upside of
+changing it is zero; the downside is breaking the Actions workflow, which is the
+only EAS interface these sessions have, since every Expo domain returns a
+gateway 403.
+
+A future SDK upgrade or a fresh EAS project would be a natural moment to let it
+change. Until then it is a piece of internal plumbing wearing the old name, like
+`receiptsnap.db` and the three product IDs.
+
+**Method note worth keeping:** the `usage` step is free and touches EAS for
+real, which makes it a general-purpose probe for "did I just break the Expo
+project config?" Running it on `main` as a control is what turned a vague
+`build:list command failed` into a one-variable answer.

@@ -19,7 +19,9 @@ visible version, and it gets recorded here.
   privacy link on the purchase screen, so this would have failed review.
 - Support and privacy pages carry a real contact address, `taxtrail@vaultvision.team`
   (D-027). Submission is no longer blocked on it.
-- Expo `slug` is now `taxtrail`, matching the renamed project on expo.dev.
+- Expo `slug` stays `receiptsnap` (D-028). Renaming the project on expo.dev
+  changed its display name only; two controlled `usage` runs showed the flip
+  breaks `eas build:list`. Developer-facing plumbing, invisible to users.
 
 ### v1.0.0 (build 1) · js r9 — 2026-08-10
 

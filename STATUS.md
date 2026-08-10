@@ -114,8 +114,11 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   guardrailed files, the historical docs, and the GitHub repo name.
 
   **Follow-ups:** Expo project renamed to TaxTrail and the GitHub repo renamed
-  to `TaxTrail` (both done 2026-08-10), so the `slug` is now `taxtrail` and the
-  Pages URLs are `https://fluke211.github.io/TaxTrail/...`. The old
+  to `TaxTrail` (both done 2026-08-10). The Pages URLs are now
+  `https://fluke211.github.io/TaxTrail/...`. **The Expo `slug` stays
+  `receiptsnap` permanently (D-028)** — renaming the project changed its display
+  name only, and two controlled `usage` runs proved the flip breaks
+  `eas build:list`. It is developer-facing plumbing and nothing else. The old
   `receipt-snap` Pages path returns 404, which had silently broken the paywall's
   privacy link — fixed in js r10. Remaining: **buy `taxtrail.app`** (D-027).
 
