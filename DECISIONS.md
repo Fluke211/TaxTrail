@@ -544,3 +544,51 @@ rather than aspirational.
 **Would change it:** a custom app user ID, customer attributes, an analytics SDK,
 or any attribution integration. Each adds rows to the label — so each is now a
 marketing decision, not merely a technical one.
+
+---
+
+## D-023 · "ReceiptSnap" is unusable; the privacy position is contested
+
+**2026-08-07 · Settled — the name must change**
+
+Tyler found an App Store app called ReceiptSnap doing nearly the same thing. A
+live search found **four**: three iOS listings and one Android, one of which also
+advertises on-device storage, and one of which already ships return-expiry
+alerts.
+
+Worse, the differentiator is contested. `MARKET_AND_GTM_STRATEGY.md` §2.2 claims
+the on-device/no-account niche is empty with "only occupants having 1 rating
+each". [DocuFlexPro](https://docuflexpro.com/) markets 100% on-device AI, no
+cloud, no account, Schedule C export, and explicitly pitches finding receipts for
+returns. A free Android competitor claims on-device OCR with no accounts and no
+subscriptions. Full findings: `docs/MARKET_REASSESSMENT_2026-08.md`.
+
+**How this was missed.** D-013 recorded that the App Store name was taken, which
+forced the record to "ReceiptSnap: Expense Organizer". That fact sat in the canon
+and was cited repeatedly without anyone asking *what the app that took it does*.
+A taken name in your own category is a competitor signal.
+
+Compounding it: **WebSearch was available the whole time and was never used for
+market questions.** Expo and RevenueCat being blocked created a false impression
+that outbound research was unavailable. It was not.
+
+**Consequences:**
+
+1. The name changes. Criteria and a verification checklist are in the
+   reassessment doc — App Store (both stores), USPTO, domain, distinctiveness,
+   ASO. No candidate goes into the repo before all of it is checked live.
+2. The bundle identifier changes with it. Permanent once shipped (D-005);
+   nothing has shipped, so this is still free.
+3. The headline claim changes. "Private, on-device" is no longer differentiating
+   on its own. What competitors do not match is **Schedule C depth** — 29
+   categories mapped to IRS lines, tax-aware splitting, TXF export, city
+   sales-tax memory. Lead with depth; privacy becomes strong support.
+4. D-002's pricing reasoning is incomplete — it was set against cloud
+   competitors, not a free on-device one. Revisit before launch.
+
+**The rule this produces** is now in `CLAUDE.md`: verify market claims against
+live sources, and treat an unavailable name as a research trigger.
+
+**What it did not cost:** nothing shipped publicly. No users, no reviews, no
+rankings, no domain purchased. The expensive version of this mistake — finding
+out after launch — did not happen.
