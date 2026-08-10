@@ -1,0 +1,241 @@
+name: Cloudflare
+
+# Phone-friendly Cloudflare driver, same shape as eas.yml.
+#
+# There is no MCP server for Cloudflare DNS, Email Routing or Pages — the
+# connected "Cloudflare Developer Platform" server only covers KV/R2/D1/Workers.
+# The REST API is reachable, so an agent drives it from here: runs are triggered
+# and their logs read through the GitHub API, and Tyler only ever taps in a
+# browser. See DECISIONS.md D-031.
+#
+# Requires repository secrets:
+#   CLOUDFLARE_API_TOKEN   scoped token, never printed
+#   CLOUDFLARE_ACCOUNT_ID  account identifier (not a secret, but kept together)
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "Which step to run"
+        required: true
+        type: choice
+        default: status
+        options:
+          - status
+          - email
+          - pages
+          - verify
+      forward_to:
+        description: "Destination inbox for email routing (step: email). Must already be a VERIFIED destination address."
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: cloudflare
+  cancel-in-progress: false
+
+env:
+  ZONE: taxtrail.app
+  PAGES_PROJECT: taxtrail
+  CF_API: https://api.cloudflare.com/client/v4
+
+jobs:
+  cloudflare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve zone and check the token
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set. Add it in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/verify.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" "$CF_API/user/tokens/verify")
+          if [ "$code" != "200" ]; then
+            echo "::error::Token verify returned $code. Check the token's permissions and expiry."
+            python3 -c "import json;d=json.load(open('/tmp/verify.json'));[print(' -',e.get('message')) for e in d.get('errors',[])]" || true
+            exit 1
+          fi
+          echo "Token OK."
+
+          curl -sS -H "Authorization: Bearer $TOKEN" \
+            "$CF_API/zones?name=$ZONE" -o /tmp/zone.json
+          ZID=$(python3 -c "
+          import json,sys
+          d=json.load(open('/tmp/zone.json'))
+          r=d.get('result') or []
+          if not r:
+              print('::error::Zone $ZONE not found. The token needs Zone -> Zone -> Read on this zone.', file=sys.stderr)
+              sys.exit(1)
+          print(r[0]['id'])")
+          echo "ZONE_ID=$ZID" >> "$GITHUB_ENV"
+          echo "Zone $ZONE resolved."
+
+      - name: Status — what exists right now
+        if: inputs.step == 'status' || inputs.step == 'verify'
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "=== DNS records ==="
+          curl -sS -H "Authorization: Bearer $TOKEN" \
+            "$CF_API/zones/$ZONE_ID/dns_records?per_page=100" -o /tmp/dns.json
+          python3 -c "
+          import json
+          rs=json.load(open('/tmp/dns.json')).get('result') or []
+          if not rs: print('  (none — the zone has no DNS records at all)')
+          for r in sorted(rs, key=lambda x:(x['type'],x['name'])):
+              print(f\"  {r['type']:<6} {r['name']:<44} {str(r['content'])[:60]}\")
+          print(f'\n  MX: {sum(1 for r in rs if r[\"type\"]==\"MX\")}  TXT: {sum(1 for r in rs if r[\"type\"]==\"TXT\")}')"
+
+          echo; echo "=== Email Routing ==="
+          curl -sS -H "Authorization: Bearer $TOKEN" \
+            "$CF_API/zones/$ZONE_ID/email/routing" -o /tmp/er.json || true
+          python3 -c "
+          import json
+          d=json.load(open('/tmp/er.json')); r=d.get('result') or {}
+          if not d.get('success'):
+              print('  could not read routing settings:', [e.get('message') for e in d.get('errors',[])]); raise SystemExit
+          print('  enabled:', r.get('enabled'))
+          print('  status :', r.get('status'))
+          print('  name   :', r.get('name'))"
+
+          echo; echo "=== Routing rules ==="
+          curl -sS -H "Authorization: Bearer $TOKEN" \
+            "$CF_API/zones/$ZONE_ID/email/routing/rules?per_page=50" -o /tmp/rules.json || true
+          python3 -c "
+          import json
+          d=json.load(open('/tmp/rules.json')); rs=d.get('result') or []
+          if not rs: print('  (no rules)')
+          for r in rs:
+              m=', '.join(str(x.get('value')) for x in r.get('matchers',[]) if x.get('type')!='all') or 'catch-all'
+              a=', '.join(str(v) for x in r.get('actions',[]) for v in (x.get('value') or []))
+              print(f\"  {'on ' if r.get('enabled') else 'OFF'} {m:<28} -> {a}\")"
+
+      - name: Email — enable routing, write DNS, create rules
+        if: inputs.step == 'email'
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          FORWARD_TO: ${{ inputs.forward_to }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FORWARD_TO:-}" ]; then
+            echo "::error::forward_to is required for step: email. Use the inbox you already verified as a destination address."
+            exit 1
+          fi
+
+          echo "==> Enabling Email Routing (this writes the MX, SPF and DKIM records)"
+          curl -sS -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+            "$CF_API/zones/$ZONE_ID/email/routing/enable" -d '{}' -o /tmp/enable.json || true
+          python3 -c "
+          import json
+          d=json.load(open('/tmp/enable.json'))
+          print('  success:', d.get('success'))
+          for e in d.get('errors',[]): print('  note:', e.get('message'))"
+
+          echo; echo "==> Destination address check"
+          curl -sS -H "Authorization: Bearer $TOKEN" \
+            "$CF_API/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/email/routing/addresses?per_page=50" \
+            -o /tmp/addr.json || true
+          python3 - <<'PY'
+          import json, os, sys
+          want = os.environ['FORWARD_TO'].strip().lower()
+          try: rs = json.load(open('/tmp/addr.json')).get('result') or []
+          except Exception: rs = []
+          match = [a for a in rs if (a.get('email') or '').lower() == want]
+          for a in rs:
+              print(f"  {a.get('email'):<40} verified={'yes' if a.get('verified') else 'NO'}")
+          if not match:
+              print(f"::warning::{want} is not a destination address on this account yet.")
+              print("Cloudflare will email it a verification link; the rule stays DISABLED until that link is clicked.")
+          elif not match[0].get('verified'):
+              print(f"::warning::{want} exists but is NOT verified. Click the link Cloudflare emailed it.")
+          else:
+              print(f"  {want} is verified.")
+          PY
+
+          echo; echo "==> Creating routing rules"
+          create_rule() {  # $1 = name, $2 = json matchers
+            curl -sS -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+              "$CF_API/zones/$ZONE_ID/email/routing/rules" \
+              -d "{\"name\":\"$1\",\"enabled\":true,\"matchers\":$2,
+                   \"actions\":[{\"type\":\"forward\",\"value\":[\"$FORWARD_TO\"]}]}" -o /tmp/rule.json || true
+            python3 -c "
+          import json
+          d=json.load(open('/tmp/rule.json'))
+          print('  $1:', 'created' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
+          }
+          create_rule "support" '[{"type":"literal","field":"to","value":"support@'"$ZONE"'"}]'
+
+          echo "  catch-all:"
+          curl -sS -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+            "$CF_API/zones/$ZONE_ID/email/routing/rules/catch_all" \
+            -d "{\"name\":\"catch-all\",\"enabled\":true,
+                 \"matchers\":[{\"type\":\"all\"}],
+                 \"actions\":[{\"type\":\"forward\",\"value\":[\"$FORWARD_TO\"]}]}" -o /tmp/ca.json || true
+          python3 -c "
+          import json
+          d=json.load(open('/tmp/ca.json'))
+          print('   ', 'set' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
+
+      - name: Pages — create the project and deploy site/
+        if: inputs.step == 'pages'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          ACC="$CLOUDFLARE_ACCOUNT_ID"
+
+          echo "==> Ensuring Pages project '$PAGES_PROJECT' exists (direct upload)"
+          code=$(curl -sS -o /tmp/proj.json -w '%{http_code}' -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "$CF_API/accounts/$ACC/pages/projects/$PAGES_PROJECT")
+          if [ "$code" != "200" ]; then
+            curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+              "$CF_API/accounts/$ACC/pages/projects" \
+              -d "{\"name\":\"$PAGES_PROJECT\",\"production_branch\":\"main\"}" -o /tmp/proj.json
+            python3 -c "
+          import json;d=json.load(open('/tmp/proj.json'))
+          print('  create:', 'ok' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
+          else
+            echo "  already exists"
+          fi
+
+          echo; echo "==> Deploying site/"
+          npx --yes wrangler@latest pages deploy site \
+            --project-name "$PAGES_PROJECT" --branch main --commit-dirty=true
+
+          echo; echo "==> Attaching custom domain $ZONE"
+          curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+            "$CF_API/accounts/$ACC/pages/projects/$PAGES_PROJECT/domains" \
+            -d "{\"name\":\"$ZONE\"}" -o /tmp/dom.json || true
+          python3 -c "
+          import json;d=json.load(open('/tmp/dom.json'))
+          print('  ', 'attached' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
+
+      - name: Verify — what the outside world sees
+        if: inputs.step == 'verify' || inputs.step == 'pages' || inputs.step == 'email'
+        run: |
+          set -uo pipefail
+          echo "=== public DNS ==="
+          for t in MX TXT A; do
+            echo "  $t:"
+            curl -sS -H 'accept: application/dns-json' \
+              "https://cloudflare-dns.com/dns-query?name=$ZONE&type=$t" \
+            | python3 -c "
+          import json,sys
+          a=json.load(sys.stdin).get('Answer') or []
+          print(*['    '+str(x.get('data'))[:90] for x in a], sep='\n') if a else print('    (none)')"
+          done
+          echo; echo "=== site ==="
+          for u in "https://$ZONE/" "https://$ZONE/privacy.html" "https://$ZONE/support.html"; do
+            printf '  %-40s ' "$u"
+            curl -sSL --max-time 20 -o /dev/null -w 'http=%{http_code}\n' "$u" || echo "unreachable"
+          done

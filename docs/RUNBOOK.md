@@ -148,42 +148,69 @@ for this split is D-029; do these in order, each is verifiable on its own.
 
 ### 1. Email routing (do this first — it is the App Store blocker)
 
-Cloudflare dash → **Compute → Email Service → Email Routing → Onboard Domain**,
-pick `taxtrail.app`, accept the DNS records it offers. It adds MX, SPF and DKIM
-on the root domain itself; do not hand-write them.
+**The dashboard wording moves around.** Depending on the account you will find
+this at **Compute → Email Service → Email Routing** (newer) or under the domain
+itself at **Websites → taxtrail.app → Email → Email Routing** (older). If there
+is no "Onboard Domain" button, you are on the older UI — use "Get started"
+there; it does the same thing.
 
-Then **Routing Rules → Create routing rule**:
+Order matters, and it is not obvious:
 
-| Field | Value |
-|---|---|
-| Email pattern | `support` |
-| Action | Send to an email |
-| Destination | Tyler's real inbox |
+1. **Add a destination address** and click the verification link Cloudflare
+   emails to it. Until that link is clicked, **every routing rule stays
+   disabled** — that is documented behaviour, not a bug.
+2. **Enable Email Routing on the zone.** This is the step that writes the MX,
+   SPF and DKIM records. Adding a destination address alone does *not* do it.
+3. **Create the rules**: pattern `support` → forward to the verified inbox, plus
+   a catch-all to the same place.
 
-Add a **catch-all** rule to the same destination so a guessed address still
-lands. Cloudflare emails the destination a verification link — the rule does not
-work until that link is clicked.
+**Diagnosing "the DNS records are empty".** Do not wait for propagation — a zone
+on Cloudflare's own nameservers has no propagation delay for its own resolver.
+Ask public DNS directly:
 
-**Verify before relying on it:** send a message to `support@taxtrail.app` from a
-*different* account than the destination — some providers drop mail that appears
-to come from the same account it is delivered to — and check spam. Propagation
-is usually 5–15 minutes, up to 24 hours.
+```bash
+curl -sS -H 'accept: application/dns-json' \
+  "https://cloudflare-dns.com/dns-query?name=taxtrail.app&type=MX"
+```
+
+An empty `Answer` with an SOA in `Authority` means the records genuinely do not
+exist, so step 2 did not complete. This is what happened on 2026-08-10.
+
+**Or let the workflow do it** — `.github/workflows/cloudflare.yml`, `step: email`
+with `forward_to` set to the verified inbox. It enables routing, writes the
+records, creates both rules, and reports whether the destination is verified.
+`step: status` shows current DNS, routing state and rules without changing
+anything.
 
 ### 2. Site hosting
 
-Cloudflare dash → **Workers & Pages → Create application → Pages → Import an
-existing Git repository** → `Fluke211/TaxTrail`:
+Dispatch `.github/workflows/cloudflare.yml` with `step: pages`. It creates the
+Pages project, deploys `site/` by direct upload, and attaches `taxtrail.app`.
 
-| Setting | Value |
+Direct upload rather than the dashboard's "connect to Git" — linking a repo to
+Pages needs a browser OAuth handshake with no API equivalent, and direct upload
+runs from the same pipeline as everything else (D-031). The `site/` scoping is
+unchanged and still the point: the retired PWA at the repo root is never served.
+
+**Prerequisite, one time:** two repository secrets, Settings → Secrets and
+variables → Actions:
+
+| Secret | Where to get it |
 |---|---|
-| Production branch | `main` |
-| Framework preset | None |
-| Build command | **leave empty** |
-| Build output directory | **`site`** |
+| `CLOUDFLARE_API_TOKEN` | dash.cloudflare.com → My Profile → API Tokens → Create Token → Custom token |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard sidebar, or the hex string in the dashboard URL |
 
-`site` is the whole point — it serves only the three public pages and never the
-retired PWA at the repo root. Then **Custom domains → Set up a custom domain →
-`taxtrail.app`**. Cloudflare adds the DNS record itself.
+Token permissions — least privilege, four lines:
+
+| Scope | Resource | Level |
+|---|---|---|
+| Zone | Zone | Read |
+| Zone | DNS | Edit |
+| Zone | Email Routing Rules | Edit |
+| Account | Cloudflare Pages | Edit |
+
+Restrict zone resources to `taxtrail.app`. Never paste the token into a chat —
+it belongs only in the GitHub secret, the same rule as `EXPO_TOKEN`.
 
 ### 3. Switch the app and the listing over — only after step 2 answers 200
 

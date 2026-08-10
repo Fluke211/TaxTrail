@@ -176,11 +176,20 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   lives in `site/` — landing page, privacy policy, support page, all on
   `support@taxtrail.app` (D-030).
 
-  **Blocked on Tyler, two dashboard steps, procedure in `docs/RUNBOOK.md`:**
-  enable **Cloudflare Email Routing** for `support@` plus a catch-all, and
-  create a **Cloudflare Pages** project from this repo with build output
-  directory `site` and custom domain `taxtrail.app`. The domain currently has no
-  DNS records and does not resolve — verified.
+  **Cloudflare is now driven from CI** — `.github/workflows/cloudflare.yml`,
+  steps `status` / `email` / `pages` / `verify` (D-031). There is no MCP server
+  for Cloudflare DNS, Email Routing or Pages; the API is reachable, so it runs on
+  the EAS pattern with a scoped token in repository secrets.
+
+  **Blocked on Tyler:** create `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+  as repository secrets (permissions listed in `docs/RUNBOOK.md`), and click the
+  verification link on the Email Routing destination address — routing rules stay
+  disabled until that is done, and no API call substitutes for it.
+
+  **Verified 2026-08-10:** the zone is on Cloudflare nameservers
+  (`chuck`/`laura.ns.cloudflare.com`) but has **no MX, TXT or A records at all**.
+  Email Routing was not enabled on the zone, so its records were never written —
+  this is not propagation delay, and waiting will not fix it.
 
   Until `https://taxtrail.app/privacy.html` returns 200, the app's `PRIVACY_URL`
   and the App Store URLs **stay on GitHub Pages on purpose** (D-029). Switching

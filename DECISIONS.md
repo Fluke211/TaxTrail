@@ -948,3 +948,49 @@ default. Procedure in `docs/RUNBOOK.md`.
 **It bounces until Tyler enables it**, which is why the app and the App Store
 listing are not switched to it in the same change. Verify delivery first — a
 support address that bounces is worse than one on the wrong domain.
+
+---
+
+## D-031
+
+**Cloudflare gets a driver workflow, for the same reason EAS did.**
+
+Date: 2026-08-10 · Status: accepted
+
+Tyler asked whether Cloudflare could be configured directly, and whether some
+other MCP server would give more access. Checked rather than assumed.
+
+**No MCP path exists.** The connected **Cloudflare Developer Platform** server
+covers compute and storage only — KV, R2, D1, Hyperdrive, Workers read, plus
+`accounts_list` and the docs search. **No DNS, no Email Routing, no Pages.** A
+registry search for DNS / email-routing / Pages returns that same server and
+nothing else, so there is no second Cloudflare connector to add.
+
+**The REST API is reachable, though.** `api.cloudflare.com` answers `400` from
+these sessions — a real response from Cloudflare, not a proxy block. So the API
+is usable; only the credential is missing.
+
+**Decision: drive it from GitHub Actions, exactly like EAS.** A scoped token in
+repository secrets, a `workflow_dispatch` workflow, and an agent triggering runs
+and reading logs through the GitHub API. That pattern already exists here for a
+near-identical reason (D-003: Expo domains are 403 from these sessions), Tyler
+never has to paste a credential into a chat transcript, and the token is never
+printed. `.github/workflows/cloudflare.yml` has `status` / `email` / `pages` /
+`verify`.
+
+Rejected alternative: having Tyler paste an API token into the conversation. It
+would work, and the API is reachable, but the token would then live in the
+transcript permanently. The secrets route costs one extra browser step and
+avoids that entirely.
+
+**What the automation still cannot do:** Cloudflare emails a verification link
+to any new destination address, and the docs are explicit that **all routing
+rules stay disabled until that link is clicked**. No API call substitutes for
+it. Same for creating the token itself. Those two stay manual; everything else
+is scriptable.
+
+**Pages uses Direct Upload, not the Git integration.** Connecting a repo to
+Pages needs a browser OAuth handshake that has no API equivalent. Direct upload
+via `wrangler pages deploy site` is fully scriptable, deploys the same
+`site/` directory, and has the side benefit of running from the same Actions
+pipeline as everything else. D-029's split is unchanged — only the mechanism is.
