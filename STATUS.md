@@ -1,6 +1,6 @@
 # Status
 
-**Last updated:** 2026-08-06 · Update this file at the end of every working session.
+**Last updated:** 2026-08-10 · Update this file at the end of every working session.
 
 | Artifact | Version | State |
 |---|---|---|
@@ -106,6 +106,14 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   shipped publicly, so the change is cheap now and expensive later. The bundle
   identifier changes with the name.
 
+  **Shortlist ready — waiting on Tyler.** `docs/NAMING_2026-08.md` narrows the
+  field to six candidates that survive a live web and domain check, recommends
+  **Slipjar** (backup: TaxTrail), and gives the ten-minute clearance procedure.
+  Two checks can only be run by Tyler and are the authoritative ones: **App
+  Store Connect name availability** and **USPTO live marks** —
+  `trademarks.justia.com` and `tmsearch.uspto.gov` are both blocked by this
+  environment's egress proxy. Nothing gets renamed until a name clears.
+
 - **No standalone CI on pull requests.** Tests only run when the EAS workflow is
   dispatched manually. A push/PR-triggered test workflow would catch regressions
   automatically.
@@ -167,6 +175,17 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   once credential work is finished — idle ones consume the storage allowance.
 
 ## Session log
+
+**2026-08-10** — Answered four open questions, none of which changed the code.
+**Barcode scanning is already compiled in**: `expo-camera@55.0.21` (in build 1)
+exposes `onBarcodeScanned` and `scanFromURLAsync` across `upc_a`, `upc_e`,
+`ean13`, `ean8`, `code128`, `code39`, `itf14`, `pdf417`, `qr`, `aztec`,
+`datamatrix` — so the barcode-to-receipt lookup for personal returns ships over
+the air with **no build**. Name shortlist written and recommended
+(`docs/NAMING_2026-08.md`). Control Center / launcher shortcuts researched and
+decided (D-024): ship a URL scheme with the production build, defer the native
+`ControlWidget`. Cross-surface rule placement decided (D-025) with a paste-ready
+block in `docs/CROSS_SURFACE_RULES.md`.
 
 **2026-08-06** — js r5: category picker rebuilt as a modal after Tyler hit it
 overflowing over the Save button (D-017); the same bug existed in two other

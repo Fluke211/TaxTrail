@@ -36,6 +36,25 @@ air.
 - [x] Pinch-zoom on receipt photos in review and detail (js r4)
 - [ ] Add a regression fixture for every parser bug Tyler hits in real use
 
+## Personal receipts — the returns use case (all JS, no build)
+
+Tyler's idea: keep personal receipts separately from tax receipts, and find one
+by searching an item or **scanning the product's barcode**, to get the original
+image back for a return.
+
+**Verified: no native work needed.** `expo-camera@55.0.21` is already compiled
+into build 1 and exposes `onBarcodeScanned` / `scanFromURLAsync` for `upc_a`,
+`upc_e`, `ean13`, `ean8`, `code128`, `code39`, `itf14`, `pdf417`, `qr`, `aztec`
+and `datamatrix`. The whole feature ships over the air.
+
+- [ ] Segmentation: a `kind` column (`business` | `personal`) with a tab or
+      filter, so personal receipts never reach a Schedule C export
+- [ ] Store OCR line items so an item search has something to match
+- [ ] Barcode lookup: scan a UPC → match against stored line items → show the
+      receipt image and the purchase date
+- [ ] Return-window surfacing (a competitor already ships expiry alerts — see
+      `docs/MARKET_REASSESSMENT_2026-08.md` §1)
+
 ## Then — monetization (all JS, no build required)
 
 Decided in `DECISIONS.md` D-002. Nothing here needs a native build; RevenueCat
@@ -62,6 +81,20 @@ including the `ONE_WEEK` trial, so most of the console work below is API work.
 - [ ] Paywall at the 10-scan wall, annual trial highlighted
 - [ ] Enrol in the App Store Small Business Program (15%) — before the first
       sale; not retroactive
+
+## Before the production build — batch these, they each need a binary
+
+The rename forces a new bundle identifier, which forces a build. Anything else
+that touches `Info.plist` or entitlements should ride along in the same one.
+
+- [ ] **Clear a name and rename everywhere** — shortlist and procedure in
+      `docs/NAMING_2026-08.md`; blocked on Tyler running the App Store Connect
+      and USPTO checks
+- [ ] **URL scheme + `capture` deep link** (D-024). `mobile/app.json` has no
+      `scheme` today. Unlocks a Control Center / Lock Screen / Action Button
+      button via a one-action user shortcut, plus Android launcher shortcuts
+- [ ] `expo-document-picker`, for restore-from-archive
+- [ ] Store every page of a multi-page receipt (schema migration)
 
 ## Sep–Oct 2026 — soft launch
 
@@ -104,8 +137,15 @@ including the `ONE_WEEK` trial, so most of the console work below is API work.
 
 ## Parked, deliberately
 
-- **Siri / App Intents / widgets** — "Hey Siri, scan a receipt" is genuinely
-  attractive, but it's a large native lift. Revisit when the app has users.
+- **Siri / App Intents / a native Control Center control** — "Hey Siri, scan a
+  receipt", and a control with our own icon that needs no user setup. Verified
+  possible on our SDK via `@bacons/apple-targets@5.0.0` (`widget` / `app-intent`
+  targets, built against `expo ^55`), but it means hand-written SwiftUI and an
+  App Group entitlement — and an entitlement invalidates the provisioning
+  profile (D-011), so it costs a credentials trip on top of a build. Expo's own
+  `expo-widgets` is SDK 56+. Revisit at the SDK 56 upgrade. See D-024.
+- **Android Quick Settings tile** — the true Control Center analogue. Needs a
+  `TileService`; no Expo wrapper exists. Waits for the Android audit.
 - **Live Text / VisionKit DataScanner** — real-time recognition in the camera
   preview. No maintained Expo wrapper; would need a custom native module.
 - **A navigation library** — see D-009.

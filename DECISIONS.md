@@ -592,3 +592,117 @@ live sources, and treat an unavailable name as a research trigger.
 **What it did not cost:** nothing shipped publicly. No users, no reviews, no
 rankings, no domain purchased. The expensive version of this mistake — finding
 out after launch — did not happen.
+
+---
+
+## D-024
+
+**Control Center / launcher shortcuts: ship the Shortcuts deep link, defer the
+native control.**
+
+Date: 2026-08-10 · Status: accepted
+
+Tyler asked whether the app can put a scan button in the iOS Control Center and
+the Android equivalent. Four paths exist. Verified each before recommending,
+per the rule in `CLAUDE.md`.
+
+**What is available today, for free, with build 1 already installed.** iOS 18's
+Control Center gallery includes an **Open App** control under the Shortcuts
+group — Control Center → *Add a Control* → Shortcuts → *Open App*. Any installed
+app qualifies. Nothing is required of us. It opens the app to wherever it last
+was, not to the camera.
+([Apple Support](https://support.apple.com/guide/shortcuts/run-shortcuts-from-control-center-apd06a9201d4/ios))
+
+**What we should actually ship: a URL scheme.** The same gallery has a
+**Shortcut** control that runs any user shortcut. A one-action shortcut —
+*Open URL `slipjar://capture`* — placed in Control Center lands the user
+directly in the scanner. It also works from the Lock Screen, the Action Button
+(iPhone 15 Pro and later), Back Tap, and the Home Screen, from one piece of
+work.
+
+The cost is one line: `"scheme": "<name>"` in `mobile/app.json`, which today has
+**no scheme at all** (verified). That writes `CFBundleURLTypes` into
+`Info.plist`, so it is a **native build** — but the rename forces a new bundle
+identifier and therefore a new build anyway, so it batches in at zero marginal
+cost. Handling the link in JS is `expo-linking`, already present, and ships over
+the air.
+
+Android gets the same thing from an intent filter on the scheme; the launcher
+long-press shortcut (`shortcuts.xml`) can carry that URI with no native module.
+
+**What we are deferring: a real Control Center control** with our own icon and
+label, no user setup. This is a WidgetKit `ControlWidget`, which must live in a
+widget-extension target.
+
+- Expo's official `expo-widgets` is **SDK 56 and later** — npm's earliest
+  published version is `56.0.21`, and nothing exists on the 55.x line. We are on
+  SDK 55. Not an option without an SDK upgrade.
+- `@bacons/apple-targets@5.0.0` **is** built for our SDK — it depends on
+  `@expo/prebuild-config ~55.0.6` and dev-depends on `expo ^55` — and its
+  supported target list includes `widget` and `app-intent`. So the path is real.
+- But it means hand-written SwiftUI, and sharing data with the extension needs
+  an **App Group entitlement**. Per D-011, adding an entitlement invalidates a
+  provisioning profile created before it: signing then fails, and fixing it is
+  an interactive Codespace trip. That is the same failure that cost us build 1.
+
+**What we are not using: `expo-quick-actions`.** Home-screen long-press quick
+actions would be a reasonable middle step, but the package has **no SDK 55
+release**: `5.0.0` builds against `expo-modules-core ^2.3.12` (SDK 53),
+`6.0.0`/`6.0.1` against `^3.0.15` (SDK 54), and `6.0.2` against `^56.0.13`
+(SDK 56). SDK 55 ships `expo-modules-core 55.0.25`. `peerDependencies` is
+`expo: "*"`, so npm would install it happily and the failure would surface at
+native compile time. Not worth a build slot to find out.
+
+**Android Quick Settings tile** — the true Control Center analogue — needs a
+`TileService`, and no Expo wrapper was found. Deferred with the rest of Android,
+which has never been audited.
+
+**Decision:** add the URL scheme and a `capture` deep link to the production
+build. Document the Control Center shortcut in the App Store listing and the
+support page as a setup tip. Revisit the native control when we move to SDK 56,
+where `expo-widgets` makes it a supported path rather than a custom one.
+
+---
+
+## D-025
+
+**Standing rules live in three places, not one, because no single place reaches
+every surface.**
+
+Date: 2026-08-10 · Status: accepted
+
+The ReceiptSnap name failure (D-023) had two causes: a settled fact in the canon
+was never treated as a signal, and live search was never used for a market
+question. Both fixes landed in `CLAUDE.md` — which **only Claude Code reads**.
+Tyler also works in Cowork sessions and ordinary chat, and a separate session
+("Atlas") drove the RevenueCat work. A rule that lives only in this repo does
+not reach any of them.
+
+The mechanisms, and what each actually covers:
+
+| Where | Scope | Reaches |
+|---|---|---|
+| **claude.ai → Settings → Profile → custom instructions** | Every conversation on the account | Chat, Projects, Cowork — **and** it is the only account-wide surface |
+| **claude.ai Project instructions** | Every chat inside that Project | Chat and Projects only |
+| **Repo `CLAUDE.md`** | Any session whose working directory is this repo | Claude Code, and Cowork when pointed at this folder |
+| `~/.claude/CLAUDE.md` | All projects on one machine | Not durable here — remote session containers are ephemeral |
+| `.claude/rules/*.md` | Loaded like `CLAUDE.md`; `paths:` frontmatter scopes to file globs | Same reach as `CLAUDE.md` |
+
+([Claude Code memory docs](https://code.claude.com/docs/en/memory))
+
+Two properties matter and are easy to get wrong:
+
+1. **None of these are enforcement.** The docs are explicit that CLAUDE.md is
+   context, not configuration — "there's no guarantee of strict compliance."
+   For something that must happen every time, a hook or a CI check is the
+   mechanism. A rule in prose is a strong nudge.
+2. **Length is inversely related to adherence.** The guidance is under 200 lines
+   per file, and roughly 500 words for profile instructions. `CLAUDE.md` is
+   already past that, which is an argument for moving procedure into
+   `.claude/rules/` over time rather than adding to it.
+
+**Decision:** the two rules that caused real damage are *behavioural and
+cross-surface*, so they go in **profile custom instructions**, where every
+surface picks them up. Everything project-specific stays in `CLAUDE.md`. The
+exact text to paste is `docs/CROSS_SURFACE_RULES.md` — kept in the repo so it is
+reviewable, versioned, and reachable from a phone browser.

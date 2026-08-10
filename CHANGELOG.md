@@ -122,6 +122,18 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 
 ## Repository
 
+### 2026-08-10
+
+- `docs/NAMING_2026-08.md` — name shortlist with live-verified conflicts,
+  a recommendation, and the clearance procedure Tyler runs
+- `docs/CROSS_SURFACE_RULES.md` — the account-wide rule block, so the
+  verify-before-recommending rule reaches chat and Cowork, not just Claude Code
+- D-024: Control Center / launcher shortcuts — URL scheme now, native
+  `ControlWidget` deferred to SDK 56
+- D-025: where standing rules live across Claude surfaces
+- Barcode scanning confirmed already present in build 1 via `expo-camera`;
+  the personal-receipts / returns feature added to the roadmap as JS-only
+
 ### 2026-08-02
 
 - `expo-notifications` dropped; `usage` step added to report real build
