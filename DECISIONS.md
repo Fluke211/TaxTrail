@@ -592,3 +592,185 @@ live sources, and treat an unavailable name as a research trigger.
 **What it did not cost:** nothing shipped publicly. No users, no reviews, no
 rankings, no domain purchased. The expensive version of this mistake — finding
 out after launch — did not happen.
+
+---
+
+## D-024
+
+**Control Center / launcher shortcuts: ship the Shortcuts deep link, defer the
+native control.**
+
+Date: 2026-08-10 · Status: accepted
+
+Tyler asked whether the app can put a scan button in the iOS Control Center and
+the Android equivalent. Four paths exist. Verified each before recommending,
+per the rule in `CLAUDE.md`.
+
+**What is available today, for free, with build 1 already installed.** iOS 18's
+Control Center gallery includes an **Open App** control under the Shortcuts
+group — Control Center → *Add a Control* → Shortcuts → *Open App*. Any installed
+app qualifies. Nothing is required of us. It opens the app to wherever it last
+was, not to the camera.
+([Apple Support](https://support.apple.com/guide/shortcuts/run-shortcuts-from-control-center-apd06a9201d4/ios))
+
+**What we should actually ship: a URL scheme.** The same gallery has a
+**Shortcut** control that runs any user shortcut. A one-action shortcut —
+*Open URL `slipjar://capture`* — placed in Control Center lands the user
+directly in the scanner. It also works from the Lock Screen, the Action Button
+(iPhone 15 Pro and later), Back Tap, and the Home Screen, from one piece of
+work.
+
+The cost is one line: `"scheme": "<name>"` in `mobile/app.json`, which today has
+**no scheme at all** (verified). That writes `CFBundleURLTypes` into
+`Info.plist`, so it is a **native build** — but the rename forces a new bundle
+identifier and therefore a new build anyway, so it batches in at zero marginal
+cost. Handling the link in JS is `expo-linking`, already present, and ships over
+the air.
+
+Android gets the same thing from an intent filter on the scheme; the launcher
+long-press shortcut (`shortcuts.xml`) can carry that URI with no native module.
+
+**What we are deferring: a real Control Center control** with our own icon and
+label, no user setup. This is a WidgetKit `ControlWidget`, which must live in a
+widget-extension target.
+
+- Expo's official `expo-widgets` is **SDK 56 and later** — npm's earliest
+  published version is `56.0.21`, and nothing exists on the 55.x line. We are on
+  SDK 55. Not an option without an SDK upgrade.
+- `@bacons/apple-targets@5.0.0` **is** built for our SDK — it depends on
+  `@expo/prebuild-config ~55.0.6` and dev-depends on `expo ^55` — and its
+  supported target list includes `widget` and `app-intent`. So the path is real.
+- But it means hand-written SwiftUI, and sharing data with the extension needs
+  an **App Group entitlement**. Per D-011, adding an entitlement invalidates a
+  provisioning profile created before it: signing then fails, and fixing it is
+  an interactive Codespace trip. That is the same failure that cost us build 1.
+
+**What we are not using: `expo-quick-actions`.** Home-screen long-press quick
+actions would be a reasonable middle step, but the package has **no SDK 55
+release**: `5.0.0` builds against `expo-modules-core ^2.3.12` (SDK 53),
+`6.0.0`/`6.0.1` against `^3.0.15` (SDK 54), and `6.0.2` against `^56.0.13`
+(SDK 56). SDK 55 ships `expo-modules-core 55.0.25`. `peerDependencies` is
+`expo: "*"`, so npm would install it happily and the failure would surface at
+native compile time. Not worth a build slot to find out.
+
+**Android Quick Settings tile** — the true Control Center analogue — needs a
+`TileService`, and no Expo wrapper was found. Deferred with the rest of Android,
+which has never been audited.
+
+**Decision:** add the URL scheme and a `capture` deep link to the production
+build. Document the Control Center shortcut in the App Store listing and the
+support page as a setup tip. Revisit the native control when we move to SDK 56,
+where `expo-widgets` makes it a supported path rather than a custom one.
+
+---
+
+## D-025
+
+**Standing rules live in three places, not one, because no single place reaches
+every surface.**
+
+Date: 2026-08-10 · Status: accepted
+
+The ReceiptSnap name failure (D-023) had two causes: a settled fact in the canon
+was never treated as a signal, and live search was never used for a market
+question. Both fixes landed in `CLAUDE.md` — which **only Claude Code reads**.
+Tyler also works in Cowork sessions and ordinary chat, and a separate session
+("Atlas") drove the RevenueCat work. A rule that lives only in this repo does
+not reach any of them.
+
+The mechanisms, and what each actually covers:
+
+| Where | Scope | Reaches |
+|---|---|---|
+| **claude.ai → Settings → Profile → custom instructions** | Every conversation on the account | Chat, Projects, Cowork — **and** it is the only account-wide surface |
+| **claude.ai Project instructions** | Every chat inside that Project | Chat and Projects only |
+| **Repo `CLAUDE.md`** | Any session whose working directory is this repo | Claude Code, and Cowork when pointed at this folder |
+| `~/.claude/CLAUDE.md` | All projects on one machine | Not durable here — remote session containers are ephemeral |
+| `.claude/rules/*.md` | Loaded like `CLAUDE.md`; `paths:` frontmatter scopes to file globs | Same reach as `CLAUDE.md` |
+
+([Claude Code memory docs](https://code.claude.com/docs/en/memory))
+
+Two properties matter and are easy to get wrong:
+
+1. **None of these are enforcement.** The docs are explicit that CLAUDE.md is
+   context, not configuration — "there's no guarantee of strict compliance."
+   For something that must happen every time, a hook or a CI check is the
+   mechanism. A rule in prose is a strong nudge.
+2. **Length is inversely related to adherence.** The guidance is under 200 lines
+   per file, and roughly 500 words for profile instructions. `CLAUDE.md` is
+   already past that, which is an argument for moving procedure into
+   `.claude/rules/` over time rather than adding to it.
+
+**Decision:** the two rules that caused real damage are *behavioural and
+cross-surface*, so they go in **profile custom instructions**, where every
+surface picks them up. Everything project-specific stays in `CLAUDE.md`. The
+exact text to paste is `docs/CROSS_SURFACE_RULES.md` — kept in the repo so it is
+reviewable, versioned, and reachable from a phone browser.
+
+---
+
+## D-026
+
+**Renamed to TaxTrail — and six identifiers deliberately still say ReceiptSnap.**
+
+Date: 2026-08-10 · Status: accepted
+
+Closes D-023. Tyler cleared **`TaxTrail: Receipt Scanner`** in App Store Connect
+with subtitle *"Categorization for Schedule C"*, confirmed **zero USPTO hits**
+for TAXTRAIL (searches for "tax trail" return only TAX and TRAIL separately),
+and confirmed `taxtrail.app` is available at $10.98. Due diligence is in
+`docs/NAMING_2026-08.md` §6. He asked for every instance to change "if we can
+do it" — this records where we could not, and why.
+
+84 strings across 21 files were renamed. The exceptions:
+
+**1. `receiptsnap.db` — the SQLite filename stays.** `src/lib/db.ts` opens the
+database by name. Renaming it makes the app open a fresh, empty database and
+Tyler's scanned receipts become invisible — still on disk, but unreachable
+without a migration. A cosmetic rename is not worth a data-loss path. The
+filename is never shown to a user.
+
+**2. `receiptsnap_pro_monthly` / `_annual` / `_lifetime` — the product IDs
+stay.** These are App Store Connect product identifiers and are permanent once
+created. Renaming means deleting and recreating them, which discards the
+`ONE_WEEK` trial on the annual and the full territory price schedules already
+configured (STATUS.md). They are internal strings no user ever sees. The
+RevenueCat entitlement `pro` and offering `default` are unaffected. **They are
+not hardcoded anywhere in `src/`** — offerings are fetched at runtime — so this
+costs nothing in the codebase.
+
+**3. `"slug": "receiptsnap"` in `app.json` stays, for now.** EAS CLI validates
+the slug against the project identified by `extra.eas.projectId` and errors on a
+mismatch. The project is `@tylerthornbrue/receiptsnap` on expo.dev, which cannot
+be renamed from here — **every Expo domain returns a gateway 403** in these
+sessions. Changing the slug before the server side would break the Actions
+workflow, which is the only EAS interface we have. Two-step: Tyler renames the
+project at expo.dev in a browser, then the slug flips. The `projectId` and the
+`updates.url` are UUIDs and carry no name, so OTA updates are unaffected either
+way.
+
+**4. `index.html` and `setup-receiptsnap-mobile.sh` — untouched, per the
+guardrail.** The PWA is retired but live, and Tyler still has unexported
+receipts in its browser storage, which is bound to the page at its current
+address. The installer is kept byte-unchanged deliberately.
+
+**5. History is not rewritten.** `DECISIONS.md`, `CHANGELOG.md`,
+`ROADMAP.md`, `docs/MARKET_REASSESSMENT_2026-08.md`, `docs/NAMING_2026-08.md`
+and `docs/CROSS_SURFACE_RULES.md` keep "ReceiptSnap" wherever it refers to the
+old name. D-013 and D-023 are *about* that name — find-and-replacing them would
+erase the record of the mistake, which is the one thing guaranteeing we do not
+repeat it. Renaming history to match the present is how a project forgets.
+
+**6. `receipt-snap` — the GitHub repo name.** Tyler's to change. It is in the
+GitHub Pages URLs that `privacy.html` and `support.html` are served from, and in
+`FallbackPaywall.tsx`'s `PRIVACY_URL`, so those three change together with it or
+they 404. Left correct-as-of-today rather than pre-emptively broken.
+
+**The bundle identifier DID change** — `com.tylerthornbrue.receiptsnap` →
+`com.tylerthornbrue.taxtrail`, on both iOS and Android. This is the one
+expensive part, and it was Tyler's explicit call. It is permanent once shipped
+(D-005) and nothing has shipped, so the window is now. It costs a new App ID, a
+regenerated provisioning profile — an interactive Codespace trip, since
+`eas credentials` has no non-interactive mode (D-004) — and a build. The build
+was already required for the URL scheme (D-024) and `expo-document-picker`, so
+they share one.

@@ -1,5 +1,5 @@
 /*
- * ReceiptSnap — receipt text parsing & small-business tax classification.
+ * TaxTrail — receipt text parsing & small-business tax classification.
  * Pure JS, no dependencies. Runs in browser and Node (for tests).
  * Categories align with IRS Schedule C expense lines where practical.
  */

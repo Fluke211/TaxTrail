@@ -64,7 +64,7 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
       ? await ImagePicker.requestMediaLibraryPermissionsAsync()
       : await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'ReceiptSnap needs access to scan receipts. Everything stays on this device.');
+      Alert.alert('Permission needed', 'TaxTrail needs access to scan receipts. Everything stays on this device.');
       return;
     }
     // Camera path goes through VisionKit's document scanner: it finds the

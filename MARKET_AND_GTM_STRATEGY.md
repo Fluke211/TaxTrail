@@ -1,4 +1,4 @@
-# ReceiptSnap — Market Analysis, Pricing & Go-to-Market Strategy
+# TaxTrail — Market Analysis, Pricing & Go-to-Market Strategy
 
 **Prepared:** August 1, 2026 · **For:** Tyler Thornbrue · **Objective:** maximize profit on the iOS launch
 
@@ -8,7 +8,7 @@ All facts below were verified against primary sources August 1, 2026 (App Store 
 
 ## 1. Executive summary
 
-ReceiptSnap enters a market with ~31M US Schedule C filers and ~60M 1099 recipients where **every meaningful competitor requires an account and cloud processing**. The "100% on-device, no account, data never leaves your phone" position is validated (reviewers actively recommend the one semi-offline incumbent *because* of it) and unoccupied — only two micro-apps with 1 rating each claim it. The moat is the App Store privacy label itself: ReceiptSnap can ship **"Data Not Collected"** while Keeper, QuickBooks, and Wave show identity-linked financial data used for advertising. That contrast is screenshot-able marketing.
+TaxTrail enters a market with ~31M US Schedule C filers and ~60M 1099 recipients where **every meaningful competitor requires an account and cloud processing**. The "100% on-device, no account, data never leaves your phone" position is validated (reviewers actively recommend the one semi-offline incumbent *because* of it) and unoccupied — only two micro-apps with 1 rating each claim it. The moat is the App Store privacy label itself: TaxTrail can ship **"Data Not Collected"** while Keeper, QuickBooks, and Wave show identity-linked financial data used for advertising. That contrast is screenshot-able marketing.
 
 **Recommendation: subscription + high-priced lifetime, NO ads.** Realistic ad revenue for this category is $0.25–0.70 per active free user per year; the subscription funnel already implies $0.68–1.70 per free user in year one at median conversion — and receipt-keyword-targeted ads would legally and practically destroy the privacy claim that drives that conversion (details §4).
 
@@ -42,7 +42,7 @@ ReceiptSnap enters a market with ~31M US Schedule C filers and ~60M 1099 recipie
 
 **Structural findings:**
 1. **On-device/no-account is empty.** The only occupants have 1 rating each. First credible mover owns the position — ship fast.
-2. **Schedule C categorization is rare** — only Keeper ($199/yr) and QuickBooks ($240/yr) do it, both cloud. ReceiptSnap does it on-device at a fraction of the price.
+2. **Schedule C categorization is rare** — only Keeper ($199/yr) and QuickBooks ($240/yr) do it, both cloud. TaxTrail does it on-device at a fraction of the price.
 3. The individual-tier price umbrella is **$4.99–8.99/mo**; $39.99/yr undercuts every credible competitor's annual (Foreceipt $59.99, SparkReceipt $69.99, Wave $72–96, Smart Receipts PRO $99.99, Keeper $199).
 4. **Marketable churn events:** Dext/IRIS price hikes, Wave paywalling receipts, QuickBooks Self-Employed shutdown, Keeper's auto-charging trial complaints, Smart Receipts' open-source-to-subscription conversion. Each is an audience actively looking to switch.
 
@@ -94,7 +94,7 @@ You asked whether ads targeted from OCR text make sense. **Technically: yes, tri
 
 1. **The economics fail on their own.** Receipt scanners are low-frequency utilities (69% of finance-app users open their app ≤5x/month). At realistic US iOS eCPMs (banner ~$0.30 blended, interstitial ~$7 at utility-category ATT opt-in rates), a retained free user generates **$0.25–0.70/year**. The subscription funnel already implies **$0.68–1.70 per free user** at median conversion — ads earn 2–5x less while damaging the ratings and retention that drive organic install volume.
 2. **The privacy label flips.** Apple's rules: anything *derived* from on-device data and sent off-device must be declared. OCR keywords = "Purchases — used for Third-Party Advertising" on the nutrition label, plus the AdMob SDK's own privacy manifest declares identifiers/IP/usage data. The label goes from **"Data Not Collected"** (our headline asset) to a multi-category advertising disclosure.
-3. **ATT contradiction.** Monetizing personalized ads requires showing "Allow ReceiptSnap to track your activity across other companies' apps?" — in an app whose subtitle is "your data never leaves your phone."
+3. **ATT contradiction.** Monetizing personalized ads requires showing "Allow TaxTrail to track your activity across other companies' apps?" — in an app whose subtitle is "your data never leaves your phone."
 4. **Regulatory exposure is real.** FTC's Avast settlement ($16.5M, payments began Dec 2025) is precisely this fact pattern: privacy-promising software transmitting derived user data. Receipt contents include pharmacy items (health data), alcohol, and embedded PII — sensitive-category landmines under Google's own publisher policies, and CPRA "sharing" triggering Do-Not-Share obligations.
 5. **Category precedent is one-directional.** Every premium competitor sells privacy and subscriptions. The ad-monetized finance-tool archetype (Mint) died of the incentive conflict. The apps that DO monetize receipt data (Fetch, Receipt Hog) pay users for it explicitly — the honest inverse of our brand.
 
@@ -105,10 +105,10 @@ You asked whether ads targeted from OCR text make sense. **Technically: yes, tri
 ## 5. Go-to-market strategy
 
 ### 5.1 Positioning
-- **Name:** ReceiptSnap — Receipt Scanner
+- **Name:** TaxTrail — Receipt Scanner
 - **Subtitle:** "Private, on-device tax scans" (30 chars ✓)
 - **One-liner:** *The receipt scanner that never sees your receipts. On-device OCR files every receipt to the right Schedule C line — no account, no cloud, no subscription required to start.*
-- **Hero proof point:** side-by-side App Privacy labels — ReceiptSnap "Data Not Collected" vs Keeper/QuickBooks/Wave advertising disclosures. Use it in screenshot 2 of the listing.
+- **Hero proof point:** side-by-side App Privacy labels — TaxTrail "Data Not Collected" vs Keeper/QuickBooks/Wave advertising disclosures. Use it in screenshot 2 of the listing.
 
 ### 5.2 Channel plan (zero → low budget, in order)
 1. **ASO (the main engine).** 70% of App Store visitors use search. Target: "receipt scanner" (primary), "receipt tracker", "expense tracker self employed", "schedule c", "1099 taxes", "mileage" (later feature). Ship keyword-optimized metadata now; iterate monthly through fall (Intuit's own off-season playbook).
@@ -147,7 +147,7 @@ You asked whether ads targeted from OCR text make sense. **Technically: yes, tri
 | Version stamp | Settings row + Summary footer: `v1.0.0 (build 1) · js r1` | Same verification convention as the PWA (v5.5). |
 
 ### VaultVision details referenced (from your Fastio workspace)
-Extracted from CLAUDE.MD / T-015.5A / T-015.5-DEV-BUILD-MIGRATION / ARCHITECTURE.MD summaries: Expo SDK 55 + New Architecture (migrated from 54), expo-dev-client via EAS with device-UDID registration and physical-iPhone testing, gesture-handler/reanimated, free-tier watermark pattern, Maestro E2E. **Note:** I could not pull raw file bytes from this cloud sandbox (Fastio's download endpoint is blocked by both egress proxies here, and the workspace AI Q&A endpoint returned "requires an upgraded plan"), so exact RevenueCat product IDs from VaultVision weren't retrievable — ARCHITECTURE.MD's summary actually says VaultVision uses **Stripe** for subscriptions, so ReceiptSnap's RevenueCat naming above is a fresh, convention-clean scheme rather than a copy. Everything RevenueCat-related lives in JS/dashboard config, so nothing about it risks the one dev build.
+Extracted from CLAUDE.MD / T-015.5A / T-015.5-DEV-BUILD-MIGRATION / ARCHITECTURE.MD summaries: Expo SDK 55 + New Architecture (migrated from 54), expo-dev-client via EAS with device-UDID registration and physical-iPhone testing, gesture-handler/reanimated, free-tier watermark pattern, Maestro E2E. **Note:** I could not pull raw file bytes from this cloud sandbox (Fastio's download endpoint is blocked by both egress proxies here, and the workspace AI Q&A endpoint returned "requires an upgraded plan"), so exact RevenueCat product IDs from VaultVision weren't retrievable — ARCHITECTURE.MD's summary actually says VaultVision uses **Stripe** for subscriptions, so TaxTrail's RevenueCat naming above is a fresh, convention-clean scheme rather than a copy. Everything RevenueCat-related lives in JS/dashboard config, so nothing about it risks the one dev build.
 
 ---
 

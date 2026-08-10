@@ -1,4 +1,4 @@
-# ReceiptSnap — Project Instructions (CLAUDE.md)
+# TaxTrail — Project Instructions (CLAUDE.md)
 
 Instructions for AI agents working on this repo. Tyler works with you directly —
 he should never need to relay between assistants.
@@ -33,7 +33,7 @@ This file holds the rules; `STATUS.md` holds the situation.
 
 ## What this project is
 
-ReceiptSnap: a privacy-first receipt scanner for US small-business taxes.
+TaxTrail: a privacy-first receipt scanner for US small-business taxes.
 100% on-device OCR, no account, no cloud. Auto-categorizes into 29 tax categories
 mapped to IRS Schedule C lines (+ Schedule A / Form 8829 / 4562 / COGS / Personal),
 receipt splitting with tax-aware math, sales-tax tracking, CPA-ready exports
@@ -66,7 +66,10 @@ Two artifacts:
   empty niche that had at least three occupants. The evidence was in the canon
   (D-013 recorded the name as taken) and nobody treated it as a competitor
   signal. **A name being unavailable anywhere is a competitive-research trigger,
-  not a naming inconvenience.** See D-023 and `docs/MARKET_REASSESSMENT_2026-08.md`.
+  not a naming inconvenience.** See D-023, `docs/MARKET_REASSESSMENT_2026-08.md`
+  and `docs/NAMING_2026-08.md`. This rule only reaches Claude Code sessions from
+  here; the account-wide copy for chat and Cowork is
+  `docs/CROSS_SURFACE_RULES.md` (D-025).
 - **Small command groups.** When Tyler must run or paste things, give one logical
   set at a time, never a full procedure — he gets stuck mid-list otherwise.
 - **He is often phone-only** (iPhone). Prefer flows that are tap-driven or happen

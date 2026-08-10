@@ -22,7 +22,7 @@ export function buildXlsxBase64(rows: ExportRow[], yearLabel: string): string {
   });
 
   const summary: (string | number)[][] = [
-    [`ReceiptSnap — Tax Year ${yearLabel}`], [],
+    [`TaxTrail — Tax Year ${yearLabel}`], [],
     ['Category', 'Tax Form', 'Entries', 'Total'],
   ];
   let currentForm = '';

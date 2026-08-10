@@ -3,25 +3,30 @@
 Everything App Store Connect asks for, drafted and ready to paste. Character
 limits are Apple's; counts are given where they're tight.
 
-App record: **ReceiptSnap: Expense Organizer** (plain "ReceiptSnap" was taken —
-D-013). Bundle `com.tylerthornbrue.receiptsnap`.
+App record: **TaxTrail: Receipt Scanner** — renamed 2026-08-10 (D-026). The
+previous name "ReceiptSnap: Expense Organizer" was itself a fallback, because
+plain "ReceiptSnap" was taken (D-013); that refusal was the signal nobody read.
+Bare "TaxTrail" and "Tax Trail" were also refused. Bundle
+`com.tylerthornbrue.taxtrail`.
 
 ---
 
 ## Name (30 max)
 
 ```
-ReceiptSnap: Expense Organizer
+TaxTrail: Receipt Scanner
 ```
-Exactly 30 characters — at the limit, no room to extend. Already set in App Store Connect.
+25 characters, five to spare. Set in App Store Connect 2026-08-10.
 
 ## Subtitle (30 max)
 
 ```
-Private, on-device tax scans
+Categorization for Schedule C
 ```
-28 characters. Leads with the differentiator rather than the function — every
-competitor can say "scan receipts"; none can say this.
+29 characters. Tyler's choice, and the right one: the name now carries "tax", so
+the subtitle should carry what nothing else in the category does. Alternates
+worth A/B testing, both within the limit — "Private, on-device tax scans" (28)
+and "Tax-ready by April 15" (21).
 
 ## Promotional text (170 max, editable without review)
 
@@ -36,7 +41,7 @@ January "Tax season is here", April "Deadline in two weeks".
 ## Description
 
 ```
-ReceiptSnap turns a photo of a receipt into a categorized, tax-ready expense —
+TaxTrail turns a photo of a receipt into a categorized, tax-ready expense —
 without sending it anywhere.
 
 Everything happens on your iPhone. The text recognition, the categorization, the
@@ -59,19 +64,19 @@ three-column CSV. Plus a full archive containing every receipt image alongside
 the data, so you have the copies the IRS expects you to be able to produce.
 
 SALES TAX, TRACKED PROPERLY
-ReceiptSnap reads the printed tax rate when there is one, remembers rates by
+TaxTrail reads the printed tax rate when there is one, remembers rates by
 city, and derives them when it must. Sales tax is separated from the amount,
 because your deduction depends on it.
 
 FREE TO START
-10 scans a month with full parsing, categorization, and CSV export. ReceiptSnap
+10 scans a month with full parsing, categorization, and CSV export. TaxTrail
 Pro unlocks unlimited scans and every export format.
 
 NO ADS. EVER.
 Not now, not later. An app that reads your receipts should not be in the
 advertising business.
 
-ReceiptSnap is a record-keeping tool, not tax advice. Check with your tax
+TaxTrail is a record-keeping tool, not tax advice. Check with your tax
 professional about your situation.
 ```
 
@@ -106,7 +111,7 @@ Paste into "Notes" on the submission. This pre-empts the most likely reason for
 rejection or a delay: a reviewer distrusting the privacy claim.
 
 ```
-ReceiptSnap performs all receipt processing on-device.
+TaxTrail performs all receipt processing on-device.
 
 - Text recognition uses Apple's Vision framework (via expo-text-extractor).
   No image or recognized text is transmitted anywhere.
@@ -159,7 +164,7 @@ Six slots. Apple requires 6.9" (iPhone 16 Pro Max class); 6.5" is accepted for
 older-device coverage. The order matters more than the polish:
 
 1. **Capture → parsed result.** The core loop in one image.
-2. **Privacy label comparison** — ReceiptSnap beside Keeper, QuickBooks, and
+2. **Privacy label comparison** — TaxTrail beside Keeper, QuickBooks, and
    Wave. This is the pitch; put it where people actually still swipe.
 3. **Category list**, showing real IRS line numbers. Proves depth.
 4. **Summary by Schedule C line**, with a year total.

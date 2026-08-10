@@ -11,6 +11,20 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r9 — 2026-08-10
+
+**Renamed from ReceiptSnap to TaxTrail** (D-026). Not yet published — ships
+after PR merge.
+
+- App name, version stamp, paywall copy and every export filename now read
+  **TaxTrail**: `taxtrail-2026.csv`, `taxtrail-archive-<stamp>.zip`,
+  `taxtrail-diagnostics-<date>.json`, and the `app` field in `backup.json`.
+- Bundle identifier **`com.tylerthornbrue.taxtrail`** on iOS and Android.
+  Permanent once shipped, and nothing has shipped — this was the window.
+  **Requires a new provisioning profile and a build.**
+- The on-device database filename is deliberately unchanged, so existing
+  receipts survive the rename. Same for the App Store Connect product IDs.
+
 ### v1.0.0 (build 1) · js r7 — 2026-08-07
 
 Shipped over the air; no new build.
@@ -121,6 +135,18 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 ---
 
 ## Repository
+
+### 2026-08-10
+
+- `docs/NAMING_2026-08.md` — name shortlist with live-verified conflicts,
+  a recommendation, and the clearance procedure Tyler runs
+- `docs/CROSS_SURFACE_RULES.md` — the account-wide rule block, so the
+  verify-before-recommending rule reaches chat and Cowork, not just Claude Code
+- D-024: Control Center / launcher shortcuts — URL scheme now, native
+  `ControlWidget` deferred to SDK 56
+- D-025: where standing rules live across Claude surfaces
+- Barcode scanning confirmed already present in build 1 via `expo-camera`;
+  the personal-receipts / returns feature added to the roadmap as JS-only
 
 ### 2026-08-02
 

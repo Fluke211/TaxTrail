@@ -64,7 +64,7 @@ export async function presentPaywall(): Promise<boolean> {
   if (!configured) {
     Alert.alert(
       'Purchases not configured',
-      'Set REVENUECAT_APPLE_API_KEY in src/lib/config.ts to enable ReceiptSnap Pro.'
+      'Set REVENUECAT_APPLE_API_KEY in src/lib/config.ts to enable TaxTrail Pro.'
     );
     return false;
   }

@@ -1,4 +1,4 @@
-# ReceiptSnap Mobile — Single-Dev-Build Runbook
+# TaxTrail Mobile — Single-Dev-Build Runbook
 
 Goal: **one** EAS development build, then unlimited iteration without another build.
 Everything that requires native code is already compiled into this project's
@@ -17,7 +17,7 @@ Store launch is already in.
 ## Step 1 — Unpack & install (your machine, 5 min)
 
 ```bash
-unzip receiptsnap-mobile.zip && cd receiptsnap-mobile
+unzip taxtrail-mobile.zip && cd taxtrail-mobile
 npm install
 npm run test:unit        # should print "10 passed, 0 failed"
 npx tsc --noEmit         # should print nothing (clean)
@@ -52,7 +52,7 @@ npx eas build --profile development --platform ios
 
 - Choose "Yes" to let EAS manage credentials (it uses your Apple Developer login).
 - ~15–25 min on the free-tier queue. You get an install QR/URL at the end —
-  open it on your iPhone to install the ReceiptSnap dev client.
+  open it on your iPhone to install the TaxTrail dev client.
 
 ## Step 5 — Daily development (no builds, ever)
 
@@ -76,8 +76,8 @@ npx eas update --channel development --message "parser fix"
 
 ## RevenueCat setup (no build required — do anytime)
 
-1. app.revenuecat.com → new project "ReceiptSnap" → add App Store app with
-   bundle ID `com.tylerthornbrue.receiptsnap`.
+1. app.revenuecat.com → new project "TaxTrail" → add App Store app with
+   bundle ID `com.tylerthornbrue.taxtrail`.
 2. App Store Connect → create subscription group **ReceiptSnap Pro** with:
    - `receiptsnap_pro_monthly` — $6.99/mo
    - `receiptsnap_pro_annual` — $39.99/yr with 7-day free trial

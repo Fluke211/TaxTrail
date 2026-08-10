@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Codespace bring-up for ReceiptSnap Mobile.
+# Codespace bring-up for TaxTrail Mobile.
 #
 # mobile/ is the EAS-configured project (it carries extra.eas.projectId and
 # updates.url), so prefer it. Only fall back to reconstructing from the
@@ -24,7 +24,7 @@ fi
 
 echo
 echo "============================================================"
-echo " ReceiptSnap Mobile ready at: $REPO_ROOT/mobile"
+echo " TaxTrail Mobile ready at: $REPO_ROOT/mobile"
 echo " Project: @tylerthornbrue/receiptsnap"
 echo
 echo " Next: Terminal -> Run Task, in order:"

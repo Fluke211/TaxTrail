@@ -1,4 +1,4 @@
-# ReceiptSnap
+# TaxTrail
 
 A privacy-first receipt scanner for US small-business taxes. 100% on-device OCR,
 no account, no cloud. Auto-categorizes receipts into 29 tax categories mapped to
@@ -6,7 +6,7 @@ IRS Schedule C lines (plus Schedule A, Form 8829, Form 4562, COGS, and Personal)
 with receipt splitting, tax-aware math, sales-tax tracking, and CPA-ready exports
 (CSV / XLSX / TXF / QuickBooks CSV).
 
-The differentiator is the App Store privacy label: ReceiptSnap can ship
+The differentiator is the App Store privacy label: TaxTrail can ship
 **"Data Not Collected"** while every meaningful competitor requires an account
 and cloud processing.
 
@@ -78,7 +78,7 @@ for, and it is a rare, one-time trip.
 |---|---|
 | EAS project | `@tylerthornbrue/receiptsnap` |
 | Project ID | `d98a6958-bf2b-43c6-8ced-6e3953f0d11f` |
-| Bundle ID | `com.tylerthornbrue.receiptsnap` |
+| Bundle ID | `com.tylerthornbrue.taxtrail` |
 | OTA updates URL | `https://u.expo.dev/d98a6958-bf2b-43c6-8ced-6e3953f0d11f` |
 | Apple Team | `5M67JT29GJ` (Tyler Thornbrue, Individual) |
 | Repo secret | `EXPO_TOKEN` — used by the EAS workflow, never printed |
