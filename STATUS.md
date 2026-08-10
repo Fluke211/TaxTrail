@@ -106,13 +106,20 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   shipped publicly, so the change is cheap now and expensive later. The bundle
   identifier changes with the name.
 
-  **Shortlist ready — waiting on Tyler.** `docs/NAMING_2026-08.md` narrows the
-  field to six candidates that survive a live web and domain check, recommends
-  **Slipjar** (backup: TaxTrail), and gives the ten-minute clearance procedure.
-  Two checks can only be run by Tyler and are the authoritative ones: **App
-  Store Connect name availability** and **USPTO live marks** —
-  `trademarks.justia.com` and `tmsearch.uspto.gov` are both blocked by this
-  environment's egress proxy. Nothing gets renamed until a name clears.
+  **Name chosen: `TaxTrail: Receipt Scanner`**, subtitle *"Categorization for
+  Schedule C"* — cleared in App Store Connect and set on the app record
+  2026-08-10. Bare "TaxTrail" and "Tax Trail" were both refused, which means
+  another developer holds those strings on an unreleased record.
+
+  Due diligence is in `docs/NAMING_2026-08.md` §6. Verdict: **usable, not
+  clean** — one same-root app exists ([MyTaxTrail](https://apps.apple.com/us/app/mytaxtrail/id6756753200),
+  0 ratings, manual entry, no OCR, same privacy pitch), TaxTrail is a live
+  B2B tax-software brand in Switzerland and New Zealand, and `taxtrail.com` has
+  been held since 2006. Google Play is clear and `taxtrail.app` is free.
+
+  **Two things still open, both Tyler's:** run the USPTO search for live class
+  9 / 36 marks (every trademark route is blocked by this environment's egress
+  proxy), and buy `taxtrail.app`. The rename is not started until both land.
 
 - **No standalone CI on pull requests.** Tests only run when the EAS workflow is
   dispatched manually. A push/PR-triggered test workflow would catch regressions
@@ -176,7 +183,12 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 
 ## Session log
 
-**2026-08-10** — Answered four open questions, none of which changed the code.
+**2026-08-10** — Name settled as **TaxTrail: Receipt Scanner** after Tyler ran
+the App Store Connect check; full due diligence in `docs/NAMING_2026-08.md` §6.
+Corrected an error in that document: domain availability was first judged by DNS
+lookup, which cannot distinguish an undelegated registered domain from a free
+one — re-verified by RDAP, four `.com` candidates were in fact taken. Earlier the
+same day, answered four open questions, none of which changed the code.
 **Barcode scanning is already compiled in**: `expo-camera@55.0.21` (in build 1)
 exposes `onBarcodeScanned` and `scanFromURLAsync` across `upc_a`, `upc_e`,
 `ean13`, `ean8`, `code128`, `code39`, `itf14`, `pdf417`, `qr`, `aztec`,
