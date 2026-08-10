@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TaxTrail — Private receipt scanning for US small-business taxes</title>
+<meta name="description" content="Scan a receipt, get the right IRS Schedule C line. On-device OCR, no account, no cloud. Your receipts never leave your phone.">
+<style>
+:root{--bg:#0f172a;--bg2:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#6366f1;--line:#334155;--ok:#34d399}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:56px 22px 80px}
+h1{font-size:34px;line-height:1.2;margin:0 0 12px;color:#fff;letter-spacing:-.5px}
+h2{font-size:20px;margin:40px 0 12px;color:#fff}
+.lede{font-size:19px;color:var(--muted);margin:0 0 30px}
+.badge{display:inline-block;font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);
+  border:1px solid var(--accent);border-radius:99px;padding:4px 12px;margin-bottom:20px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:24px 0}
+.card strong{color:#fff}
+ul{padding-left:20px;margin:12px 0}
+li{margin:9px 0}
+li strong{color:#fff}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:15px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px;letter-spacing:.4px;text-transform:uppercase}
+.yes{color:var(--ok);font-weight:600}
+a{color:var(--accent)}
+.links{margin-top:34px;display:flex;gap:18px;flex-wrap:wrap}
+footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+@media(max-width:520px){h1{font-size:27px}.lede{font-size:17px}}
+</style></head><body><div class="wrap">
+
+<div class="badge">Coming to the App Store</div>
+<h1>Your receipts never leave your phone.</h1>
+<p class="lede">TaxTrail scans a receipt, reads it on your device, and files it
+against the right IRS Schedule C line. No account. No cloud. No ads.</p>
+
+<div class="card">
+<strong>Why on-device matters.</strong> Every other receipt app uploads your
+purchases to a server so software there can read them. TaxTrail uses Apple's
+Vision framework, which runs on the phone itself — so there is no server holding
+a record of where you shop, what you buy, or what you earn. Not because we
+promise not to look. Because there is nothing to look at.
+</div>
+
+<h2>What it does</h2>
+<ul>
+<li><strong>Reads the receipt on your device.</strong> Edge detection and
+    perspective correction first, then text recognition — the photo quality is
+    what limits accuracy, so the scanner fixes that before reading.</li>
+<li><strong>Files it against Schedule C.</strong> 29 tax categories mapped to
+    actual IRS lines, plus Schedule A, Form 8829, Form 4562, COGS and personal.</li>
+<li><strong>Handles sales tax properly.</strong> Separates the taxable base from
+    the tax, remembers merchant and city rates, and gets the math right on
+    receipts that print a rate instead of an amount.</li>
+<li><strong>Splits one receipt across categories.</strong> The hardware-store run
+    that was half job materials and half personal, with the tax apportioned.</li>
+<li><strong>Exports for your CPA.</strong> CSV, Excel, TXF, and QuickBooks —
+    plus a full archive with every receipt image, so you can throw the paper out.</li>
+<li><strong>Multi-page capture</strong> for the long ones that never fit in a
+    single frame.</li>
+</ul>
+
+<h2>What we collect</h2>
+<table>
+<tr><th>Data</th><th>Collected?</th></tr>
+<tr><td>Receipt images</td><td class="yes">Never</td></tr>
+<tr><td>Merchants, amounts, categories</td><td class="yes">Never</td></tr>
+<tr><td>Your name, email, or account</td><td class="yes">There is no account</td></tr>
+<tr><td>Location</td><td class="yes">Never leaves the device</td></tr>
+<tr><td>Analytics, crash, or advertising SDKs</td><td class="yes">None. At all</td></tr>
+<tr><td>Purchase history, if you buy Pro</td><td>Handled by Apple and RevenueCat under an anonymous ID — never linked to you, never used for tracking</td></tr>
+</table>
+<p>The full detail is in the <a href="privacy.html">privacy policy</a>.</p>
+
+<h2>Pricing</h2>
+<p>Free for 10 scans a month, with full parsing, categorization and CSV export —
+not a trial that expires. Pro removes the limit and adds Excel, TXF and
+QuickBooks exports: <strong>$6.99/month</strong>, <strong>$39.99/year</strong>
+(7-day free trial), or <strong>$99.99 once</strong>.</p>
+<p><strong>No ads, ever.</strong> An app that sells your purchase history is the
+thing this exists to replace.</p>
+
+<div class="links">
+<a href="support.html">Support &amp; FAQ</a>
+<a href="privacy.html">Privacy policy</a>
+<a href="mailto:support@taxtrail.app">support@taxtrail.app</a>
+</div>
+
+<footer>TaxTrail · Privacy-first receipt scanning for US small-business taxes.<br>
+Not affiliated with the IRS. Nothing here is tax advice — check with your tax
+professional.</footer>
+</div></body></html>

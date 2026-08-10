@@ -867,3 +867,84 @@ change. Until then it is a piece of internal plumbing wearing the old name, like
 real, which makes it a general-purpose probe for "did I just break the Expo
 project config?" Running it on `main` as a control is what turned a vague
 `build:list command failed` into a one-variable answer.
+
+---
+
+## D-029
+
+**taxtrail.app is hosted on Cloudflare Pages from `site/`. GitHub Pages is left
+alone on purpose — a custom domain there would strand Tyler's PWA receipts.**
+
+Date: 2026-08-10 · Status: accepted · Answers "do we need the GitHub site or
+the taxtrail.app website?"
+
+**Answer: one canonical home, and it should be `taxtrail.app`.** GitHub Pages
+was the stopgap while there was no domain. But the two are not
+interchangeable, and the obvious move — pointing `taxtrail.app` at the existing
+GitHub Pages site — is the one that must not be made.
+
+**The hazard.** Setting a custom domain on a GitHub Pages site makes GitHub
+redirect `<user>.github.io/<repo>` to that domain. The retired PWA
+(`index.html`) is served from this repo's root, and Tyler still has unexported
+receipts in its browser storage. **`localStorage` is scoped to the origin** —
+`https://fluke211.github.io` — not to the path. That is why renaming the repo
+from `receipt-snap` to `TaxTrail` was harmless: verified, the PWA still answers
+200 at `https://fluke211.github.io/TaxTrail/` and the origin never moved. A
+custom domain *does* move it. His receipts would still exist in the browser
+under the old origin with no page left able to read them.
+
+So GitHub Pages keeps serving the repo root, with no custom domain, until those
+receipts are exported.
+
+**The split:**
+
+| | Serves | From |
+|---|---|---|
+| **Cloudflare Pages → `taxtrail.app`** | Landing page, privacy policy, support | `site/` |
+| **GitHub Pages → `fluke211.github.io/TaxTrail/`** | The retired PWA, plus the current App Store URLs | repo root |
+
+Cloudflare Pages' Git import takes a **build output directory**, so pointing it
+at `site/` serves only those three files and never the PWA at the root. The repo
+stays the single source of truth for both, which is the property Tyler actually
+cares about — nothing is authored in a dashboard.
+
+**Sequencing, deliberately.** The App Store URLs and the app's `PRIVACY_URL`
+still point at GitHub Pages and **do not move until `taxtrail.app` answers 200**.
+Switching them first is exactly the bug that shipped in js r10 — the repo rename
+moved the Pages path and left the paywall linking to a 404. Guideline 3.1.2
+requires a working privacy link on the purchase screen, so an unverified URL
+there fails review.
+
+**Later, once the PWA receipts are exported:** collapse the duplication by
+turning the root `privacy.html` / `support.html` into redirects to
+`taxtrail.app`. Two copies of a privacy policy is a drift hazard, and it is
+accepted only while both addresses have to work.
+
+---
+
+## D-030
+
+**Email is `support@taxtrail.app` via Cloudflare Email Routing. One address, not
+three.**
+
+Date: 2026-08-10 · Status: accepted · Supersedes the placeholder in D-027
+
+D-027 shipped `taxtrail@vaultvision.team` as a borrowed address. Tyler bought
+`taxtrail.app` (Cloudflare Registrar, $14.20), so that is resolved.
+
+**One address, not a set.** `support@`, `privacy@`, `hello@` and `legal@` is
+what a company with a support team does. For a solo developer it is four routing
+rules, four things to check, and four ways to silently drop a customer email.
+`support@taxtrail.app` goes in the privacy policy, the support page, the landing
+page, and the App Store listing. A catch-all rule backstops anything else, so
+mail to a guessed address still arrives.
+
+**Cloudflare Email Routing rather than a mail host** — free, requires no
+mailbox, and forwards to the inbox Tyler already reads. It configures its own
+MX, SPF and DKIM records on the root domain automatically, and requires the
+domain to use Cloudflare DNS, which a Cloudflare Registrar domain does by
+default. Procedure in `docs/RUNBOOK.md`.
+
+**It bounces until Tyler enables it**, which is why the app and the App Store
+listing are not switched to it in the same change. Verify delivery first — a
+support address that bounces is worse than one on the wrong domain.

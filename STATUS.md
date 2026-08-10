@@ -171,13 +171,46 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   You — Purchases"**. Exact questionnaire answers in
   `docs/APP_STORE_LISTING.md`. The GTM hero comparison needs rewording away from
   "Data Not Collected"; the contrast against competitors survives.
-- **Support and privacy contact set (D-027).** `privacy.html` and `support.html`
-  now carry `taxtrail@vaultvision.team`, a borrowed address on a domain Tyler
-  already owns, so submission is no longer blocked. **Verify it actually
-  delivers before submitting** — forwarding is per-address on that domain.
-  `taxtrail.app` is still unregistered and D-027 recommends buying it
-  defensively; the contact fields are App Store metadata, so switching later
-  needs no build and no review.
+- **`taxtrail.app` is owned** (Cloudflare Registrar, $14.20, 2026-08-10),
+  superseding the borrowed address in D-027. The public site is written and
+  lives in `site/` — landing page, privacy policy, support page, all on
+  `support@taxtrail.app` (D-030).
+
+  **Blocked on Tyler, two dashboard steps, procedure in `docs/RUNBOOK.md`:**
+  enable **Cloudflare Email Routing** for `support@` plus a catch-all, and
+  create a **Cloudflare Pages** project from this repo with build output
+  directory `site` and custom domain `taxtrail.app`. The domain currently has no
+  DNS records and does not resolve — verified.
+
+  Until `https://taxtrail.app/privacy.html` returns 200, the app's `PRIVACY_URL`
+  and the App Store URLs **stay on GitHub Pages on purpose** (D-029). Switching
+  early is exactly the js r10 bug.
+
+- **expo.dev still shows the OLD bundle identifier — expected, not a missed
+  reference.** `mobile/app.json` says `com.tylerthornbrue.taxtrail`; the value on
+  the Expo dashboard is server-side state recorded from the **last build** and
+  the stored iOS credentials, and it updates when we next build or run
+  `eas credentials`. Nothing in the repo still says `com.tylerthornbrue.receiptsnap`.
+
+  The identifier chain that must all agree before submission, and none of it is
+  automatic:
+  1. **Apple Developer portal** — an App ID for `com.tylerthornbrue.taxtrail`
+     does not exist yet. `eas credentials:configure-build` creates it.
+  2. **App Store Connect** — the app record is still bound to the old bundle ID.
+     Apple allows changing it **only while no build has been uploaded**, and
+     uploaded builds are still **0**, so the window is open. The new App ID must
+     exist first (step 1), then ASC → App Information → Bundle ID.
+  3. **Provisioning profile** — regenerated as part of step 1.
+  4. **RevenueCat** — its iOS app entry records the bundle ID; update it after 2.
+
+  All four land in the single Codespace-plus-build trip already queued for the
+  URL scheme and `expo-document-picker`.
+
+- **Do not put a custom domain on this repo's GitHub Pages (D-029).** It would
+  redirect `fluke211.github.io/TaxTrail/` to the new origin, and the retired
+  PWA's `localStorage` — holding Tyler's unexported receipts — is scoped to
+  `https://fluke211.github.io`. Verified still serving 200 at the renamed path,
+  so nothing is lost yet.
 
 - **Category inference is weak without a merchant hint.** `npm run test:score`
   flags both Costco fixtures as `uncategorized, low-confidence` — totals and

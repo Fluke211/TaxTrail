@@ -148,6 +148,17 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 
 ## Repository
 
+### 2026-08-10 (later)
+
+- `site/` — the public taxtrail.app site: landing page, privacy policy and
+  support page, on `support@taxtrail.app` (D-030). Deployed by Cloudflare Pages
+  from that subdirectory, which keeps the retired PWA at the repo root out of it
+- D-029: hosting split, and why a custom domain must never go on this repo's
+  GitHub Pages — it would move the origin and strand the PWA's stored receipts
+- D-030: one support address, via Cloudflare Email Routing
+- `docs/RUNBOOK.md`: the one-time Cloudflare procedure, with the 200-check that
+  must pass before the app's privacy link is repointed
+
 ### 2026-08-10
 
 - `docs/NAMING_2026-08.md` — name shortlist with live-verified conflicts,
