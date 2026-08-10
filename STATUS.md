@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r9** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
+| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r10** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
 
 ---
 
@@ -113,14 +113,11 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   discards the annual trial and price schedules), the Expo `slug`, the two
   guardrailed files, the historical docs, and the GitHub repo name.
 
-  **Three follow-ups, all Tyler's, none blocking each other:**
-  1. **Buy `taxtrail.app`** ($10.98, Namecheap). Also unblocks the support and
-     privacy contact address below.
-  2. **Rename the Expo project** to `taxtrail` at expo.dev → project settings.
-     Then the `slug` in `app.json` can flip. Until then it must stay, or the
-     Actions workflow breaks — every Expo domain is 403 from these sessions.
-  3. **Rename the GitHub repo** to `taxtrail`. `privacy.html`, `support.html`
-     and `FallbackPaywall.tsx`'s `PRIVACY_URL` all change with it.
+  **Follow-ups:** Expo project renamed to TaxTrail and the GitHub repo renamed
+  to `TaxTrail` (both done 2026-08-10), so the `slug` is now `taxtrail` and the
+  Pages URLs are `https://fluke211.github.io/TaxTrail/...`. The old
+  `receipt-snap` Pages path returns 404, which had silently broken the paywall's
+  privacy link — fixed in js r10. Remaining: **buy `taxtrail.app`** (D-027).
 
 - **No standalone CI on pull requests.** Tests only run when the EAS workflow is
   dispatched manually. A push/PR-triggered test workflow would catch regressions
@@ -171,9 +168,14 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   You — Purchases"**. Exact questionnaire answers in
   `docs/APP_STORE_LISTING.md`. The GTM hero comparison needs rewording away from
   "Data Not Collected"; the contrast against competitors survives.
-- **Support and privacy pages need a contact email.** `privacy.html` and
-  `support.html` carry `CONTACT_EMAIL_PLACEHOLDER`; App Store submission
-  requires a working support URL, so this blocks submission.
+- **Support and privacy contact set (D-027).** `privacy.html` and `support.html`
+  now carry `taxtrail@vaultvision.team`, a borrowed address on a domain Tyler
+  already owns, so submission is no longer blocked. **Verify it actually
+  delivers before submitting** — forwarding is per-address on that domain.
+  `taxtrail.app` is still unregistered and D-027 recommends buying it
+  defensively; the contact fields are App Store metadata, so switching later
+  needs no build and no review.
+
 - **Category inference is weak without a merchant hint.** `npm run test:score`
   flags both Costco fixtures as `uncategorized, low-confidence` — totals and
   sales tax are correct, but the category falls through unless merchant memory

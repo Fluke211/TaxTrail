@@ -11,6 +11,16 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r10 — 2026-08-10
+
+- **Fixed a broken privacy link in the paywall.** The repo rename to `TaxTrail`
+  moved the GitHub Pages path, so `FallbackPaywall`'s `PRIVACY_URL` was pointing
+  at a URL that now returns 404 — verified. Guideline 3.1.2 requires a working
+  privacy link on the purchase screen, so this would have failed review.
+- Support and privacy pages carry a real contact address, `taxtrail@vaultvision.team`
+  (D-027). Submission is no longer blocked on it.
+- Expo `slug` is now `taxtrail`, matching the renamed project on expo.dev.
+
 ### v1.0.0 (build 1) · js r9 — 2026-08-10
 
 **Renamed from ReceiptSnap to TaxTrail** (D-026). Not yet published — ships

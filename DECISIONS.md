@@ -774,3 +774,53 @@ regenerated provisioning profile — an interactive Codespace trip, since
 `eas credentials` has no non-interactive mode (D-004) — and a build. The build
 was already required for the URL scheme (D-024) and `expo-document-picker`, so
 they share one.
+
+---
+
+## D-027
+
+**Launch on a borrowed email; buy the domain anyway.**
+
+Date: 2026-08-10 · Status: accepted (with a dissent recorded)
+
+Tyler's call: hold off on `taxtrail.app` and use `taxtrail@vaultvision.team` —
+an address on a domain he already owns — so the app can ship and prove it earns
+anything before more money goes in. That is now wired into `privacy.html` and
+`support.html`, unblocking submission.
+
+**The principle is right.** Apple requires a working support URL, a privacy
+policy URL and a reachable contact. None of those require owning the brand's
+domain. GitHub Pages serves both documents free, and the support email only has
+to deliver. Spending before evidence is how projects die slowly, and this one
+has already lost a week to an unverified assumption.
+
+**The specific call is a bad trade, and this records why.** The sum is $10.98
+a year, against $99 already committed to the Apple Developer Program and a
+month of Tyler's evenings. Deferring it does not preserve meaningful
+optionality — it is not the marginal dollar that decides whether this ships.
+
+What it does do is create an asymmetric risk. `taxtrail.app` is unregistered
+*today*. The moment the app is listed, the name becomes public and searchable,
+and the domain becomes a thing someone can take for the same $10.98 — to park
+it, resell it, or point it at something we would not want our users to find.
+For an app whose entire pitch is "your receipts never leave your phone",
+`taxtrail.app` resolving to somebody else's page is a trust problem that no
+amount of listing copy repairs. The downside is small but effectively
+irreversible; the cost of avoiding it is eleven dollars.
+
+There is a second, softer cost: a support address on `vaultvision.team` reads
+as unrelated to the product. App Review will not care. A privacy-conscious user
+looking up who they are emailing might.
+
+**What makes this reversible:** the support and privacy contact fields are App
+Store *metadata*. Changing them later needs neither a build nor a review cycle,
+so switching to `support@taxtrail.app` whenever the domain is bought costs
+nothing. That is what makes shipping on the placeholder genuinely safe.
+
+**Recommendation on the record:** buy `taxtrail.app` as a defensive
+registration, not as a website. Keep the `vaultvision.team` address until there
+is revenue. The $10.98 buys the name, not the infrastructure.
+
+**Before submission, confirm `taxtrail@vaultvision.team` actually delivers** —
+forwarding is configured per-address on that domain, and a support address that
+bounces is worse than one on the wrong domain.
