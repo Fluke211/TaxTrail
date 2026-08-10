@@ -59,6 +59,14 @@ Two artifacts:
   technically possible. Dead ends burn his limited time. Check `--help` output,
   inspect package internals, run `prebuild` and read what it generated. This has
   repeatedly caught things that reasoning-from-memory would have gotten wrong.
+- **Verify market claims against live sources — WebSearch works from here.**
+  Names, competitors, "this position is unoccupied", pricing comparisons: search
+  before building on any of it, and re-check anything inherited. The project ran
+  for a week on a name already used by three App Store apps, and on a claimed-
+  empty niche that had at least three occupants. The evidence was in the canon
+  (D-013 recorded the name as taken) and nobody treated it as a competitor
+  signal. **A name being unavailable anywhere is a competitive-research trigger,
+  not a naming inconvenience.** See D-023 and `docs/MARKET_REASSESSMENT_2026-08.md`.
 - **Small command groups.** When Tyler must run or paste things, give one logical
   set at a time, never a full procedure — he gets stuck mid-list otherwise.
 - **He is often phone-only** (iPhone). Prefer flows that are tap-driven or happen

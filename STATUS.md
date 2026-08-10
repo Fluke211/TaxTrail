@@ -100,6 +100,12 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 
 ## Open items and known issues
 
+- **BLOCKING — the app needs a new name (D-023).** "ReceiptSnap" is used by four
+  shipping apps, and the on-device/no-account position is occupied by at least
+  three competitors. See `docs/MARKET_REASSESSMENT_2026-08.md`. Nothing has
+  shipped publicly, so the change is cheap now and expensive later. The bundle
+  identifier changes with the name.
+
 - **No standalone CI on pull requests.** Tests only run when the EAS workflow is
   dispatched manually. A push/PR-triggered test workflow would catch regressions
   automatically.
