@@ -150,6 +150,14 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 
 ### 2026-08-10 (later)
 
+- `.github/workflows/cloudflare.yml` — Cloudflare driver on the EAS pattern
+  (D-031): `status` / `email` / `pages` / `verify`. There is no MCP server for
+  Cloudflare DNS, Email Routing or Pages, and the API is reachable, so it runs
+  from Actions with a scoped token in repository secrets
+- `docs/RUNBOOK.md`: rewrote the Cloudflare procedure against what the dashboard
+  actually does — enabling routing on the zone is a separate step from adding a
+  destination address, and it is the one that writes the DNS records
+
 - `site/` — the public taxtrail.app site: landing page, privacy policy and
   support page, on `support@taxtrail.app` (D-030). Deployed by Cloudflare Pages
   from that subdirectory, which keeps the retired PWA at the repo root out of it
