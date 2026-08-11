@@ -56,11 +56,64 @@ jobs:
             echo "::error::CLOUDFLARE_API_TOKEN is not set. Add it in Settings -> Secrets and variables -> Actions."
             exit 1
           fi
+
+          # Shape check. Never prints the value - only its length and character
+          # class, which is enough to tell the three common mistakes apart.
+          python3 - <<'PY'
+          import os, re
+          t = os.environ['TOKEN']
+          stripped = t.strip()
+          print(f"  length: {len(t)}")
+          if t != stripped:
+              print(f"::warning::The secret has leading/trailing whitespace ({len(t)-len(stripped)} chars). "
+                    "That alone causes 'Invalid API Token'. Re-paste it with no trailing space or newline.")
+          # Composition only - never any of the actual characters.
+          comp = []
+          if re.search(r'[a-z]', stripped): comp.append('lowercase')
+          if re.search(r'[A-Z]', stripped): comp.append('uppercase')
+          if re.search(r'[0-9]', stripped): comp.append('digits')
+          if '-' in stripped: comp.append("'-'")
+          if '_' in stripped: comp.append("'_'")
+          other = sorted(set(re.findall(r'[^A-Za-z0-9_-]', stripped)))
+          if other: comp.append(f'OTHER punctuation ({len(other)} distinct kinds)')
+          print('  composition:', ', '.join(comp) or 'empty')
+
+          KNOWN = [
+              (r'[0-9a-f]{32}',            "a Cloudflare Account ID or Zone ID (32 hex) - those are identifiers, not credentials. The Account ID belongs in CLOUDFLARE_ACCOUNT_ID, not here"),
+              (r'[0-9a-f]{37}',            "a Global API Key (37 hex) - a different credential that uses different auth headers entirely"),
+              (r'[0-9a-f-]{36}',           "a UUID - probably the token's ID from the API Tokens list, not its secret value"),
+              (r'v1\.0-.*',                "a Cloudflare Origin CA Key - wrong credential"),
+              (r'gh[pousr]_[A-Za-z0-9]+',  "a GitHub token - wrong service"),
+          ]
+          for pat, what in KNOWN:
+              if re.fullmatch(pat, stripped):
+                  print(f"::error::That value looks like {what}.")
+                  break
+          else:
+              if re.fullmatch(r'[A-Za-z0-9_-]{40}', stripped):
+                  print("  shape: correct for a Cloudflare API Token (40 chars)")
+              else:
+                  print(f"::warning::Wrong length - {len(stripped)} chars, expected exactly 40. "
+                        "A Cloudflare API Token is 40 characters of letters, digits, '-' and '_'. "
+                        "Longer usually means extra text came along with the copy; shorter means it was truncated. "
+                        "On the Create Token confirmation screen, use the Copy button rather than selecting the text by hand.")
+          PY
+
+          # Retry against the trimmed value too, so a stray newline is diagnosed
+          # rather than just failing.
+          TRIMMED=$(printf '%s' "$TOKEN" | tr -d '[:space:]')
           code=$(curl -sS -o /tmp/verify.json -w '%{http_code}' \
             -H "Authorization: Bearer $TOKEN" "$CF_API/user/tokens/verify")
           if [ "$code" != "200" ]; then
-            echo "::error::Token verify returned $code. Check the token's permissions and expiry."
-            python3 -c "import json;d=json.load(open('/tmp/verify.json'));[print(' -',e.get('message')) for e in d.get('errors',[])]" || true
+            code2=$(curl -sS -o /tmp/verify2.json -w '%{http_code}' \
+              -H "Authorization: Bearer $TRIMMED" "$CF_API/user/tokens/verify")
+            if [ "$code2" = "200" ]; then
+              echo "::error::The token is valid but the secret contains whitespace. Re-save CLOUDFLARE_API_TOKEN with no trailing newline or space."
+            else
+              echo "::error::Cloudflare rejected the token (HTTP $code). This is authentication, not permissions - a permissions problem returns 403 on a specific call, not 401 here."
+              python3 -c "import json;d=json.load(open('/tmp/verify.json'));[print(' -',e.get('message')) for e in d.get('errors',[])]" || true
+              echo "Most likely, in order: the value was truncated or mis-pasted; it is a Global API Key rather than an API Token; or the token was never activated. Re-create it at My Profile -> API Tokens -> Create Token -> Custom token, and copy the value from the confirmation screen - it is shown only once."
+            fi
             exit 1
           fi
           echo "Token OK."
