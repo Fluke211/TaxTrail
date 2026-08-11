@@ -994,3 +994,52 @@ Pages needs a browser OAuth handshake that has no API equivalent. Direct upload
 via `wrangler pages deploy site` is fully scriptable, deploys the same
 `site/` directory, and has the side benefit of running from the same Actions
 pipeline as everything else. D-029's split is unchanged — only the mechanism is.
+
+---
+
+## D-032
+
+**Verify a credential by capability, not by a status endpoint — and never
+assert a format from memory.**
+
+Date: 2026-08-11 · Status: accepted
+
+Getting the Cloudflare token working cost four runs and one needlessly rolled
+credential. Both causes are the same mistake in different clothes, and this is
+the third time this project has been bitten by it (D-013, D-023).
+
+**Mistake one: an unverified fact stated as a check.** The preflight asserted
+that a Cloudflare API token is 40 characters. That came from memory. It is
+wrong — Tyler's token is 53, and so was the replacement he rolled *because of
+the assertion*. A confident, specific, wrong diagnosis is worse than no
+diagnosis: it sent him to do work that could not help.
+
+The rule that already exists in `CLAUDE.md` — verify before recommending —
+applies to **the contents of a check**, not just to advice given in prose. A
+hardcoded expectation is a claim. If it cannot be verified, it must not be
+allowed to fail the run; print it as information and let a real call decide.
+
+**Mistake two: health-checking against the wrong endpoint.**
+`/user/tokens/verify` is user-scoped. Cloudflare issues both user-owned and
+account-owned API tokens, and an **account-owned token returns 401 there while
+being completely valid**. The preflight could never have passed for Tyler's
+token, and it reported that as "invalid credential".
+
+**The general rule: verify a credential by doing the smallest real thing you
+actually need it for.** Here that is `GET /zones?name=taxtrail.app` — the call
+every subsequent step depends on anyway. It cannot be wrong about scope,
+because it *is* the scope. And its failure modes are informative on their own:
+401 the credential was rejected, 403 a permission is missing, 200 with an empty
+result the resource is outside the token's scope.
+
+**Corollary: never let a diagnostic swallow an error.** The first `status` step
+printed `(no rules)` both when the call succeeded with an empty list and when it
+failed — identical output for "nothing configured" and "not allowed". Printing
+each endpoint's HTTP code turned a guessing loop into a single answer: zone DNS,
+routing settings and routing rules all 200; account routing addresses and Pages
+both 403. The token is zone-scoped, which no amount of re-reading the dashboard
+would have revealed.
+
+This matters more here than on most projects because Tyler is phone-only. Every
+vague failure costs a full exchange, so a diagnostic that says "wrong, try
+again" is not neutral — it spends the scarcest resource in the project.
