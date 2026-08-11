@@ -67,17 +67,36 @@ jobs:
           if t != stripped:
               print(f"::warning::The secret has leading/trailing whitespace ({len(t)-len(stripped)} chars). "
                     "That alone causes 'Invalid API Token'. Re-paste it with no trailing space or newline.")
-          if re.fullmatch(r'[0-9a-f]{37}', stripped):
-              print("::error::This looks like a Global API Key (37 hex chars), not an API Token. "
-                    "They are different credentials and use different auth headers. "
-                    "Create one at My Profile -> API Tokens -> Create Token.")
-          elif re.fullmatch(r'[A-Za-z0-9_-]{40}', stripped):
-              print("  shape: looks like a Cloudflare API Token (40 chars)")
+          # Composition only - never any of the actual characters.
+          comp = []
+          if re.search(r'[a-z]', stripped): comp.append('lowercase')
+          if re.search(r'[A-Z]', stripped): comp.append('uppercase')
+          if re.search(r'[0-9]', stripped): comp.append('digits')
+          if '-' in stripped: comp.append("'-'")
+          if '_' in stripped: comp.append("'_'")
+          other = sorted(set(re.findall(r'[^A-Za-z0-9_-]', stripped)))
+          if other: comp.append(f'OTHER punctuation ({len(other)} distinct kinds)')
+          print('  composition:', ', '.join(comp) or 'empty')
+
+          KNOWN = [
+              (r'[0-9a-f]{32}',            "a Cloudflare Account ID or Zone ID (32 hex) - those are identifiers, not credentials. The Account ID belongs in CLOUDFLARE_ACCOUNT_ID, not here"),
+              (r'[0-9a-f]{37}',            "a Global API Key (37 hex) - a different credential that uses different auth headers entirely"),
+              (r'[0-9a-f-]{36}',           "a UUID - probably the token's ID from the API Tokens list, not its secret value"),
+              (r'v1\.0-.*',                "a Cloudflare Origin CA Key - wrong credential"),
+              (r'gh[pousr]_[A-Za-z0-9]+',  "a GitHub token - wrong service"),
+          ]
+          for pat, what in KNOWN:
+              if re.fullmatch(pat, stripped):
+                  print(f"::error::That value looks like {what}.")
+                  break
           else:
-              print(f"::warning::Unexpected shape - {len(stripped)} chars after trimming. "
-                    "A Cloudflare API Token is 40 characters of letters, digits, '-' and '_'. "
-                    "If it is shorter, the copy was probably truncated; if it looks like a UUID, "
-                    "that is the token's ID, not its secret value - the secret is shown only once at creation.")
+              if re.fullmatch(r'[A-Za-z0-9_-]{40}', stripped):
+                  print("  shape: correct for a Cloudflare API Token (40 chars)")
+              else:
+                  print(f"::warning::Wrong length - {len(stripped)} chars, expected exactly 40. "
+                        "A Cloudflare API Token is 40 characters of letters, digits, '-' and '_'. "
+                        "Longer usually means extra text came along with the copy; shorter means it was truncated. "
+                        "On the Create Token confirmation screen, use the Copy button rather than selecting the text by hand.")
           PY
 
           # Retry against the trimmed value too, so a stray newline is diagnosed
