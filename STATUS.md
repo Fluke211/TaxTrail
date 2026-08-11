@@ -181,15 +181,28 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   for Cloudflare DNS, Email Routing or Pages; the API is reachable, so it runs on
   the EAS pattern with a scoped token in repository secrets.
 
-  **Blocked on Tyler:** create `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
-  as repository secrets (permissions listed in `docs/RUNBOOK.md`), and click the
-  verification link on the Email Routing destination address — routing rules stay
-  disabled until that is done, and no API call substitutes for it.
+  **Email DNS is LIVE as of 2026-08-11.** `step: email` enabled Email Routing on
+  the zone and Cloudflare wrote its records. Confirmed in public DNS, not just
+  the API: three MX records (`route1/2/3.mx.cloudflare.net`), the SPF TXT
+  (`v=spf1 include:_spf.mx.cloudflare.net ~all`), and the DKIM TXT at
+  `cf2024-1._domainkey`.
 
-  **Verified 2026-08-10:** the zone is on Cloudflare nameservers
-  (`chuck`/`laura.ns.cloudflare.com`) but has **no MX, TXT or A records at all**.
-  Email Routing was not enabled on the zone, so its records were never written —
-  this is not propagation delay, and waiting will not fix it.
+  **The token is zone-scoped** — verified per-endpoint: zone DNS records, zone
+  email routing settings and zone routing rules all return 200; **account**
+  email routing addresses and **account** Pages both return **403**. It is also
+  **account-owned**, which is why `/user/tokens/verify` returns 401 for it and
+  why the preflight now health-checks by resolving the zone instead (D-032).
+
+  **Blocked on Tyler:** add two permissions to the existing token — **Account →
+  Email Routing Addresses → Edit** and **Account → Cloudflare Pages → Edit**.
+  The token currently has only a Zone resource row, so an Account row must be
+  added. Then: destination address → Cloudflare emails a verification link →
+  rules go live → `step: pages` deploys `site/`.
+
+  **Resolved:** the zone had no records because Email Routing was never enabled
+  on it — adding a destination address does not write DNS, enabling routing
+  does. There is still **no A record**, so `taxtrail.app` does not serve a site
+  until `step: pages` runs.
 
   Until `https://taxtrail.app/privacy.html` returns 200, the app's `PRIVACY_URL`
   and the App Store URLs **stay on GitHub Pages on purpose** (D-029). Switching

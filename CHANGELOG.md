@@ -148,6 +148,17 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 
 ## Repository
 
+### 2026-08-11
+
+- **`taxtrail.app` email DNS is live** — Email Routing enabled on the zone via
+  `cloudflare.yml step: email`; MX, SPF and DKIM records confirmed in public DNS
+- Cloudflare token preflight rewritten to verify by capability rather than
+  against `/user/tokens/verify`, which is user-scoped and always 401s for an
+  account-owned token (D-032). A length assertion written from memory was
+  removed — it had reported a valid token as malformed
+- `status` now prints each endpoint's HTTP code instead of swallowing errors,
+  which is what identified the token as zone-scoped
+
 ### 2026-08-10 (later)
 
 - `.github/workflows/cloudflare.yml` — Cloudflare driver on the EAS pattern
