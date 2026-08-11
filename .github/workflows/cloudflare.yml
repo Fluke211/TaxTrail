@@ -120,42 +120,47 @@ jobs:
         if: inputs.step == 'status' || inputs.step == 'verify'
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          set -euo pipefail
-          echo "=== DNS records ==="
-          curl -sS -H "Authorization: Bearer $(printf %s \"$TOKEN\" | tr -d '[:space:]')" \
-            "$CF_API/zones/$ZONE_ID/dns_records?per_page=100" -o /tmp/dns.json
+          set -uo pipefail
+          T=$(printf '%s' "$TOKEN" | tr -d '[:space:]')
+
+          # Report the HTTP code and any error body for every call. An earlier
+          # version printed "(no rules)" whether the call succeeded with an
+          # empty list or failed outright, which hid a permissions problem.
+          probe() {  # $1 = label, $2 = url
+            code=$(curl -sS -o /tmp/p.json -w '%{http_code}' -H "Authorization: Bearer $T" "$2")
+            printf '  %-46s HTTP %s\n' "$1" "$code"
+            python3 -c "
+          import json
+          try: d=json.load(open('/tmp/p.json'))
+          except Exception: raise SystemExit
+          for e in (d.get('errors') or []): print('      error', e.get('code'), '-', e.get('message'))" || true
+            cp /tmp/p.json "/tmp/last.json" 2>/dev/null || true
+          }
+
+          echo "=== DNS ==="
+          probe "GET /zones/:id/dns_records" "$CF_API/zones/$ZONE_ID/dns_records?per_page=100"
           python3 -c "
           import json
-          rs=json.load(open('/tmp/dns.json')).get('result') or []
-          if not rs: print('  (none — the zone has no DNS records at all)')
+          try: rs=json.load(open('/tmp/last.json')).get('result') or []
+          except Exception: rs=[]
+          if not rs: print('    (no DNS records on this zone)')
           for r in sorted(rs, key=lambda x:(x['type'],x['name'])):
-              print(f\"  {r['type']:<6} {r['name']:<44} {str(r['content'])[:60]}\")
-          print(f'\n  MX: {sum(1 for r in rs if r[\"type\"]==\"MX\")}  TXT: {sum(1 for r in rs if r[\"type\"]==\"TXT\")}')"
+              print(f\"    {r['type']:<6} {r['name']:<40} {str(r['content'])[:56]}\")
+          print(f'    MX={sum(1 for r in rs if r[\"type\"]==\"MX\")} TXT={sum(1 for r in rs if r[\"type\"]==\"TXT\")}')"
 
-          echo; echo "=== Email Routing ==="
-          curl -sS -H "Authorization: Bearer $(printf %s \"$TOKEN\" | tr -d '[:space:]')" \
-            "$CF_API/zones/$ZONE_ID/email/routing" -o /tmp/er.json || true
-          python3 -c "
-          import json
-          d=json.load(open('/tmp/er.json')); r=d.get('result') or {}
-          if not d.get('success'):
-              print('  could not read routing settings:', [e.get('message') for e in d.get('errors',[])]); raise SystemExit
-          print('  enabled:', r.get('enabled'))
-          print('  status :', r.get('status'))
-          print('  name   :', r.get('name'))"
+          echo; echo "=== Email Routing — which API shape answers ==="
+          probe "zone   /email/routing"          "$CF_API/zones/$ZONE_ID/email/routing"
+          probe "zone   /email/routing/rules"    "$CF_API/zones/$ZONE_ID/email/routing/rules?per_page=50"
+          probe "acct   /email/routing/addresses" "$CF_API/accounts/$ACC/email/routing/addresses?per_page=50"
 
-          echo; echo "=== Routing rules ==="
-          curl -sS -H "Authorization: Bearer $(printf %s \"$TOKEN\" | tr -d '[:space:]')" \
-            "$CF_API/zones/$ZONE_ID/email/routing/rules?per_page=50" -o /tmp/rules.json || true
-          python3 -c "
-          import json
-          d=json.load(open('/tmp/rules.json')); rs=d.get('result') or []
-          if not rs: print('  (no rules)')
-          for r in rs:
-              m=', '.join(str(x.get('value')) for x in r.get('matchers',[]) if x.get('type')!='all') or 'catch-all'
-              a=', '.join(str(v) for x in r.get('actions',[]) for v in (x.get('value') or []))
-              print(f\"  {'on ' if r.get('enabled') else 'OFF'} {m:<28} -> {a}\")"
+          echo; echo "=== Pages (account-scoped — likely needs its own permission) ==="
+          probe "acct   /pages/projects"          "$CF_API/accounts/$ACC/pages/projects"
+
+          echo; echo "Reading the codes: 200 = allowed. 403 or a 'Authentication"
+          echo "failed' 400 on ONE resource while others return 200 means the"
+          echo "token is fine but lacks that specific permission."
 
       - name: Email — enable routing, write DNS, create rules
         if: inputs.step == 'email'
