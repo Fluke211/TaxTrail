@@ -57,135 +57,127 @@ jobs:
             exit 1
           fi
 
-          # Shape check. Never prints the value - only its length and character
-          # class, which is enough to tell the three common mistakes apart.
+          # Informational only. Do NOT assert a length: Cloudflare has changed
+          # the token format, and an earlier version of this file asserted 40
+          # characters from memory and produced a confidently wrong diagnosis.
+          # The only trustworthy test is whether a real call succeeds.
           python3 - <<'PY'
-          import os, re
+          import os
           t = os.environ['TOKEN']
-          stripped = t.strip()
-          print(f"  length: {len(t)}")
-          if t != stripped:
-              print(f"::warning::The secret has leading/trailing whitespace ({len(t)-len(stripped)} chars). "
-                    "That alone causes 'Invalid API Token'. Re-paste it with no trailing space or newline.")
-          # Composition only - never any of the actual characters.
-          comp = []
-          if re.search(r'[a-z]', stripped): comp.append('lowercase')
-          if re.search(r'[A-Z]', stripped): comp.append('uppercase')
-          if re.search(r'[0-9]', stripped): comp.append('digits')
-          if '-' in stripped: comp.append("'-'")
-          if '_' in stripped: comp.append("'_'")
-          other = sorted(set(re.findall(r'[^A-Za-z0-9_-]', stripped)))
-          if other: comp.append(f'OTHER punctuation ({len(other)} distinct kinds)')
-          print('  composition:', ', '.join(comp) or 'empty')
-
-          KNOWN = [
-              (r'[0-9a-f]{32}',            "a Cloudflare Account ID or Zone ID (32 hex) - those are identifiers, not credentials. The Account ID belongs in CLOUDFLARE_ACCOUNT_ID, not here"),
-              (r'[0-9a-f]{37}',            "a Global API Key (37 hex) - a different credential that uses different auth headers entirely"),
-              (r'[0-9a-f-]{36}',           "a UUID - probably the token's ID from the API Tokens list, not its secret value"),
-              (r'v1\.0-.*',                "a Cloudflare Origin CA Key - wrong credential"),
-              (r'gh[pousr]_[A-Za-z0-9]+',  "a GitHub token - wrong service"),
-          ]
-          for pat, what in KNOWN:
-              if re.fullmatch(pat, stripped):
-                  print(f"::error::That value looks like {what}.")
-                  break
-          else:
-              if re.fullmatch(r'[A-Za-z0-9_-]{40}', stripped):
-                  print("  shape: correct for a Cloudflare API Token (40 chars)")
-              else:
-                  print(f"::warning::Wrong length - {len(stripped)} chars, expected exactly 40. "
-                        "A Cloudflare API Token is 40 characters of letters, digits, '-' and '_'. "
-                        "Longer usually means extra text came along with the copy; shorter means it was truncated. "
-                        "On the Create Token confirmation screen, use the Copy button rather than selecting the text by hand.")
+          print(f"  secret length: {len(t)}")
+          if t != t.strip():
+              print(f"::warning::The secret has {len(t)-len(t.strip())} chars of surrounding whitespace, "
+                    "which alone can cause an auth failure. Re-save it with no trailing newline or space.")
           PY
 
-          # Retry against the trimmed value too, so a stray newline is diagnosed
-          # rather than just failing.
           TRIMMED=$(printf '%s' "$TOKEN" | tr -d '[:space:]')
-          code=$(curl -sS -o /tmp/verify.json -w '%{http_code}' \
-            -H "Authorization: Bearer $TOKEN" "$CF_API/user/tokens/verify")
-          if [ "$code" != "200" ]; then
-            code2=$(curl -sS -o /tmp/verify2.json -w '%{http_code}' \
-              -H "Authorization: Bearer $TRIMMED" "$CF_API/user/tokens/verify")
-            if [ "$code2" = "200" ]; then
-              echo "::error::The token is valid but the secret contains whitespace. Re-save CLOUDFLARE_API_TOKEN with no trailing newline or space."
-            else
-              echo "::error::Cloudflare rejected the token (HTTP $code). This is authentication, not permissions - a permissions problem returns 403 on a specific call, not 401 here."
-              python3 -c "import json;d=json.load(open('/tmp/verify.json'));[print(' -',e.get('message')) for e in d.get('errors',[])]" || true
-              echo "Most likely, in order: the value was truncated or mis-pasted; it is a Global API Key rather than an API Token; or the token was never activated. Re-create it at My Profile -> API Tokens -> Create Token -> Custom token, and copy the value from the confirmation screen - it is shown only once."
-            fi
-            exit 1
-          fi
-          echo "Token OK."
 
-          curl -sS -H "Authorization: Bearer $TOKEN" \
-            "$CF_API/zones?name=$ZONE" -o /tmp/zone.json
-          ZID=$(python3 -c "
+          # Health check by CAPABILITY, not by /user/tokens/verify.
+          # That endpoint is user-scoped: an ACCOUNT-owned token is perfectly
+          # valid yet 401s there. Resolving the zone is the first thing every
+          # other step needs anyway, so it is the honest test.
+          code=$(curl -sS -o /tmp/zone.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TRIMMED" "$CF_API/zones?name=$ZONE")
+          echo "  GET /zones?name=$ZONE -> HTTP $code"
+
+          if [ "$code" = "200" ]; then
+            ZID=$(python3 -c "
           import json,sys
           d=json.load(open('/tmp/zone.json'))
           r=d.get('result') or []
           if not r:
-              print('::error::Zone $ZONE not found. The token needs Zone -> Zone -> Read on this zone.', file=sys.stderr)
+              print('::error::Authenticated fine, but zone $ZONE is not visible to this token. Add Zone -> Zone -> Read, and make sure the token includes this zone in its resources.', file=sys.stderr)
               sys.exit(1)
           print(r[0]['id'])")
-          echo "ZONE_ID=$ZID" >> "$GITHUB_ENV"
-          echo "Zone $ZONE resolved."
+            echo "ZONE_ID=$ZID" >> "$GITHUB_ENV"
+            echo "  zone resolved — the token works."
+          else
+            echo "::error::Cloudflare returned HTTP $code resolving the zone."
+            python3 -c "
+          import json
+          try: d=json.load(open('/tmp/zone.json'))
+          except Exception: d={}
+          for e in d.get('errors',[]): print('  -', e.get('code'), e.get('message'))" || true
+            if [ "$code" = "403" ]; then
+              echo "  403 is a PERMISSIONS problem, not a bad token. The token needs Zone -> Zone -> Read on $ZONE."
+            elif [ "$code" = "401" ]; then
+              echo "  401 means the credential itself was not accepted: wrong value, expired, or an IP restriction on the token."
+            fi
+            exit 1
+          fi
+
+          # Secondary signal only — never fatal. Tells us which kind of token
+          # this is, which matters for reading Cloudflare's own docs later.
+          uc=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $TRIMMED" "$CF_API/user/tokens/verify")
+          if [ "$uc" = "200" ]; then
+            echo "  token type: user-owned"
+          else
+            echo "  token type: account-owned (user endpoint returns $uc, which is expected and harmless)"
+          fi
 
       - name: Status — what exists right now
         if: inputs.step == 'status' || inputs.step == 'verify'
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          set -euo pipefail
-          echo "=== DNS records ==="
-          curl -sS -H "Authorization: Bearer $TOKEN" \
-            "$CF_API/zones/$ZONE_ID/dns_records?per_page=100" -o /tmp/dns.json
+          set -uo pipefail
+          T=$(printf '%s' "$TOKEN" | tr -d '[:space:]')
+
+          # Report the HTTP code and any error body for every call. An earlier
+          # version printed "(no rules)" whether the call succeeded with an
+          # empty list or failed outright, which hid a permissions problem.
+          probe() {  # $1 = label, $2 = url
+            code=$(curl -sS -o /tmp/p.json -w '%{http_code}' -H "Authorization: Bearer $T" "$2")
+            printf '  %-46s HTTP %s\n' "$1" "$code"
+            python3 -c "
+          import json
+          try: d=json.load(open('/tmp/p.json'))
+          except Exception: raise SystemExit
+          for e in (d.get('errors') or []): print('      error', e.get('code'), '-', e.get('message'))" || true
+            cp /tmp/p.json "/tmp/last.json" 2>/dev/null || true
+          }
+
+          echo "=== DNS ==="
+          probe "GET /zones/:id/dns_records" "$CF_API/zones/$ZONE_ID/dns_records?per_page=100"
           python3 -c "
           import json
-          rs=json.load(open('/tmp/dns.json')).get('result') or []
-          if not rs: print('  (none — the zone has no DNS records at all)')
+          try: rs=json.load(open('/tmp/last.json')).get('result') or []
+          except Exception: rs=[]
+          if not rs: print('    (no DNS records on this zone)')
           for r in sorted(rs, key=lambda x:(x['type'],x['name'])):
-              print(f\"  {r['type']:<6} {r['name']:<44} {str(r['content'])[:60]}\")
-          print(f'\n  MX: {sum(1 for r in rs if r[\"type\"]==\"MX\")}  TXT: {sum(1 for r in rs if r[\"type\"]==\"TXT\")}')"
+              print(f\"    {r['type']:<6} {r['name']:<40} {str(r['content'])[:56]}\")
+          print(f'    MX={sum(1 for r in rs if r[\"type\"]==\"MX\")} TXT={sum(1 for r in rs if r[\"type\"]==\"TXT\")}')"
 
-          echo; echo "=== Email Routing ==="
-          curl -sS -H "Authorization: Bearer $TOKEN" \
-            "$CF_API/zones/$ZONE_ID/email/routing" -o /tmp/er.json || true
-          python3 -c "
-          import json
-          d=json.load(open('/tmp/er.json')); r=d.get('result') or {}
-          if not d.get('success'):
-              print('  could not read routing settings:', [e.get('message') for e in d.get('errors',[])]); raise SystemExit
-          print('  enabled:', r.get('enabled'))
-          print('  status :', r.get('status'))
-          print('  name   :', r.get('name'))"
+          echo; echo "=== Email Routing — which API shape answers ==="
+          probe "zone   /email/routing"          "$CF_API/zones/$ZONE_ID/email/routing"
+          probe "zone   /email/routing/rules"    "$CF_API/zones/$ZONE_ID/email/routing/rules?per_page=50"
+          probe "acct   /email/routing/addresses" "$CF_API/accounts/$ACC/email/routing/addresses?per_page=50"
 
-          echo; echo "=== Routing rules ==="
-          curl -sS -H "Authorization: Bearer $TOKEN" \
-            "$CF_API/zones/$ZONE_ID/email/routing/rules?per_page=50" -o /tmp/rules.json || true
-          python3 -c "
-          import json
-          d=json.load(open('/tmp/rules.json')); rs=d.get('result') or []
-          if not rs: print('  (no rules)')
-          for r in rs:
-              m=', '.join(str(x.get('value')) for x in r.get('matchers',[]) if x.get('type')!='all') or 'catch-all'
-              a=', '.join(str(v) for x in r.get('actions',[]) for v in (x.get('value') or []))
-              print(f\"  {'on ' if r.get('enabled') else 'OFF'} {m:<28} -> {a}\")"
+          echo; echo "=== Pages (account-scoped — likely needs its own permission) ==="
+          probe "acct   /pages/projects"          "$CF_API/accounts/$ACC/pages/projects"
+
+          echo; echo "Reading the codes: 200 = allowed. 403 or a 'Authentication"
+          echo "failed' 400 on ONE resource while others return 200 means the"
+          echo "token is fine but lacks that specific permission."
 
       - name: Email — enable routing, write DNS, create rules
         if: inputs.step == 'email'
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           FORWARD_TO: ${{ inputs.forward_to }}
+          ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+          T=$(printf '%s' "$TOKEN" | tr -d '[:space:]')
           if [ -z "${FORWARD_TO:-}" ]; then
-            echo "::error::forward_to is required for step: email. Use the inbox you already verified as a destination address."
-            exit 1
+            echo "No forward_to given — enabling routing and writing DNS only."
+            echo "Rules need a VERIFIED destination address; re-run with forward_to once there is one."
           fi
 
           echo "==> Enabling Email Routing (this writes the MX, SPF and DKIM records)"
-          curl -sS -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+          curl -sS -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
             "$CF_API/zones/$ZONE_ID/email/routing/enable" -d '{}' -o /tmp/enable.json || true
           python3 -c "
           import json
@@ -193,42 +185,57 @@ jobs:
           print('  success:', d.get('success'))
           for e in d.get('errors',[]): print('  note:', e.get('message'))"
 
-          echo; echo "==> Destination address check"
-          curl -sS -H "Authorization: Bearer $TOKEN" \
-            "$CF_API/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/email/routing/addresses?per_page=50" \
-            -o /tmp/addr.json || true
-          python3 - <<'PY'
-          import json, os, sys
+          echo; echo "==> DNS records now on the zone"
+          curl -sS -H "Authorization: Bearer $T" \
+            "$CF_API/zones/$ZONE_ID/dns_records?per_page=100" -o /tmp/dns2.json
+          python3 -c "
+          import json
+          rs=json.load(open('/tmp/dns2.json')).get('result') or []
+          if not rs: print('  (still none — the enable call did not take)')
+          for r in sorted(rs, key=lambda x:(x['type'],x['name'])):
+              print(f\"  {r['type']:<6} {r['name']:<40} {str(r['content'])[:56]}\")"
+
+          if [ -z "${FORWARD_TO:-}" ]; then
+            echo; echo "Stopping here — no destination address was supplied, so no rules were created."
+            exit 0
+          fi
+
+          echo; echo "==> Destination address"
+          code=$(curl -sS -o /tmp/addr.json -w '%{http_code}' -H "Authorization: Bearer $T" \
+            "$CF_API/accounts/$ACC/email/routing/addresses?per_page=50")
+          if [ "$code" = "403" ]; then
+            echo "  Cannot read destination addresses (403). The token lacks"
+            echo "  Account -> Email Routing Addresses. Add the address in the dashboard instead;"
+            echo "  the rule below will be created but stays DISABLED until it is verified."
+          else
+            python3 - <<'PY2'
+          import json, os
           want = os.environ['FORWARD_TO'].strip().lower()
-          try: rs = json.load(open('/tmp/addr.json')).get('result') or []
-          except Exception: rs = []
-          match = [a for a in rs if (a.get('email') or '').lower() == want]
+          rs = json.load(open('/tmp/addr.json')).get('result') or []
           for a in rs:
               print(f"  {a.get('email'):<40} verified={'yes' if a.get('verified') else 'NO'}")
-          if not match:
-              print(f"::warning::{want} is not a destination address on this account yet.")
-              print("Cloudflare will email it a verification link; the rule stays DISABLED until that link is clicked.")
-          elif not match[0].get('verified'):
-              print(f"::warning::{want} exists but is NOT verified. Click the link Cloudflare emailed it.")
+          m = [a for a in rs if (a.get('email') or '').lower() == want]
+          if not m:
+              print(f"::warning::{want} is not a destination address yet — Cloudflare must email it a verification link first.")
+          elif not m[0].get('verified'):
+              print(f"::warning::{want} is not verified yet. Click the link Cloudflare emailed it.")
           else:
               print(f"  {want} is verified.")
-          PY
+          PY2
+          fi
 
-          echo; echo "==> Creating routing rules"
-          create_rule() {  # $1 = name, $2 = json matchers
-            curl -sS -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-              "$CF_API/zones/$ZONE_ID/email/routing/rules" \
-              -d "{\"name\":\"$1\",\"enabled\":true,\"matchers\":$2,
-                   \"actions\":[{\"type\":\"forward\",\"value\":[\"$FORWARD_TO\"]}]}" -o /tmp/rule.json || true
-            python3 -c "
+          echo; echo "==> Routing rules"
+          curl -sS -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
+            "$CF_API/zones/$ZONE_ID/email/routing/rules" \
+            -d "{\"name\":\"support\",\"enabled\":true,
+                 \"matchers\":[{\"type\":\"literal\",\"field\":\"to\",\"value\":\"support@$ZONE\"}],
+                 \"actions\":[{\"type\":\"forward\",\"value\":[\"$FORWARD_TO\"]}]}" -o /tmp/rule.json || true
+          python3 -c "
           import json
           d=json.load(open('/tmp/rule.json'))
-          print('  $1:', 'created' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
-          }
-          create_rule "support" '[{"type":"literal","field":"to","value":"support@'"$ZONE"'"}]'
+          print('  support@:', 'created' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
 
-          echo "  catch-all:"
-          curl -sS -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+          curl -sS -X PUT -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
             "$CF_API/zones/$ZONE_ID/email/routing/rules/catch_all" \
             -d "{\"name\":\"catch-all\",\"enabled\":true,
                  \"matchers\":[{\"type\":\"all\"}],
@@ -236,7 +243,7 @@ jobs:
           python3 -c "
           import json
           d=json.load(open('/tmp/ca.json'))
-          print('   ', 'set' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
+          print('  catch-all:', 'set' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
 
       - name: Pages — create the project and deploy site/
         if: inputs.step == 'pages'
