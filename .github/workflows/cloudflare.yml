@@ -56,11 +56,45 @@ jobs:
             echo "::error::CLOUDFLARE_API_TOKEN is not set. Add it in Settings -> Secrets and variables -> Actions."
             exit 1
           fi
+
+          # Shape check. Never prints the value - only its length and character
+          # class, which is enough to tell the three common mistakes apart.
+          python3 - <<'PY'
+          import os, re
+          t = os.environ['TOKEN']
+          stripped = t.strip()
+          print(f"  length: {len(t)}")
+          if t != stripped:
+              print(f"::warning::The secret has leading/trailing whitespace ({len(t)-len(stripped)} chars). "
+                    "That alone causes 'Invalid API Token'. Re-paste it with no trailing space or newline.")
+          if re.fullmatch(r'[0-9a-f]{37}', stripped):
+              print("::error::This looks like a Global API Key (37 hex chars), not an API Token. "
+                    "They are different credentials and use different auth headers. "
+                    "Create one at My Profile -> API Tokens -> Create Token.")
+          elif re.fullmatch(r'[A-Za-z0-9_-]{40}', stripped):
+              print("  shape: looks like a Cloudflare API Token (40 chars)")
+          else:
+              print(f"::warning::Unexpected shape - {len(stripped)} chars after trimming. "
+                    "A Cloudflare API Token is 40 characters of letters, digits, '-' and '_'. "
+                    "If it is shorter, the copy was probably truncated; if it looks like a UUID, "
+                    "that is the token's ID, not its secret value - the secret is shown only once at creation.")
+          PY
+
+          # Retry against the trimmed value too, so a stray newline is diagnosed
+          # rather than just failing.
+          TRIMMED=$(printf '%s' "$TOKEN" | tr -d '[:space:]')
           code=$(curl -sS -o /tmp/verify.json -w '%{http_code}' \
             -H "Authorization: Bearer $TOKEN" "$CF_API/user/tokens/verify")
           if [ "$code" != "200" ]; then
-            echo "::error::Token verify returned $code. Check the token's permissions and expiry."
-            python3 -c "import json;d=json.load(open('/tmp/verify.json'));[print(' -',e.get('message')) for e in d.get('errors',[])]" || true
+            code2=$(curl -sS -o /tmp/verify2.json -w '%{http_code}' \
+              -H "Authorization: Bearer $TRIMMED" "$CF_API/user/tokens/verify")
+            if [ "$code2" = "200" ]; then
+              echo "::error::The token is valid but the secret contains whitespace. Re-save CLOUDFLARE_API_TOKEN with no trailing newline or space."
+            else
+              echo "::error::Cloudflare rejected the token (HTTP $code). This is authentication, not permissions - a permissions problem returns 403 on a specific call, not 401 here."
+              python3 -c "import json;d=json.load(open('/tmp/verify.json'));[print(' -',e.get('message')) for e in d.get('errors',[])]" || true
+              echo "Most likely, in order: the value was truncated or mis-pasted; it is a Global API Key rather than an API Token; or the token was never activated. Re-create it at My Profile -> API Tokens -> Create Token -> Custom token, and copy the value from the confirmation screen - it is shown only once."
+            fi
             exit 1
           fi
           echo "Token OK."
