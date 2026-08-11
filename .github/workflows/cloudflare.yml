@@ -167,15 +167,17 @@ jobs:
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           FORWARD_TO: ${{ inputs.forward_to }}
+          ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+          T=$(printf '%s' "$TOKEN" | tr -d '[:space:]')
           if [ -z "${FORWARD_TO:-}" ]; then
-            echo "::error::forward_to is required for step: email. Use the inbox you already verified as a destination address."
-            exit 1
+            echo "No forward_to given — enabling routing and writing DNS only."
+            echo "Rules need a VERIFIED destination address; re-run with forward_to once there is one."
           fi
 
           echo "==> Enabling Email Routing (this writes the MX, SPF and DKIM records)"
-          curl -sS -X POST -H "Authorization: Bearer $(printf %s \"$TOKEN\" | tr -d '[:space:]')" -H "Content-Type: application/json" \
+          curl -sS -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
             "$CF_API/zones/$ZONE_ID/email/routing/enable" -d '{}' -o /tmp/enable.json || true
           python3 -c "
           import json
@@ -183,42 +185,57 @@ jobs:
           print('  success:', d.get('success'))
           for e in d.get('errors',[]): print('  note:', e.get('message'))"
 
-          echo; echo "==> Destination address check"
-          curl -sS -H "Authorization: Bearer $(printf %s \"$TOKEN\" | tr -d '[:space:]')" \
-            "$CF_API/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/email/routing/addresses?per_page=50" \
-            -o /tmp/addr.json || true
-          python3 - <<'PY'
-          import json, os, sys
+          echo; echo "==> DNS records now on the zone"
+          curl -sS -H "Authorization: Bearer $T" \
+            "$CF_API/zones/$ZONE_ID/dns_records?per_page=100" -o /tmp/dns2.json
+          python3 -c "
+          import json
+          rs=json.load(open('/tmp/dns2.json')).get('result') or []
+          if not rs: print('  (still none — the enable call did not take)')
+          for r in sorted(rs, key=lambda x:(x['type'],x['name'])):
+              print(f\"  {r['type']:<6} {r['name']:<40} {str(r['content'])[:56]}\")"
+
+          if [ -z "${FORWARD_TO:-}" ]; then
+            echo; echo "Stopping here — no destination address was supplied, so no rules were created."
+            exit 0
+          fi
+
+          echo; echo "==> Destination address"
+          code=$(curl -sS -o /tmp/addr.json -w '%{http_code}' -H "Authorization: Bearer $T" \
+            "$CF_API/accounts/$ACC/email/routing/addresses?per_page=50")
+          if [ "$code" = "403" ]; then
+            echo "  Cannot read destination addresses (403). The token lacks"
+            echo "  Account -> Email Routing Addresses. Add the address in the dashboard instead;"
+            echo "  the rule below will be created but stays DISABLED until it is verified."
+          else
+            python3 - <<'PY2'
+          import json, os
           want = os.environ['FORWARD_TO'].strip().lower()
-          try: rs = json.load(open('/tmp/addr.json')).get('result') or []
-          except Exception: rs = []
-          match = [a for a in rs if (a.get('email') or '').lower() == want]
+          rs = json.load(open('/tmp/addr.json')).get('result') or []
           for a in rs:
               print(f"  {a.get('email'):<40} verified={'yes' if a.get('verified') else 'NO'}")
-          if not match:
-              print(f"::warning::{want} is not a destination address on this account yet.")
-              print("Cloudflare will email it a verification link; the rule stays DISABLED until that link is clicked.")
-          elif not match[0].get('verified'):
-              print(f"::warning::{want} exists but is NOT verified. Click the link Cloudflare emailed it.")
+          m = [a for a in rs if (a.get('email') or '').lower() == want]
+          if not m:
+              print(f"::warning::{want} is not a destination address yet — Cloudflare must email it a verification link first.")
+          elif not m[0].get('verified'):
+              print(f"::warning::{want} is not verified yet. Click the link Cloudflare emailed it.")
           else:
               print(f"  {want} is verified.")
-          PY
+          PY2
+          fi
 
-          echo; echo "==> Creating routing rules"
-          create_rule() {  # $1 = name, $2 = json matchers
-            curl -sS -X POST -H "Authorization: Bearer $(printf %s \"$TOKEN\" | tr -d '[:space:]')" -H "Content-Type: application/json" \
-              "$CF_API/zones/$ZONE_ID/email/routing/rules" \
-              -d "{\"name\":\"$1\",\"enabled\":true,\"matchers\":$2,
-                   \"actions\":[{\"type\":\"forward\",\"value\":[\"$FORWARD_TO\"]}]}" -o /tmp/rule.json || true
-            python3 -c "
+          echo; echo "==> Routing rules"
+          curl -sS -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
+            "$CF_API/zones/$ZONE_ID/email/routing/rules" \
+            -d "{\"name\":\"support\",\"enabled\":true,
+                 \"matchers\":[{\"type\":\"literal\",\"field\":\"to\",\"value\":\"support@$ZONE\"}],
+                 \"actions\":[{\"type\":\"forward\",\"value\":[\"$FORWARD_TO\"]}]}" -o /tmp/rule.json || true
+          python3 -c "
           import json
           d=json.load(open('/tmp/rule.json'))
-          print('  $1:', 'created' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
-          }
-          create_rule "support" '[{"type":"literal","field":"to","value":"support@'"$ZONE"'"}]'
+          print('  support@:', 'created' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
 
-          echo "  catch-all:"
-          curl -sS -X PUT -H "Authorization: Bearer $(printf %s \"$TOKEN\" | tr -d '[:space:]')" -H "Content-Type: application/json" \
+          curl -sS -X PUT -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
             "$CF_API/zones/$ZONE_ID/email/routing/rules/catch_all" \
             -d "{\"name\":\"catch-all\",\"enabled\":true,
                  \"matchers\":[{\"type\":\"all\"}],
@@ -226,7 +243,7 @@ jobs:
           python3 -c "
           import json
           d=json.load(open('/tmp/ca.json'))
-          print('   ', 'set' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
+          print('  catch-all:', 'set' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
 
       - name: Pages — create the project and deploy site/
         if: inputs.step == 'pages'
