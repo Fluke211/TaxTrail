@@ -1043,3 +1043,53 @@ would have revealed.
 This matters more here than on most projects because Tyler is phone-only. Every
 vague failure costs a full exchange, so a diagnostic that says "wrong, try
 again" is not neutral — it spends the scarcest resource in the project.
+
+---
+
+## D-033
+
+**`taxtrail.app` is live. Attaching a Pages custom domain does not create the
+DNS record — you have to.**
+
+Date: 2026-08-12 · Status: accepted · Completes D-029
+
+Tyler added the two Account-level permissions and both endpoints flipped from
+403 to 200, which unblocked everything. The site now serves from Cloudflare
+Pages at `taxtrail.app`.
+
+Three things that were not obvious and cost a round each:
+
+**1. The Pages API reports a custom domain as "attached" while `taxtrail.app`
+still resolves to nothing.** The attach call returned success and the zone had
+no A, AAAA or CNAME at the apex. The record has to be created separately: read
+the project's real `pages.dev` subdomain from
+`GET /accounts/:id/pages/projects/:name` and point the apex at it with a
+**proxied** CNAME, which Cloudflare flattens at the root.
+
+**2. The project's subdomain is not the project name.** Cloudflare assigned
+`taxtrail-arf.pages.dev`, not `taxtrail.pages.dev`. Hardcoding the expected name
+would have produced a CNAME pointing at nothing — the same class of mistake as
+D-032's token length. The workflow reads it from the API.
+
+**3. A fresh custom domain returns 522 before it settles.** Cloudflare's edge
+answers before it can reach the Pages origin, and the three pages returned a
+mix of 200, 522 and connection failures for the first couple of minutes.
+**Do not act on the first 200** — the check that matters is five consecutive
+200s per page, which is what was actually run before repointing anything.
+
+**Cloudflare rewrites the `mailto:` links, deliberately.** Scrape Shield's Email
+Address Obfuscation replaces `support@taxtrail.app` with a
+`/cdn-cgi/l/email-protection` link decoded by JavaScript. Left **on**: it is
+exactly the anti-harvesting protection a solo developer's public support address
+wants, and every real browser — including App Review's — renders it normally.
+Worth knowing before someone reports the address as "missing" from the page.
+
+**The destination address needed no verification email.**
+`tylerthornbrue@gmail.com` was already a verified destination on the account,
+presumably from VaultVision. The catch-all rule now forwards everything at
+`taxtrail.app` to it; the `support@` rule reported `Duplicated Zone rule`,
+meaning one already existed.
+
+With the site verified, the app's `PRIVACY_URL` and both App Store URLs move to
+`taxtrail.app` (js r11) — the sequencing D-029 insisted on, and the reason js
+r10 exists.

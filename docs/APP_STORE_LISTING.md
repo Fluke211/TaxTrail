@@ -99,8 +99,8 @@ your accountant — all on your device.
 
 | Field | Value |
 |---|---|
-| Support URL | `https://fluke211.github.io/TaxTrail/support.html` |
-| Privacy Policy URL | `https://fluke211.github.io/TaxTrail/privacy.html` |
+| Support URL | `https://taxtrail.app/support.html` |
+| Privacy Policy URL | `https://taxtrail.app/privacy.html` |
 | Marketing URL | optional — leave blank until there's a real site |
 
 ---
