@@ -11,6 +11,14 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 1) · js r11 — 2026-08-12
+
+- **Privacy link now points at `taxtrail.app`**, and so do both App Store URLs.
+  Only made after the live site returned 200 five consecutive times per page
+  (D-033) — a fresh Cloudflare Pages custom domain serves 522s for the first
+  couple of minutes, and acting on the first success would have shipped a
+  broken Guideline 3.1.2 link for the second time.
+
 ### v1.0.0 (build 1) · js r10 — 2026-08-10
 
 - **Fixed a broken privacy link in the paywall.** The repo rename to `TaxTrail`
@@ -147,6 +155,15 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 ---
 
 ## Repository
+
+### 2026-08-12
+
+- **`taxtrail.app` is live** — Cloudflare Pages serving `site/`, email routing
+  with a catch-all, full DNS. D-033 records the three non-obvious parts:
+  attaching a Pages custom domain does not create the DNS record, the project's
+  `pages.dev` subdomain is not its project name, and a fresh domain returns 522
+  before it settles
+- `cloudflare.yml` gained destination-address creation and apex DNS management
 
 ### 2026-08-11
 

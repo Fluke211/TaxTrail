@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r10** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
+| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r11** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
 
 ---
 
@@ -181,52 +181,19 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   for Cloudflare DNS, Email Routing or Pages; the API is reachable, so it runs on
   the EAS pattern with a scoped token in repository secrets.
 
-  **Email DNS is LIVE as of 2026-08-11.** `step: email` enabled Email Routing on
-  the zone and Cloudflare wrote its records. Confirmed in public DNS, not just
-  the API: three MX records (`route1/2/3.mx.cloudflare.net`), the SPF TXT
-  (`v=spf1 include:_spf.mx.cloudflare.net ~all`), and the DKIM TXT at
-  `cf2024-1._domainkey`.
+  **`taxtrail.app` is LIVE (D-033).** Cloudflare Pages serves `site/` at the
+  apex; landing page, privacy policy and support page all verified returning 200
+  five times consecutively. Email routing is enabled with a catch-all to
+  `tylerthornbrue@gmail.com`, which was already a verified destination, so no
+  verification email was needed. DNS: 3 MX, SPF, DKIM, and a proxied CNAME at
+  the apex to `taxtrail-arf.pages.dev`.
 
-  **The token is zone-scoped** — verified per-endpoint: zone DNS records, zone
-  email routing settings and zone routing rules all return 200; **account**
-  email routing addresses and **account** Pages both return **403**. It is also
-  **account-owned**, which is why `/user/tokens/verify` returns 401 for it and
-  why the preflight now health-checks by resolving the zone instead (D-032).
+  The app's `PRIVACY_URL` and both App Store URLs now point at `taxtrail.app`
+  (js r11). **This was the last submission blocker on the support/privacy side.**
 
-  **Blocked on Tyler:** add two permissions to the existing token — **Account →
-  Email Routing Addresses → Edit** and **Account → Cloudflare Pages → Edit**.
-  The token currently has only a Zone resource row, so an Account row must be
-  added. Then: destination address → Cloudflare emails a verification link →
-  rules go live → `step: pages` deploys `site/`.
-
-  **Resolved:** the zone had no records because Email Routing was never enabled
-  on it — adding a destination address does not write DNS, enabling routing
-  does. There is still **no A record**, so `taxtrail.app` does not serve a site
-  until `step: pages` runs.
-
-  Until `https://taxtrail.app/privacy.html` returns 200, the app's `PRIVACY_URL`
-  and the App Store URLs **stay on GitHub Pages on purpose** (D-029). Switching
-  early is exactly the js r10 bug.
-
-- **expo.dev still shows the OLD bundle identifier — expected, not a missed
-  reference.** `mobile/app.json` says `com.tylerthornbrue.taxtrail`; the value on
-  the Expo dashboard is server-side state recorded from the **last build** and
-  the stored iOS credentials, and it updates when we next build or run
-  `eas credentials`. Nothing in the repo still says `com.tylerthornbrue.receiptsnap`.
-
-  The identifier chain that must all agree before submission, and none of it is
-  automatic:
-  1. **Apple Developer portal** — an App ID for `com.tylerthornbrue.taxtrail`
-     does not exist yet. `eas credentials:configure-build` creates it.
-  2. **App Store Connect** — the app record is still bound to the old bundle ID.
-     Apple allows changing it **only while no build has been uploaded**, and
-     uploaded builds are still **0**, so the window is open. The new App ID must
-     exist first (step 1), then ASC → App Information → Bundle ID.
-  3. **Provisioning profile** — regenerated as part of step 1.
-  4. **RevenueCat** — its iOS app entry records the bundle ID; update it after 2.
-
-  All four land in the single Codespace-plus-build trip already queued for the
-  URL scheme and `expo-document-picker`.
+  Cloudflare's Email Address Obfuscation rewrites the `mailto:` links into
+  `/cdn-cgi/l/email-protection`. Deliberate and left on — it is anti-harvesting
+  for a public support address, and real browsers render it normally.
 
 - **Do not put a custom domain on this repo's GitHub Pages (D-029).** It would
   redirect `fluke211.github.io/TaxTrail/` to the new origin, and the retired

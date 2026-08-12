@@ -208,6 +208,24 @@ jobs:
             echo "  Account -> Email Routing Addresses. Add the address in the dashboard instead;"
             echo "  the rule below will be created but stays DISABLED until it is verified."
           else
+            # Create it if absent. THIS is what makes Cloudflare send the
+            # verification email - nothing before this point does.
+            known=$(python3 -c "
+          import json,os
+          rs=json.load(open('/tmp/addr.json')).get('result') or []
+          print('yes' if any((a.get('email') or '').lower()==os.environ['FORWARD_TO'].strip().lower() for a in rs) else 'no')")
+            if [ "$known" = "no" ]; then
+              echo "  Not a destination yet — adding it, which sends the verification email."
+              curl -sS -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
+                "$CF_API/accounts/$ACC/email/routing/addresses" \
+                -d "{\"email\":\"$FORWARD_TO\"}" -o /tmp/newaddr.json || true
+              python3 -c "
+          import json
+          d=json.load(open('/tmp/newaddr.json'))
+          print('  add:', 'requested — CHECK THE INBOX FOR A VERIFICATION LINK' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
+              curl -sS -H "Authorization: Bearer $T" \
+                "$CF_API/accounts/$ACC/email/routing/addresses?per_page=50" -o /tmp/addr.json || true
+            fi
             python3 - <<'PY2'
           import json, os
           want = os.environ['FORWARD_TO'].strip().lower()
@@ -279,6 +297,47 @@ jobs:
           python3 -c "
           import json;d=json.load(open('/tmp/dom.json'))
           print('  ', 'attached' if d.get('success') else [e.get('message') for e in d.get('errors',[])])"
+
+          echo; echo "==> DNS record for the custom domain"
+          # Attaching a custom domain does not reliably create the record.
+          # Look up the project's real pages.dev subdomain and point the apex
+          # at it with a proxied CNAME, which Cloudflare flattens at the root.
+          curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "$CF_API/accounts/$ACC/pages/projects/$PAGES_PROJECT" -o /tmp/proj2.json
+          SUB=$(python3 -c "
+          import json
+          d=json.load(open('/tmp/proj2.json')).get('result') or {}
+          print(d.get('subdomain') or '')")
+          if [ -z "$SUB" ]; then
+            echo "::error::Could not read the project's pages.dev subdomain."; exit 1
+          fi
+          echo "  target: $SUB"
+
+          curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "$CF_API/zones/$ZONE_ID/dns_records?name=$ZONE" -o /tmp/apex.json
+          EXISTING=$(python3 -c "
+          import json
+          rs=json.load(open('/tmp/apex.json')).get('result') or []
+          rs=[r for r in rs if r['type'] in ('A','AAAA','CNAME')]
+          print(rs[0]['id'] if rs else '')")
+
+          if [ -n "$EXISTING" ]; then
+            echo "  an apex record already exists — updating it"
+            curl -sS -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+              "$CF_API/zones/$ZONE_ID/dns_records/$EXISTING" \
+              -d "{\"type\":\"CNAME\",\"name\":\"$ZONE\",\"content\":\"$SUB\",\"proxied\":true}" -o /tmp/rec.json
+          else
+            curl -sS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+              "$CF_API/zones/$ZONE_ID/dns_records" \
+              -d "{\"type\":\"CNAME\",\"name\":\"$ZONE\",\"content\":\"$SUB\",\"proxied\":true}" -o /tmp/rec.json
+          fi
+          python3 -c "
+          import json
+          d=json.load(open('/tmp/rec.json'))
+          if d.get('success'):
+              r=d['result']; print(f\"  {r['type']} {r['name']} -> {r['content']} (proxied={r.get('proxied')})\")
+          else:
+              print('  ', [e.get('message') for e in d.get('errors',[])])"
 
       - name: Verify — what the outside world sees
         if: inputs.step == 'verify' || inputs.step == 'pages' || inputs.step == 'email'
