@@ -34,6 +34,14 @@ on:
         required: false
         type: string
         default: ""
+      build_profile:
+        description: 'Which eas.json build profile to use (step: build)'
+        required: false
+        type: choice
+        default: development
+        options:
+          - development
+          - production
 
 concurrency:
   group: eas
@@ -69,6 +77,45 @@ jobs:
       # First run: mobile/ does not exist yet, so reconstruct it from the
       # installer. Later runs reuse the committed project so the EAS projectId
       # and updates config written by `configure` survive.
+      - name: Apple API key (optional — enables non-interactive credentials)
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ASC_API_KEY_P8:-}" ]; then
+            echo "No ASC_API_KEY_P8 secret — Apple credential operations will need an interactive session."
+            exit 0
+          fi
+          for v in ASC_KEY_ID ASC_ISSUER_ID; do
+            if [ -z "$(eval echo \"\$$v\")" ]; then
+              echo "::error::ASC_API_KEY_P8 is set but $v is missing. All three are required."
+              exit 1
+            fi
+          done
+
+          # eas-cli wants a path, not the contents. Keep it outside the repo so
+          # it can never be committed, and readable only by this job.
+          KEYDIR="$RUNNER_TEMP/asc"
+          mkdir -p "$KEYDIR" && chmod 700 "$KEYDIR"
+          KEYFILE="$KEYDIR/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_API_KEY_P8" > "$KEYFILE"
+          chmod 600 "$KEYFILE"
+
+          # Shape check only — never the contents.
+          if ! head -n1 "$KEYFILE" | grep -q "BEGIN PRIVATE KEY"; then
+            echo "::error::That does not look like a .p8 private key. Paste the WHOLE file, including the BEGIN and END lines."
+            rm -rf "$KEYDIR"; exit 1
+          fi
+          echo "  key file written ($(wc -l < "$KEYFILE") lines), key id and issuer id present"
+
+          {
+            echo "EXPO_ASC_API_KEY_PATH=$KEYFILE"
+            echo "EXPO_ASC_KEY_ID=$ASC_KEY_ID"
+            echo "EXPO_ASC_ISSUER_ID=$ASC_ISSUER_ID"
+          } >> "$GITHUB_ENV"
+
       - name: Materialize project
         run: |
           set -euo pipefail
@@ -208,8 +255,18 @@ jobs:
             echo "::error::Build not authorized. Re-run with confirm_build set to BUILD."
             exit 1
           fi
+          PROFILE="${{ inputs.build_profile }}"
+          if [ -n "${EXPO_ASC_API_KEY_PATH:-}" ]; then
+            echo "Apple auth: App Store Connect API key — credentials can be created non-interactively."
+          else
+            echo "::warning::No ASC API key. If this profile has no credentials yet, the build will fail rather than prompt."
+          fi
           npx eas-cli@latest build \
-            --profile development \
+            --profile "$PROFILE" \
             --platform ios \
             --non-interactive \
-            --message "TaxTrail v1.0.0 (build 1) dev client"
+            --message "TaxTrail v1.0.0 · $PROFILE"
+
+      - name: Shred the Apple key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc" || true
