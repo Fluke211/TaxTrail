@@ -1093,3 +1093,59 @@ meaning one already existed.
 With the site verified, the app's `PRIVACY_URL` and both App Store URLs move to
 `taxtrail.app` (js r11) — the sequencing D-029 insisted on, and the reason js
 r10 exists.
+
+---
+
+## D-034
+
+**An App Store Connect API key removes the Codespace requirement. D-004 and the
+`CLAUDE.md` note about interactive Apple auth are superseded.**
+
+Date: 2026-08-12 · Status: accepted
+
+`CLAUDE.md` has said since the handoff that "the Codespace is only for
+interactive Apple authentication, which CI cannot do — neither `eas credentials`
+nor `eas credentials:configure-build` accepts `--non-interactive`." Half of that
+is still true, and the conclusion drawn from it was wrong.
+
+Verified by unpacking **eas-cli 22.0.0** and reading the shipped code, not from
+memory:
+
+- `commands/credentials/configure-build.js` hardcodes `nonInteractive: false`.
+  **That command genuinely cannot run in CI** — the original observation holds.
+- But `credentials/ios/actions/CreateProvisioningProfile.js`,
+  `SetUpProvisioningProfile.js` and `ConfigureProvisioningProfile.js` all throw
+  the *same* message: *"authentication with an ASC API key is required in
+  non-interactive mode. Either set the
+  `EXPO_ASC_API_KEY_PATH`/`EXPO_ASC_KEY_ID`/`EXPO_ASC_ISSUER_ID` environment
+  variables…"* — which is a statement that **with** those variables, it works.
+- `SetUpTargetBuildCredentials.js` calls `ensureBundleIdExistsAsync`, so EAS
+  **registers the App ID on Apple itself**. That is the first link of the bundle
+  identifier chain, and it needs no browser.
+
+So the constraint was never interactivity. It was the absence of an ASC API key.
+With one, a build creates the App ID, the distribution certificate and the
+provisioning profile, all in CI.
+
+**Where the credential work happens: inside `eas build`.** There is no free
+preflight for it — `configure-build` is the interactive-only command. A
+credentials problem therefore surfaces as a failed build. Failed builds are
+waived rather than charged (D-015), but the waiver pool is account-wide and was
+at 6/10, so this is cheap rather than free.
+
+**Key handling.** Three repository secrets: `ASC_API_KEY_P8` (the whole file,
+`BEGIN`/`END` lines included), `ASC_KEY_ID`, `ASC_ISSUER_ID`. The workflow
+writes the key to `$RUNNER_TEMP` at mode 600 — outside the repo, so it cannot be
+committed — checks only that the first line looks like a PEM header, exports the
+three env vars, and shreds the directory in an `always()` step. The contents are
+never printed.
+
+**The key needs Admin access**, not Developer: creating certificates and
+identifiers is an Admin-scoped operation. Generate it under Users and Access →
+Integrations → **Team Keys**, not as an individual key.
+
+**What this does not solve: the App Store Connect record's bundle identifier.**
+Apple's own guidance is that it "can't be changed after you upload your first
+build", and the field is frequently greyed out regardless. Uploaded builds is
+still 0, so it may be editable — but that is a look-and-see in the browser, and
+the ASC API offers no way to change it.
