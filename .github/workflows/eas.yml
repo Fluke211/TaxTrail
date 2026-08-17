@@ -165,7 +165,7 @@ jobs:
               return "; ".join(f"{x.get('title')}: {x.get('detail')}" for x in d.get("errors", [])) or ""
 
           print("=== key check (read-only) ===")
-          probes = [("apps",       "/v1/apps?limit=1"),
+          probes = [("apps",       "/v1/apps?limit=20"),
                     ("bundleIds",  "/v1/bundleIds?limit=200"),
                     ("certificates","/v1/certificates?limit=1"),
                     ("profiles",   "/v1/profiles?limit=1")]
@@ -179,6 +179,13 @@ jobs:
               print("::error::401 — the key was rejected. Check the Key ID and Issuer ID, "
                     "and that the .p8 contents were pasted whole.")
               raise SystemExit(1)
+
+          code, data = results["apps"]
+          if code == 200:
+              print("\n=== App Store Connect app records ===")
+              for a in data.get("data", []):
+                  at = a.get("attributes", {})
+                  print(f"  {at.get('name')}  ->  {at.get('bundleId')}")
 
           code, data = results["bundleIds"]
           if code == 200:
