@@ -156,6 +156,17 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 
 ## Repository
 
+### 2026-08-16
+
+- **App Store Connect API key wired into CI** (D-034). Verified against
+  eas-cli 22's shipped code: the Codespace was never required for credentials —
+  an ASC API key was. Supersedes D-004
+- `eas.yml`: `asc-check` and `asc-bundle-id` steps talk to Apple's REST API
+  directly, so the key can be validated and the App ID created **without
+  spending a build**
+- Apple App ID `com.tylerthornbrue.taxtrail` created; the App Store Connect
+  record now carries it
+
 ### 2026-08-12
 
 - **`taxtrail.app` is live** — Cloudflare Pages serving `site/`, email routing
