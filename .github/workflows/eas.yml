@@ -24,6 +24,8 @@ on:
           - build
           - usage
           - update
+          - asc-check
+          - asc-bundle-id
       update_message:
         description: 'Message for the EAS Update (used by step: update)'
         required: false
@@ -115,6 +117,104 @@ jobs:
             echo "EXPO_ASC_KEY_ID=$ASC_KEY_ID"
             echo "EXPO_ASC_ISSUER_ID=$ASC_ISSUER_ID"
           } >> "$GITHUB_ENV"
+
+      - name: Apple API — check the key, or create the bundle identifier
+        if: inputs.step == 'asc-check' || inputs.step == 'asc-bundle-id'
+        env:
+          NEW_BUNDLE_ID: com.tylerthornbrue.taxtrail
+          NEW_BUNDLE_NAME: TaxTrail
+          MODE: ${{ inputs.step }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_ASC_API_KEY_PATH:-}" ]; then
+            echo "::error::No Apple API key. Add ASC_API_KEY_P8, ASC_KEY_ID and ASC_ISSUER_ID as repository secrets."
+            exit 1
+          fi
+          pip install --quiet "pyjwt[crypto]" >/dev/null
+
+          cat > /tmp/asc.py <<'PYEOF'
+          import json, os, time, urllib.request, urllib.error, jwt
+
+          KEY  = open(os.environ["EXPO_ASC_API_KEY_PATH"]).read()
+          KID  = os.environ["EXPO_ASC_KEY_ID"]
+          ISS  = os.environ["EXPO_ASC_ISSUER_ID"]
+          BASE = "https://api.appstoreconnect.apple.com"
+
+          now = int(time.time())
+          token = jwt.encode(
+              {"iss": ISS, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+              KEY, algorithm="ES256", headers={"kid": KID, "typ": "JWT"})
+
+          def call(method, path, body=None):
+              req = urllib.request.Request(
+                  BASE + path, method=method,
+                  data=json.dumps(body).encode() if body else None,
+                  headers={"Authorization": f"Bearer {token}",
+                           "Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as r:
+                      return r.status, json.loads(r.read() or b"{}")
+              except urllib.error.HTTPError as e:
+                  raw = e.read()
+                  try: return e.code, json.loads(raw or b"{}")
+                  except Exception: return e.code, {"raw": raw[:300].decode("utf-8", "replace")}
+              except Exception as e:
+                  return 0, {"raw": str(e)}
+
+          def errs(d):
+              return "; ".join(f"{x.get('title')}: {x.get('detail')}" for x in d.get("errors", [])) or ""
+
+          print("=== key check (read-only) ===")
+          probes = [("apps",       "/v1/apps?limit=1"),
+                    ("bundleIds",  "/v1/bundleIds?limit=200"),
+                    ("certificates","/v1/certificates?limit=1"),
+                    ("profiles",   "/v1/profiles?limit=1")]
+          results = {}
+          for label, path in probes:
+              code, data = call("GET", path)
+              results[label] = (code, data)
+              print(f"  {label:<14} HTTP {code}  {errs(data)}")
+
+          if results["apps"][0] == 401 or results["bundleIds"][0] == 401:
+              print("::error::401 — the key was rejected. Check the Key ID and Issuer ID, "
+                    "and that the .p8 contents were pasted whole.")
+              raise SystemExit(1)
+
+          code, data = results["bundleIds"]
+          if code == 200:
+              ids = [b["attributes"]["identifier"] for b in data.get("data", [])]
+              print("\n=== bundle identifiers on this team ===")
+              for i in sorted(ids):
+                  mark = "  <-- new" if i == os.environ["NEW_BUNDLE_ID"] else ""
+                  print(f"  {i}{mark}")
+              exists = os.environ["NEW_BUNDLE_ID"] in ids
+          else:
+              print(f"::error::Cannot list bundle identifiers (HTTP {code}). "
+                    "The key most likely lacks Admin access — creating identifiers, "
+                    "certificates and profiles is Admin-scoped.")
+              raise SystemExit(1)
+
+          if os.environ["MODE"] != "asc-bundle-id":
+              print("\nKey works. Nothing was changed.")
+              raise SystemExit(0)
+
+          print("\n=== create the bundle identifier ===")
+          if exists:
+              print(f"  {os.environ['NEW_BUNDLE_ID']} already exists — nothing to do.")
+              raise SystemExit(0)
+          code, data = call("POST", "/v1/bundleIds", {"data": {
+              "type": "bundleIds",
+              "attributes": {"identifier": os.environ["NEW_BUNDLE_ID"],
+                             "name": os.environ["NEW_BUNDLE_NAME"],
+                             "platform": "IOS"}}})
+          if code in (200, 201):
+              print(f"  created {data['data']['attributes']['identifier']}")
+              print("  It should now appear in the App Store Connect Bundle ID dropdown.")
+          else:
+              print(f"::error::Create failed (HTTP {code}). {errs(data)}")
+              raise SystemExit(1)
+          PYEOF
+          python3 /tmp/asc.py
 
       - name: Materialize project
         run: |
