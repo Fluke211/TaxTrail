@@ -195,6 +195,27 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   `/cdn-cgi/l/email-protection`. Deliberate and left on — it is anti-harvesting
   for a public support address, and real browsers render it normally.
 
+- **Bundle identifier chain — 2 of 4 links done (2026-08-16).**
+
+  | # | Link | State |
+  |---|---|---|
+  | 1 | Apple Developer App ID `com.tylerthornbrue.taxtrail` | **done** — created via the ASC REST API, no build spent |
+  | 2 | App Store Connect record's bundle ID | **done** — Tyler switched the dropdown; confirmed from Apple's API as `TaxTrail: Receipt Scanner -> com.tylerthornbrue.taxtrail` |
+  | 3 | Distribution certificate + provisioning profile | pending — created **during** a build, so it needs one build slot and Tyler's go |
+  | 4 | RevenueCat iOS app bundle ID | pending — dashboard edit, or a RevenueCat API key |
+
+  **An App Store Connect API key is wired up and verified (D-034).** Secrets
+  `ASC_API_KEY_P8` / `ASC_KEY_ID` / `ASC_ISSUER_ID`; `asc-check` returned 200 on
+  apps, bundleIds, certificates and profiles, so the key has Admin scope.
+  **The Codespace is no longer needed for credentials** — supersedes D-004 and
+  the note in `CLAUDE.md`, which is corrected in place.
+
+  Two free workflow steps talk to Apple directly: `asc-check` (read-only) and
+  `asc-bundle-id` (idempotent create). Neither costs a build.
+
+  **expo.dev will keep showing the old bundle identifier** until the next build —
+  server-side state from the last one, not a missed reference.
+
 - **Do not put a custom domain on this repo's GitHub Pages (D-029).** It would
   redirect `fluke211.github.io/TaxTrail/` to the new origin, and the retired
   PWA's `localStorage` — holding Tyler's unexported receipts — is scoped to

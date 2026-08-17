@@ -92,9 +92,13 @@ Two artifacts:
 - **So EAS CLI work runs in GitHub Actions** — `.github/workflows/eas.yml`.
   Runners have unrestricted network access, and an agent can dispatch runs and
   read logs through the GitHub API. This is the primary EAS interface.
-- **The Codespace is only for interactive Apple authentication**, which CI
-  cannot do — neither `eas credentials` nor `eas credentials:configure-build`
-  accepts `--non-interactive`.
+- **The Codespace is NO LONGER needed for Apple credentials (D-034).**
+  `eas credentials:configure-build` still cannot run non-interactively, but that
+  was never the real constraint: with an **App Store Connect API key**
+  (`EXPO_ASC_API_KEY_PATH` / `EXPO_ASC_KEY_ID` / `EXPO_ASC_ISSUER_ID`, all in
+  repo secrets) EAS creates the App ID, certificate and provisioning profile
+  during a build, in CI. Apple's REST API is also reachable from a runner —
+  `asc-check` and `asc-bundle-id` in `eas.yml` use it directly and cost nothing.
 - **`eas login` must use `--no-browser`** in a Codespace. The default OAuth flow
   redirects to `localhost` *inside the container*, which a phone cannot reach.
 - **The App Store Connect `.p8` download fails on iOS**, in Safari and Chrome,
