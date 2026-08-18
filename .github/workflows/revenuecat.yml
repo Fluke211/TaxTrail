@@ -1,0 +1,155 @@
+name: RevenueCat
+
+# Phone-friendly RevenueCat driver, same shape as eas.yml and cloudflare.yml.
+#
+# RevenueCat's dashboard work was originally done from another surface via an
+# MCP server that is not available here. The v2 REST API is reachable from a
+# runner, so an agent drives it from here instead. See DECISIONS.md D-036.
+#
+# Requires repository secret:
+#   REVENUECAT_API_KEY   a **v2 secret key** (starts with sk_), created at
+#                        app.revenuecat.com -> Project settings -> API keys,
+#                        version V2, with project_configuration:apps:read_write.
+#                        NOT the public appl_ SDK key, which is a different
+#                        credential and cannot manage anything.
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "Which step to run"
+        required: true
+        type: choice
+        default: status
+        options:
+          - status
+          - set-bundle-id
+
+concurrency:
+  group: revenuecat
+  cancel-in-progress: false
+
+env:
+  RC_API: https://api.revenuecat.com/v2
+  PROJECT_ID: proj63a7fa32
+  NEW_BUNDLE_ID: com.tylerthornbrue.taxtrail
+
+jobs:
+  revenuecat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Talk to RevenueCat
+        env:
+          KEY: ${{ secrets.REVENUECAT_API_KEY }}
+          MODE: ${{ inputs.step }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEY:-}" ]; then
+            echo "::error::REVENUECAT_API_KEY is not set. Create a **v2 secret key** (sk_...) at app.revenuecat.com -> Project settings -> API keys, then add it in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          # Shape check only — never the value. The single most likely mistake
+          # is pasting the public appl_ SDK key, which looks like a key and is
+          # not one for this purpose.
+          python3 - <<'PY'
+          import os, sys
+          k = os.environ["KEY"].strip()
+          print(f"  secret length: {len(k)}")
+          if k.startswith("appl_") or k.startswith("goog_") or k.startswith("amzn_"):
+              print("::error::That is a public SDK key, not a v2 secret key. SDK keys are "
+                    "client-side and cannot manage a project. Create one under "
+                    "Project settings -> API keys with version V2.")
+              sys.exit(1)
+          if not k.startswith("sk_"):
+              print("::warning::A RevenueCat v2 secret key normally starts with 'sk_'. "
+                    "Continuing anyway - the API is the real test.")
+          PY
+
+          cat > /tmp/rc.py <<'PYEOF'
+          import json, os, urllib.request, urllib.error
+
+          KEY  = os.environ["KEY"].strip()
+          BASE = os.environ["RC_API"]
+          PROJ = os.environ["PROJECT_ID"]
+          NEW  = os.environ["NEW_BUNDLE_ID"]
+
+          def call(method, path, body=None):
+              req = urllib.request.Request(
+                  BASE + path, method=method,
+                  data=json.dumps(body).encode() if body is not None else None,
+                  headers={"Authorization": f"Bearer {KEY}",
+                           "Content-Type": "application/json",
+                           "Accept": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as r:
+                      return r.status, json.loads(r.read() or b"{}")
+              except urllib.error.HTTPError as e:
+                  raw = e.read()
+                  try: return e.code, json.loads(raw or b"{}")
+                  except Exception: return e.code, {"raw": raw[:300].decode("utf-8", "replace")}
+              except Exception as e:
+                  return 0, {"raw": str(e)}
+
+          def why(d):
+              return d.get("message") or d.get("raw") or json.dumps(d)[:200]
+
+          print("=== project ===")
+          code, proj = call("GET", f"/projects/{PROJ}")
+          print(f"  GET /projects/{PROJ}  HTTP {code}")
+          if code == 401:
+              print("::error::401 — the key was rejected. Check it is a v2 secret key and was pasted whole.")
+              raise SystemExit(1)
+          if code == 403:
+              print("::error::403 — the key is valid but lacks permission. It needs "
+                    "project_configuration:apps:read_write.")
+              raise SystemExit(1)
+          if code != 200:
+              print(f"::error::Unexpected HTTP {code}. {why(proj)}")
+              raise SystemExit(1)
+          print(f"  project: {proj.get('name')}  ({proj.get('id')})")
+
+          print("\n=== apps ===")
+          code, apps = call("GET", f"/projects/{PROJ}/apps")
+          if code != 200:
+              print(f"::error::Cannot list apps (HTTP {code}). {why(apps)}")
+              raise SystemExit(1)
+          items = apps.get("items", [])
+          target = None
+          for a in items:
+              bid = (a.get("app_store") or {}).get("bundle_id") or a.get("bundle_id")
+              print(f"  {a.get('id')}  {a.get('type'):<12} {a.get('name')}  bundle_id={bid}")
+              if a.get("type") in ("app_store", "ios"):
+                  target = (a, bid)
+
+          if os.environ["MODE"] != "set-bundle-id":
+              print("\nKey works. Nothing was changed.")
+              raise SystemExit(0)
+
+          if not target:
+              print("::error::No App Store app found in this project.")
+              raise SystemExit(1)
+          app, current = target
+          if current == NEW:
+              print(f"\n  bundle_id is already {NEW} — nothing to do.")
+              raise SystemExit(0)
+
+          print(f"\n=== updating {app['id']}: {current} -> {NEW} ===")
+          code, res = call("POST", f"/projects/{PROJ}/apps/{app['id']}",
+                           {"app_store": {"bundle_id": NEW}})
+          if code not in (200, 201):
+              # Some deployments expect PATCH; report both rather than guess.
+              print(f"  POST returned HTTP {code}. {why(res)}")
+              code, res = call("PATCH", f"/projects/{PROJ}/apps/{app['id']}",
+                               {"app_store": {"bundle_id": NEW}})
+              print(f"  PATCH returned HTTP {code}. {why(res) if code not in (200,201) else ''}")
+          if code in (200, 201):
+              got = (res.get("app_store") or {}).get("bundle_id") or res.get("bundle_id")
+              print(f"  updated — bundle_id is now {got}")
+          else:
+              print("::error::Could not update the bundle identifier. If the API refuses, "
+                    "change it at app.revenuecat.com -> Project -> Apps -> the iOS app.")
+              raise SystemExit(1)
+          PYEOF
+          python3 /tmp/rc.py

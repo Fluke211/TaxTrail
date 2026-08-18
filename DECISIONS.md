@@ -1149,3 +1149,55 @@ Apple's own guidance is that it "can't be changed after you upload your first
 build", and the field is frequently greyed out regardless. Uploaded builds is
 still 0, so it may be editable — but that is a look-and-see in the browser, and
 the ASC API offers no way to change it.
+
+---
+
+## D-036
+
+**RevenueCat gets a driver workflow too — and the key already in the repo is
+the wrong kind.**
+
+Date: 2026-08-17 · Status: accepted
+
+Tyler asked whether he had already set up a RevenueCat key. He had not, and the
+reason it is easy to think otherwise is worth writing down: **there is a
+RevenueCat key in this repo, and it cannot do any of this.**
+
+| | `appl_lkFpBkvUDvsOfXJAZJluSWduCIv` | what is needed |
+|---|---|---|
+| Kind | **public SDK key** | **v2 secret key** (`sk_…`) |
+| Lives in | `src/lib/config.ts`, shipped in the app | repository secret, never in the binary |
+| Safe to publish? | **yes, by design** | **no** |
+| Can it change project settings? | **no** — client-side only | yes, with the right permission |
+
+The public key is what the SDK authenticates purchases with; it is meant to be
+readable inside a shipped app. Managing the project needs a v2 secret key from
+**Project settings → API keys**, version **V2**, with
+`project_configuration:apps:read_write`.
+
+`.github/workflows/revenuecat.yml` follows the pattern the Cloudflare and Apple
+work settled into (D-031, D-034): a scoped credential in repository secrets, a
+`workflow_dispatch` driver, and an agent reading the logs back. Three services,
+three drivers, one shape.
+
+Two things carried over deliberately from those:
+
+- **The preflight names the likely mistake.** Pasting the `appl_` key here is
+  the obvious error, so the shape check catches it and says exactly why it is
+  the wrong credential, rather than letting the API return an opaque 401. This
+  is the D-032 lesson: a diagnostic that only says "rejected" costs a whole
+  exchange when the user is not at a terminal.
+- **401 and 403 are reported differently.** Rejected key versus missing
+  permission are different problems with different fixes, and they are
+  indistinguishable if you only print "failed".
+
+**Where it is deliberately unsure:** RevenueCat's API reference is blocked from
+these sessions, so the exact verb for updating an app could not be read. The
+step tries `POST`, reports the code, then tries `PATCH`, and reports that too —
+if both fail it says to change it in the dashboard rather than pretending. One
+run will settle which is right, and the workflow can then be simplified.
+
+**Why the bundle identifier matters here at all:** RevenueCat validates receipts
+against the app's bundle identifier. Leaving it as `com.tylerthornbrue.receiptsnap`
+after the rename means purchases fail validation — which would look like a
+paywall bug long before anyone suspected a stale dashboard field.
