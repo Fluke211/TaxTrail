@@ -156,6 +156,13 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 
 ## Repository
 
+### 2026-08-17
+
+- `.github/workflows/revenuecat.yml` — RevenueCat driver (D-036), `status` and
+  `set-bundle-id`. Third service on the same pattern as Cloudflare and Apple
+- Records that the `appl_` key already in the repo is the **public SDK key** and
+  cannot manage the project; a v2 secret key is a different credential
+
 ### 2026-08-16
 
 - **App Store Connect API key wired into CI** (D-034). Verified against
