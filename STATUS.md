@@ -202,7 +202,7 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   | 1 | Apple Developer App ID `com.tylerthornbrue.taxtrail` | **done** — created via the ASC REST API, no build spent |
   | 2 | App Store Connect record's bundle ID | **done** — Tyler switched the dropdown; confirmed from Apple's API as `TaxTrail: Receipt Scanner -> com.tylerthornbrue.taxtrail` |
   | 3 | Distribution certificate + provisioning profile | pending — created **during** a build, so it needs one build slot and Tyler's go |
-  | 4 | RevenueCat iOS app bundle ID | pending — `.github/workflows/revenuecat.yml` is ready; needs a **v2 secret key** (`sk_…`) as `REVENUECAT_API_KEY`. The `appl_` key already in the repo is the public SDK key and cannot do this (D-036) |
+  | 4 | RevenueCat iOS app bundle ID | **Tyler changed it by hand** 2026-08-19, and also renamed the RC app to "TaxTrail IOS". **Unverified from here** — `revenuecat.yml status` fails with `REVENUECAT_API_KEY is not set`, so nothing on the RevenueCat side has been confirmed by this session (D-036) |
 
   **An App Store Connect API key is wired up and verified (D-034).** Secrets
   `ASC_API_KEY_P8` / `ASC_KEY_ID` / `ASC_ISSUER_ID`; `asc-check` returned 200 on

@@ -72,6 +72,13 @@ The channel is `development` for the dev client. Production builds use the
 
 ## Run a CI step
 
+**A `workflow_dispatch` workflow can only be dispatched once it exists on the
+default branch.** Triggering one that lives only on a feature branch returns a
+bare `404`, which reads like a missing file rather than a policy. Merge first,
+then dispatch — the `ref` input still selects which branch's copy runs.
+
+
+
 All EAS CLI work runs in `.github/workflows/eas.yml`. Dispatch via the GitHub
 API (an agent can do this directly) or from the Actions tab.
 
