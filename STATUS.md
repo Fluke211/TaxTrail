@@ -195,14 +195,23 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   `/cdn-cgi/l/email-protection`. Deliberate and left on — it is anti-harvesting
   for a public support address, and real browsers render it normally.
 
-- **Bundle identifier chain — 2 of 4 links done (2026-08-16).**
+- **Bundle identifier chain — 3 of 4 links done (2026-08-20).**
 
   | # | Link | State |
   |---|---|---|
   | 1 | Apple Developer App ID `com.tylerthornbrue.taxtrail` | **done** — created via the ASC REST API, no build spent |
   | 2 | App Store Connect record's bundle ID | **done** — Tyler switched the dropdown; confirmed from Apple's API as `TaxTrail: Receipt Scanner -> com.tylerthornbrue.taxtrail` |
   | 3 | Distribution certificate + provisioning profile | pending — created **during** a build, so it needs one build slot and Tyler's go |
-  | 4 | RevenueCat iOS app bundle ID | **Tyler changed it by hand** 2026-08-19, and also renamed the RC app to "TaxTrail IOS". **Unverified from here** — `revenuecat.yml status` fails with `REVENUECAT_API_KEY is not set`, so nothing on the RevenueCat side has been confirmed by this session (D-036) |
+  | 4 | RevenueCat iOS app bundle ID | **done and verified 2026-08-20** — `app_store` app `appc76b61980d` "TaxTrail iOS", `bundle_id=com.tylerthornbrue.taxtrail`, read back through the v2 API |
+
+  **The app id is unchanged (`appc76b61980d`), which settles the risk raised
+  before the edit:** Tyler edited the existing RevenueCat app rather than
+  creating a new one, so the three products, the `pro` entitlement and the
+  public SDK key in `src/lib/config.ts` all remain valid. A new app would have
+  carried none of them and would have made the shipped `appl_` key wrong.
+
+  Cosmetic only: the RevenueCat **project** is still named "ReceiptSnap". It is
+  a dashboard label, not an identifier — nothing depends on it.
 
   **An App Store Connect API key is wired up and verified (D-034).** Secrets
   `ASC_API_KEY_P8` / `ASC_KEY_ID` / `ASC_ISSUER_ID`; `asc-check` returned 200 on
