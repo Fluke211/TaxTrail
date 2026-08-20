@@ -187,26 +187,28 @@ jobs:
                   at = a.get("attributes", {})
                   print(f"  {at.get('name')}  ->  {at.get('bundleId')}")
 
-          code, data = results["bundleIds"]
-          if code == 200:
-              ids = [b["attributes"]["identifier"] for b in data.get("data", [])]
-              code, certs = call("GET", "/v1/certificates?limit=200")
+          code, certs = call("GET", "/v1/certificates?limit=200")
           if code == 200:
               print("\n=== certificates on this team ===")
-              for c in certs.get("data", []):
+              rows = certs.get("data", [])
+              if not rows: print("  (none)")
+              for c in rows:
                   at = c.get("attributes", {})
-                  print(f"  {at.get('certificateType'):<28} {at.get('displayName')}  expires {str(at.get('expirationDate'))[:10]}")
-              if not certs.get("data"): print("  (none)")
+                  print(f"  {str(at.get('certificateType')):<28} {at.get('displayName')}  expires {str(at.get('expirationDate'))[:10]}")
 
           code, profs = call("GET", "/v1/profiles?limit=200")
           if code == 200:
               print("\n=== provisioning profiles ===")
-              for pr in profs.get("data", []):
+              rows = profs.get("data", [])
+              if not rows: print("  (none)")
+              for pr in rows:
                   at = pr.get("attributes", {})
-                  print(f"  {at.get('profileType'):<28} {at.get('name')}  {at.get('profileState')}")
-              if not profs.get("data"): print("  (none)")
+                  print(f"  {str(at.get('profileType')):<28} {at.get('name')}  {at.get('profileState')}")
 
-          print("\n=== bundle identifiers on this team ===")
+          code, data = results["bundleIds"]
+          if code == 200:
+              ids = [b["attributes"]["identifier"] for b in data.get("data", [])]
+              print("\n=== bundle identifiers on this team ===")
               for i in sorted(ids):
                   mark = "  <-- new" if i == os.environ["NEW_BUNDLE_ID"] else ""
                   print(f"  {i}{mark}")
