@@ -95,40 +95,37 @@ jobs:
           def why(d):
               return d.get("message") or d.get("raw") or json.dumps(d)[:200]
 
+          # There is no GET /projects/{id} in v2 - only the collection. The
+          # first attempt used one and got a 404 that looked like a bad id,
+          # while GET /projects listed the very same project. Resolve by
+          # listing and matching.
           print("=== project ===")
-          code, proj = call("GET", f"/projects/{PROJ}")
-          print(f"  GET /projects/{PROJ}  HTTP {code}")
+          code, lst = call("GET", "/projects")
+          print(f"  GET /projects  HTTP {code}")
           if code == 401:
-              print("::error::401 — the key was rejected. Check it is a v2 secret key and was pasted whole.")
+              print("::error::401 - the key was rejected. Check it is a v2 secret key and was pasted whole.")
               raise SystemExit(1)
           if code == 403:
-              print("::error::403 — the key is valid but lacks permission. It needs "
+              print("::error::403 - the key is valid but lacks permission. It needs "
                     "project_configuration:apps:read_write.")
               raise SystemExit(1)
-          if code == 404:
-              # RevenueCat returns 404 rather than 403 for a project the key
-              # cannot see, so "wrong id" and "wrong project's key" look
-              # identical. List what this key CAN see and let that decide.
-              print(f"  {PROJ} is not visible to this key.")
-              print("\n=== projects this key can see ===")
-              lcode, lst = call("GET", "/projects")
-              if lcode != 200:
-                  print(f"::error::Cannot list projects either (HTTP {lcode}). {why(lst)}")
-                  print("A v2 secret key is scoped to ONE project. If this key was made in a "
-                        "different project, make a new one inside the TaxTrail project.")
-                  raise SystemExit(1)
-              found = lst.get("items", [])
-              if not found:
-                  print("  (none — the key can see no projects at all)")
-              for pr in found:
-                  print(f"  {pr.get('id')}  {pr.get('name')}")
-              print("\n::error::Update PROJECT_ID in .github/workflows/revenuecat.yml to one of "
-                    "the ids above, then re-run. STATUS.md records proj63a7fa32, which appears to be stale.")
-              raise SystemExit(1)
           if code != 200:
-              print(f"::error::Unexpected HTTP {code}. {why(proj)}")
+              print(f"::error::Unexpected HTTP {code}. {why(lst)}")
               raise SystemExit(1)
-          print(f"  project: {proj.get('name')}  ({proj.get('id')})")
+
+          projects = lst.get("items", [])
+          for pr in projects:
+              print(f"  {pr.get('id')}  {pr.get('name')}")
+          match = [pr for pr in projects if pr.get("id") == PROJ]
+          if not match:
+              print(f"::error::{PROJ} is not among the projects this key can see. "
+                    "Update PROJECT_ID in .github/workflows/revenuecat.yml.")
+              raise SystemExit(1)
+          print(f"  using: {match[0].get('name')} ({PROJ})")
+          if (match[0].get("name") or "").lower() != "taxtrail":
+              print(f"::warning::The RevenueCat project is still named "
+                    f"\"{match[0].get('name')}\". Cosmetic - it is a dashboard label, not an "
+                    "identifier, and nothing depends on it. Worth renaming for consistency.")
 
           print("\n=== apps ===")
           code, apps = call("GET", f"/projects/{PROJ}/apps")
