@@ -1201,3 +1201,71 @@ run will settle which is right, and the workflow can then be simplified.
 against the app's bundle identifier. Leaving it as `com.tylerthornbrue.receiptsnap`
 after the rename means purchases fail validation — which would look like a
 paywall bug long before anyone suspected a stale dashboard field.
+
+---
+
+## D-037
+
+**Correcting D-034: an ASC API key does not create a distribution certificate.
+One interactive session is still required — exactly one.**
+
+Date: 2026-08-20 · Status: accepted · Amends D-034
+
+The production build failed at credential setup. The diagnosis, read from
+eas-cli 22's shipped source rather than inferred from the error text:
+
+```js
+async runNonInteractiveAsync(_ctx, currentCertificate) {
+    // TODO: implement validation
+    log.warn('Distribution Certificate is not validated for non-interactive builds.');
+    if (!currentCertificate) { throw new MissingCredentialsNonInteractiveError(); }
+    return currentCertificate;
+}
+```
+
+The warning prints unconditionally and is not the failure. The failure is
+`!currentCertificate`: **eas-cli reuses a distribution certificate
+non-interactively but never creates one.**
+
+**What I got wrong.** D-034 said an ASC API key means credentials can be created
+in CI. I verified the three *provisioning-profile* actions, found they support
+ASC keys, and generalised to "credentials". `SetUpDistributionCertificate` is a
+separate action carrying a literal `// TODO`, and I never opened it. The profile
+half of D-034 is verified and stands — it is why the App ID and the `asc-*`
+steps work. The certificate half was inference dressed as a finding, which is
+the same error as the token-length assertion in D-032.
+
+**What Apple actually holds**, from `asc-check`:
+
+| | |
+|---|---|
+| `IOS_DISTRIBUTION` certificate | **exists** — "Tyler Thornbrue", expires **2027-05-31** |
+| `IOS_APP_STORE` profile | **none** |
+| `IOS_APP_ADHOC` profiles | two — old bundle id, and VaultVision |
+
+So the certificate is not missing from *Apple*. It is missing from **EAS's
+credential store for this app and this distribution type**. EAS keys credentials
+per (app, distribution type); the August certificate was registered against
+`com.tylerthornbrue.receiptsnap` with ad-hoc distribution, and `production` is a
+different app identifier and a different distribution type.
+
+**The failed build cost nothing.** `eas build:list` still shows **two** builds
+total, both from 2026-08-02. Today's failure happened client-side during
+credential setup and never reached the build queue — so it consumed neither the
+monthly quota nor the waiver pool. Worth knowing before deciding how cautious to
+be about the retry.
+
+**Decision: one interactive `eas credentials -p ios -e production` session,
+reusing the existing certificate.** It registers that certificate against the
+new app and creates the App Store profile. Every build after it is
+non-interactive, because eas-cli will then *find* a certificate to reuse. That
+is one session, not a recurring tax — the certificate is good until May 2027.
+
+**Rejected for now: local credentials.** `credentials.json` with
+`credentialsSource: "local"` would remove interactivity permanently, and the ASC
+API can mint a certificate and profile without a browser. But it needs a new
+distribution certificate (the existing one's private key lives on Expo's
+servers, not anywhere reachable), consumes one of Apple's limited certificate
+slots, and puts a `.p12` private key in repository secrets. That is a lot of new
+machinery to avoid ten minutes of Tyler's time, once. Revisit if the interactive
+session proves painful or has to be repeated.

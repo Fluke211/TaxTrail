@@ -92,7 +92,11 @@ Two artifacts:
 - **So EAS CLI work runs in GitHub Actions** — `.github/workflows/eas.yml`.
   Runners have unrestricted network access, and an agent can dispatch runs and
   read logs through the GitHub API. This is the primary EAS interface.
-- **The Codespace is NO LONGER needed for Apple credentials (D-034).**
+- **The Codespace is needed ONCE more, for the distribution certificate
+  (D-037).** eas-cli reuses a distribution certificate non-interactively but
+  **never creates one**, so the first `eas credentials -p ios -e production` must
+  be interactive. Everything after that is CI.
+- **Otherwise the Codespace is not needed for Apple credentials (D-034).**
   `eas credentials:configure-build` still cannot run non-interactively, but that
   was never the real constraint: with an **App Store Connect API key**
   (`EXPO_ASC_API_KEY_PATH` / `EXPO_ASC_KEY_ID` / `EXPO_ASC_ISSUER_ID`, all in
