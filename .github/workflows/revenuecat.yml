@@ -105,6 +105,26 @@ jobs:
               print("::error::403 — the key is valid but lacks permission. It needs "
                     "project_configuration:apps:read_write.")
               raise SystemExit(1)
+          if code == 404:
+              # RevenueCat returns 404 rather than 403 for a project the key
+              # cannot see, so "wrong id" and "wrong project's key" look
+              # identical. List what this key CAN see and let that decide.
+              print(f"  {PROJ} is not visible to this key.")
+              print("\n=== projects this key can see ===")
+              lcode, lst = call("GET", "/projects")
+              if lcode != 200:
+                  print(f"::error::Cannot list projects either (HTTP {lcode}). {why(lst)}")
+                  print("A v2 secret key is scoped to ONE project. If this key was made in a "
+                        "different project, make a new one inside the TaxTrail project.")
+                  raise SystemExit(1)
+              found = lst.get("items", [])
+              if not found:
+                  print("  (none — the key can see no projects at all)")
+              for pr in found:
+                  print(f"  {pr.get('id')}  {pr.get('name')}")
+              print("\n::error::Update PROJECT_ID in .github/workflows/revenuecat.yml to one of "
+                    "the ids above, then re-run. STATUS.md records proj63a7fa32, which appears to be stale.")
+              raise SystemExit(1)
           if code != 200:
               print(f"::error::Unexpected HTTP {code}. {why(proj)}")
               raise SystemExit(1)
