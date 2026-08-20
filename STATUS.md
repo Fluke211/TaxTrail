@@ -213,11 +213,17 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   Cosmetic only: the RevenueCat **project** is still named "ReceiptSnap". It is
   a dashboard label, not an identifier — nothing depends on it.
 
+  **The failed build cost nothing** — `eas build:list` still shows two builds
+  total, both from 2026-08-02. It failed client-side during credential setup and
+  never reached the build queue, so neither the monthly quota nor the waiver pool
+  moved.
+
   **An App Store Connect API key is wired up and verified (D-034).** Secrets
   `ASC_API_KEY_P8` / `ASC_KEY_ID` / `ASC_ISSUER_ID`; `asc-check` returned 200 on
   apps, bundleIds, certificates and profiles, so the key has Admin scope.
-  **The Codespace is no longer needed for credentials** — supersedes D-004 and
-  the note in `CLAUDE.md`, which is corrected in place.
+  **The Codespace is no longer needed for the App ID or provisioning profiles** —
+  but D-034 over-reached: the **distribution certificate** still needs one
+  interactive session (D-037). After that, CI builds are non-interactive.
 
   Two free workflow steps talk to Apple directly: `asc-check` (read-only) and
   `asc-bundle-id` (idempotent create). Neither costs a build.
