@@ -129,6 +129,28 @@ This costs a build, so batch them.
 
 ---
 
+## Which build am I updating? Read this before every `eas update`
+
+**The channel is baked into the binary at build time; how the app got onto the
+phone is a separate axis.** Publishing to the wrong channel is the single most
+common way an OTA update appears to do nothing.
+
+| Build | Bundle | Channel | Reaches it with |
+|---|---|---|---|
+| Build 1 — ad-hoc dev client | `com.tylerthornbrue.receiptsnap` | `development` | `eas update --branch development` |
+| Build 2 — App Store / TestFlight | `com.tylerthornbrue.taxtrail` | `production` | `eas update --branch production` |
+
+**Build 1 is stale and drifting.** It carries the *old* bundle identifier, so
+RevenueCat — now configured for the new one — will not validate purchases
+against it, and it has no `expo-document-picker`, so the Restore button added in
+js r12 fails there. It is still fine for parser and UI work; it is not a place
+to test anything involving purchases or restore.
+
+**Default to TestFlight + `--branch production`.** It is the actual shipping
+artifact, purchases work against the matching bundle identifier, and JS changes
+still land in seconds without a build or a review. TestFlight builds expire
+after 90 days.
+
 ## Iterate on the device
 
 **Default: publish an update, don't run a dev server.** Dispatch `step: update`,
