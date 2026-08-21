@@ -113,6 +113,18 @@ inside eas-cli before submitting anything, so EAS has no record of it: it
 consumed neither a build nor a waiver. An earlier note in this session guessed
 the waiver pool had moved to 7/10; it had not.
 
+## App Store Small Business Program
+
+Applied 2026-08-21. Apple emails a confirmation that enrollment is **under
+review**; approval itself is a separate, later notification, and Apple's own
+wording is that review takes **over a month**. Status shows in App Store Connect
+under **Business**.
+
+**The rate change is not retroactive to the approval date.** Proceeds adjust
+**15 days after the end of the fiscal month in which enrolment is approved** —
+approved on 10 February means adjusted from 14 March. Nothing has sold, so
+waiting costs nothing, but do not gate launch on it.
+
 ## Infrastructure
 
 | | |
