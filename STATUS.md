@@ -88,6 +88,31 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 
 ---
 
+## Production build 2 — the first under the new identity
+
+| | |
+|---|---|
+| Build ID | `8fdd9bd0-b107-48c4-bcea-c3190f7103a3` |
+| Artifact | `https://expo.dev/artifacts/eas/5eF2SUDeiJSDjjmtE8TPiaPctasYdQse2SfZCnXY5NA.ipa` |
+| Version | **v1.0.0 (build 2) · js r12** |
+| Profile | `production` — **App Store distribution** |
+| Bundle | `com.tylerthornbrue.taxtrail` |
+| Status | FINISHED |
+
+**This .ipa cannot be side-loaded.** The `production` profile has no
+`distribution: internal`, so it is signed for the App Store. It goes to App
+Store Connect / TestFlight via `eas submit`; opening the link on the phone will
+not install it, unlike build 1's ad-hoc dev client.
+
+**EAS quota, read from `eas build:list` rather than counted by hand:** 3 builds
+on record total — this one, the successful dev client, and the August 2 signing
+failure. Well inside 30/month.
+
+**The credential failure cost nothing.** The first `production` attempt failed
+inside eas-cli before submitting anything, so EAS has no record of it: it
+consumed neither a build nor a waiver. An earlier note in this session guessed
+the waiver pool had moved to 7/10; it had not.
+
 ## Infrastructure
 
 | | |
@@ -195,7 +220,7 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
   `/cdn-cgi/l/email-protection`. Deliberate and left on — it is anti-harvesting
   for a public support address, and real browsers render it normally.
 
-- **Bundle identifier chain — 3 of 4 links done (2026-08-20).**
+- **Bundle identifier chain — COMPLETE (2026-08-21).**
 
   | # | Link | State |
   |---|---|---|
