@@ -98,7 +98,8 @@ that touches `Info.plist` or entitlements should ride along in the same one.
 
 ## Sep–Oct 2026 — soft launch
 
-- [ ] Production build + App Store submission
+- [x] Production build — build 2, `8fdd9bd0…`, 2026-08-21
+- [ ] App Store submission (`eas submit` → TestFlight → review)
 - [ ] Listing: subtitle "Private, on-device tax scans"; **screenshot 2 is the
       privacy-label comparison** against Keeper / QuickBooks / Wave — that
       contrast is the whole pitch
