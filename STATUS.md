@@ -113,6 +113,15 @@ inside eas-cli before submitting anything, so EAS has no record of it: it
 consumed neither a build nor a waiver. An earlier note in this session guessed
 the waiver pool had moved to 7/10; it had not.
 
+## Staged for the next build (do not need one each)
+
+- **New app icon** (D-037). All seven assets regenerated from
+  `mobile/scripts/make-icons.py`. Icons are compiled into the binary and cannot
+  ship over the air, so this waits. `APP_BUILD` stays 2 until the build runs.
+
+Anything else Tyler finds in TestFlight joins this list. One build carries the
+lot.
+
 ## TestFlight submission — done 2026-08-21
 
 | | |
