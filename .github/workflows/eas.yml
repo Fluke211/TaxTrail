@@ -26,11 +26,17 @@ on:
           - update
           - asc-check
           - asc-bundle-id
+          - submit
       update_message:
         description: 'Message for the EAS Update (used by step: update)'
         required: false
         type: string
         default: "dev client bundle"
+      confirm_submit:
+        description: 'Type SUBMIT to authorize uploading a build to App Store Connect (step: submit)'
+        required: false
+        type: string
+        default: ""
       confirm_build:
         description: 'Type BUILD to authorize an EAS build (quota-limited, ignored for other steps)'
         required: false
@@ -391,6 +397,27 @@ jobs:
             --platform ios \
             --non-interactive \
             --message "TaxTrail v1.0.0 · $PROFILE"
+
+      - name: Submit to App Store Connect (TestFlight)
+        if: inputs.step == 'submit'
+        working-directory: ${{ github.workspace }}/mobile
+        run: |
+          set -euo pipefail
+          # Gated like the build: this uploads a binary to Apple under Tyler's
+          # developer account, which is not something to trigger by accident.
+          if [ "${{ inputs.confirm_submit }}" != "SUBMIT" ]; then
+            echo "::error::Submit not authorized. Re-run with confirm_submit set to SUBMIT."
+            exit 1
+          fi
+          if [ -z "${EXPO_ASC_API_KEY_PATH:-}" ]; then
+            echo "::error::No Apple API key. Submitting needs ASC_API_KEY_P8, ASC_KEY_ID and ASC_ISSUER_ID."
+            exit 1
+          fi
+          npx eas-cli@latest submit \
+            --platform ios \
+            --profile production \
+            --latest \
+            --non-interactive
 
       - name: Shred the Apple key
         if: always()
