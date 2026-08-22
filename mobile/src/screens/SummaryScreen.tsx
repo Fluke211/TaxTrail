@@ -5,14 +5,14 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { T } from '../lib/theme';
 import type { Receipt } from '../lib/db';
 import { exportRows, isBusiness, allocationsOf } from '../lib/rows';
-import { exportCSV, exportTXF, exportQBO, exportXLSX, exportBackup, exportArchive, exportDiagnostics } from '../lib/exportShare';
+import { exportCSV, exportTXF, exportQBO, exportXLSX, exportBackup, exportArchive, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
 import { isPro, presentPaywall } from '../lib/purchases';
 import { versionStamp } from '../lib/version';
 import * as Updates from 'expo-updates';
 const C = require('../lib/classifier.js');
 
-export default function SummaryScreen({ receipts, pro, onProChanged }: {
-  receipts: Receipt[]; pro: boolean; onProChanged: () => void;
+export default function SummaryScreen({ receipts, pro, onChanged }: {
+  receipts: Receipt[]; pro: boolean; onChanged: () => void;
 }) {
   const [busyExport, setBusyExport] = useState<string | null>(null);
   const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'none' | 'error'>('idle');
@@ -80,13 +80,55 @@ export default function SummaryScreen({ receipts, pro, onProChanged }: {
     if (needsPro && !pro) {
       const unlocked = await presentPaywall();
       if (!unlocked) return;
-      onProChanged();
+      onChanged();
     }
     setBusyExport(name);
     try { await fn(); }
     catch (e) { console.warn(e); Alert.alert('Export failed', String(e)); }
     finally { setBusyExport(null); }
   };
+
+  // Hidden rather than disabled on a binary without expo-document-picker: an
+  // over-the-air update can reach a build compiled before the native module.
+  const canRestore = useMemo(() => isRestoreAvailable(), []);
+
+  // Restore is the only control on this screen that WRITES, so it asks first
+  // and then says exactly what it did. Re-importing the same archive is a no-op
+  // (receipts are fingerprinted on merchant + date + total), and saying so up
+  // front is what makes it safe to tap when you are not sure.
+  const [restoring, setRestoring] = useState(false);
+  const runRestore = useCallback(() => {
+    Alert.alert(
+      'Restore from archive',
+      'Pick a TaxTrail archive (.zip). Receipts it contains that are not already '
+      + 'here will be added, with their images. Nothing is deleted or overwritten, '
+      + 'and restoring the same archive twice changes nothing.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Choose file',
+          onPress: async () => {
+            setRestoring(true);
+            try {
+              const r = await restoreArchive();
+              if (!r) return;                       // picker cancelled
+              onChanged();
+              const parts = [`${r.imported} receipt${r.imported === 1 ? '' : 's'} added`];
+              if (r.images) parts.push(`${r.images} image${r.images === 1 ? '' : 's'} restored`);
+              if (r.skipped) parts.push(`${r.skipped} already here, skipped`);
+              if (r.imagesMissing) parts.push(`${r.imagesMissing} image${r.imagesMissing === 1 ? '' : 's'} could not be read`);
+              Alert.alert(r.imported ? 'Restored' : 'Nothing to add', parts.join('\n'));
+            } catch (e) {
+              console.warn(e);
+              Alert.alert('Restore failed', String(e));
+            } finally {
+              setRestoring(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [onChanged]);
 
   return (
     <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} contentContainerStyle={{ paddingBottom: 120 }}>
@@ -141,8 +183,23 @@ export default function SummaryScreen({ receipts, pro, onProChanged }: {
         ))}
       </View>
 
+      {canRestore && (
+        <View style={s.card}>
+          <Text style={s.formTitle}>RESTORE</Text>
+          <Pressable style={s.exportBtn} disabled={restoring} onPress={runRestore}>
+            {restoring
+              ? <ActivityIndicator color={T.accent} />
+              : <Text style={{ color: T.text, fontSize: 14 }}>Restore from a receipt archive (.zip)</Text>}
+          </Pressable>
+          <Text style={s.restoreNote}>
+            Adds receipts an archive has and this device does not. Never deletes
+            or overwrites anything.
+          </Text>
+        </View>
+      )}
+
       {!pro && (
-        <Pressable style={s.proBtn} onPress={async () => { if (await presentPaywall()) onProChanged(); }}>
+        <Pressable style={s.proBtn} onPress={async () => { if (await presentPaywall()) onChanged(); }}>
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Upgrade to TaxTrail Pro</Text>
           <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 3 }}>
             Unlimited scans · every export format · $39.99/yr
@@ -194,4 +251,5 @@ const s = StyleSheet.create({
   },
   version: { color: T.muted2, fontSize: 11, textAlign: 'center', marginTop: 18, letterSpacing: 0.3 },
   updateLink: { color: T.accent, marginTop: 4 },
+  restoreNote: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginTop: 8 },
 });
