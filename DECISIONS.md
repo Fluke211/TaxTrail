@@ -1269,3 +1269,51 @@ servers, not anywhere reachable), consumes one of Apple's limited certificate
 slots, and puts a `.p12` private key in repository secrets. That is a lot of new
 machinery to avoid ten minutes of Tyler's time, once. Revisit if the interactive
 session proves painful or has to be repeated.
+
+---
+
+## D-037
+
+**New app icon: a receipt cut at both ends, with shallow teeth. Staged, not
+built.**
+
+Date: 2026-08-22 · Status: accepted
+
+Tyler installed build 2 from TestFlight and said the icon looked like "a broken
+piece of paper with the zig zag feature at the bottom." He was right, and the
+reason is worth writing down rather than just fixing.
+
+**Why the old one failed.** The torn edge was drawn as large sharp triangles
+*hanging below* the card's rounded bottom. That broke the silhouette, so at icon
+size the eye read damage rather than perforation. Deep teeth plus a broken
+outline is what "shattered" looks like.
+
+**What replaced it (variant B4 of four shown):**
+
+- Cut at **both** ends, because a real receipt is a strip torn from a roll —
+  Tyler's suggestion, and it is more honest than cutting only the bottom.
+- **Shallow, numerous teeth** (32 at 18px on a 1024 canvas). Fine perforation
+  survives downscaling as texture; deep teeth turn into a sawtooth.
+- Notches carved **into** the card, never drawn hanging off it, so the
+  silhouette stays whole.
+- **Square corners on the cut edges.** Rounding fights a cut; the two read as
+  contradictory instructions.
+
+Chosen against 60px renders, not just the 1024 master. The App Store shows an
+icon large, but users see it at 60–120px daily, and that is where the earlier
+candidates fell apart.
+
+**Two things found while regenerating.** The Android adaptive foreground was
+still **Expo's default blue chevron** — unrelated to this app, and it would have
+shipped as the Android icon. And the first regeneration scaled the whole canvas
+to reach Android's safe zone, which shrank the card to a speck; the fix crops to
+the card and re-fits it so it *fills* the zone.
+
+**The artwork is now code** — `mobile/scripts/make-icons.py` generates all seven
+assets from one definition. They were opaque binaries nobody could adjust, which
+is how a default chevron survived this long. The next tweak is a diff.
+
+**Deliberately not built.** App icons are compiled into the binary and cannot
+ship over the air, so this needs a build. Tyler is using TestFlight and will
+find more; batching costs one build instead of two. `APP_BUILD` stays at 2 until
+that build actually runs.
