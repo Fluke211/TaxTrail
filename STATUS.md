@@ -1,11 +1,11 @@
 # Status
 
-**Last updated:** 2026-08-10 · Update this file at the end of every working session.
+**Last updated:** 2026-08-22 · Update this file at the end of every working session.
 
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 1) · js r11** | Installed and working on Tyler's iPhone; first real receipt parsed correctly |
+| iOS app (`mobile/`) | **v1.0.0 (build 2) · js r11** | On Tyler's iPhone via TestFlight. Its header reads *ReceiptSnap* and its footer reads *build 1* — both fixed in the staged build (D-039, D-040) |
 
 ---
 
@@ -79,8 +79,7 @@ after four more. Query current build records any time with the workflow's
    into corpus fixtures, and everything downstream is automatable
 2. Grow `mobile/__tests__/corpus/` from those dumps; fix what `npm run
    test:score` flags
-3. Restore from archive — needs `expo-document-picker`, so it batches into the
-   production build
+3. ~~Restore from archive~~ — **done**, staged for the next build
 4. Store every page of a multi-page receipt (schema migration)
 5. Delete both Codespaces (`curly guacamole`, `potential train`) — done with them
 
@@ -94,10 +93,15 @@ Full plan: [`ROADMAP.md`](ROADMAP.md).
 |---|---|
 | Build ID | `8fdd9bd0-b107-48c4-bcea-c3190f7103a3` |
 | Artifact | `https://expo.dev/artifacts/eas/5eF2SUDeiJSDjjmtE8TPiaPctasYdQse2SfZCnXY5NA.ipa` |
-| Version | **v1.0.0 (build 2) · js r12** |
+| Version | **v1.0.0 (build 2) · js r11** |
 | Profile | `production` — **App Store distribution** |
 | Bundle | `com.tylerthornbrue.taxtrail` |
 | Status | FINISHED |
+
+**The footer on this build reads `build 1`, and that is wrong.** `autoIncrement`
+was bumping the build number on the runner without committing it, so the repo
+said 1 while the binary was 2 — corrected in D-039, and the footer will read
+`build 3` from the next build onward.
 
 **This .ipa cannot be side-loaded.** The `production` profile has no
 `distribution: internal`, so it is signed for the App Store. It goes to App
@@ -115,9 +119,22 @@ the waiver pool had moved to 7/10; it had not.
 
 ## Staged for the next build (do not need one each)
 
-- **New app icon** (D-037). All seven assets regenerated from
+- **App header now reads TaxTrail** (D-040). Build 2 says *ReceiptSnap* at the
+  top of every screen — the last user-visible instance of the old name, missed
+  because it was split across JSX nodes as `Receipt<Text>Snap</Text>`.
+- **New app icon** (D-038). All seven assets regenerated from
   `mobile/scripts/make-icons.py`. Icons are compiled into the binary and cannot
-  ship over the air, so this waits. `APP_BUILD` stays 2 until the build runs.
+  ship over the air, so this waits.
+- **`taxtrail://capture` deep link** (D-024) — unlocks the Control Centre /
+  Action Button shortcut. Verified in the generated `Info.plist`.
+- **Restore from a receipt archive** (`expo-document-picker`). Entitlements
+  verified still empty, so the provisioning profile stays valid (no D-011
+  exposure).
+- **Bump the build number to 3 in the same commit that dispatches the build**
+  (D-039) — `mobile/app.json` `ios.buildNumber` and `APP_BUILD` in
+  `mobile/src/lib/version.ts`, both to `3`. `autoIncrement` is off now, so this
+  is manual and deliberate. Forgetting it is not silent: the `Build number
+  preflight` step fails the run before `eas build` spends any quota.
 
 Anything else Tyler finds in TestFlight joins this list. One build carries the
 lot.

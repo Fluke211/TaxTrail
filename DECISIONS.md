@@ -1272,7 +1272,7 @@ session proves painful or has to be repeated.
 
 ---
 
-## D-037
+## D-038
 
 **New app icon: a receipt cut at both ends, with shallow teeth. Staged, not
 built.**
@@ -1317,3 +1317,142 @@ is how a default chevron survived this long. The next tweak is a diff.
 ship over the air, so this needs a build. Tyler is using TestFlight and will
 find more; batching costs one build instead of two. `APP_BUILD` stays at 2 until
 that build actually runs.
+
+---
+
+## D-039
+
+**The iOS build number lives in git, not on a runner — `autoIncrement` is off,
+and a free App Store Connect read guards every production build.**
+
+Date: 2026-08-22 · Status: accepted · Amends D-008 (version-stamp discipline)
+
+Found while confirming the staged icon: **the repo and the binary disagreed
+about which build Tyler is holding.** `mobile/app.json` said `buildNumber: "1"`
+and `version.ts` said `APP_BUILD = 1`, but the build on TestFlight is build 2.
+So the Summary footer on his phone reads `build 1` on a build-2 binary — the
+version stamp, which exists precisely to answer "which one is this?", was
+naming the wrong thing.
+
+**The cause, read from eas-cli 22.2.0's shipped source rather than inferred.**
+`eas.json` had `autoIncrement: true` on the `production` profile with
+`appVersionSource: "local"`. In `build/build/ios/build.js`:
+
+```js
+localAutoIncrement: ctx.easJsonCliConfig?.appVersionSource === AppVersionSource.REMOTE
+  ? false
+  : ctx.buildProfile.autoIncrement,
+```
+
+which resolves to `BumpStrategy.BUILD_NUMBER`, and then in
+`build/build/ios/version.js` eas-cli reads `expo.ios.buildNumber` from
+`app.json`, computes the next value, and **writes it back into `app.json` in
+the working directory**. On a GitHub Actions runner that write is discarded
+when the job ends. The committed value never moves.
+
+**What that would have cost, concretely.** Every production build starts from a
+clean checkout of `buildNumber: "1"` and produces build **2** — the number
+already uploaded. App Store Connect requires `CFBundleVersion` to be unique for
+a given `CFBundleShortVersionString`, so the next `eas submit` would have been
+rejected as a duplicate *after* the build was spent. One build out of the 30/mo
+allowance, burned for nothing, discovered only at the upload step.
+
+**Decision.**
+
+1. `autoIncrement` is removed from the `production` profile. The build number is
+   set in `mobile/app.json` and committed, so `app.json`, the `Info.plist`, the
+   in-app footer, `CHANGELOG.md` and TestFlight all carry the same number and
+   it is in git.
+2. `app.json` and `version.ts` are corrected to **2**, which is the truth: it is
+   what is on TestFlight today.
+3. **Bumping is now part of the pre-build commit**, not a runner side effect —
+   see `docs/RUNBOOK.md`. This is what Tyler's standing rule ("bump `APP_BUILD`
+   on every native build") always assumed; with `autoIncrement` on, the rule was
+   unfollowable, because the number was not decided until after the commit.
+4. A **`Build number preflight`** step in `.github/workflows/eas.yml` asks App
+   Store Connect which build numbers already exist for the current marketing
+   version and fails the run if `buildNumber` is not above all of them. It runs
+   **before** `eas build`, so a caught mistake costs no quota, and it is a free
+   API read.
+
+**Why a guard and not just a note.** A note in a runbook is checked by whoever
+remembers to check it; the failure mode here is silent until Apple rejects an
+upload, which is the most expensive place to learn about it. The preflight is
+`::error::`-hard when Apple answers and the number is taken, and a `::warning::`
+that lets the build proceed when Apple cannot be reached — an unreachable API
+is not a reason to block a build Tyler has already approved.
+
+**What would change this:** switching `appVersionSource` to `remote`, which
+moves the number to EAS's servers. That trades a git-visible number for one
+neither Tyler nor the repo can see without a network call, so it is the wrong
+direction for a project whose first rule is that every deliverable carries a
+visible version.
+
+---
+
+## D-040
+
+**PR #37's commit message described app changes its diff never contained. The
+work was redone; the lesson is that a squash message is not evidence.**
+
+Date: 2026-08-22 · Status: accepted
+
+Found while confirming the staged icon. `git show --stat dd4221a` on
+*"Stage the build: deep link, restore-from-archive, and a RevenueCat driver
+(#37)"* lists four files: `revenuecat.yml`, `CHANGELOG.md`, `DECISIONS.md`,
+`STATUS.md`. **Nothing under `mobile/`.** The message claims, in detail, work
+that is not in the commit:
+
+| Claimed in the message | Actually in the repo before today |
+|---|---|
+| `taxtrail://capture` deep link | no `scheme` in `app.json`, no `Linking` in `App.tsx` |
+| Restore from archive | no `restoreArchive`, anywhere in the history |
+| `expo-document-picker` added | not in `package.json` |
+| *"fixes the app header, which still read ReceiptSnap"* | header still read `Receipt<Text>Snap</Text>` |
+| `APP_BUILD 2, JS_REVISION 12` | `APP_BUILD = 1`, `JS_REVISION = 11` |
+| *"10/10 tests, tsc clean"* | true, but of a tree without any of the above |
+
+**The header is the one that mattered.** Build 2 went to TestFlight and Tyler
+installed it, so the app on his phone has said **ReceiptSnap** at the top of
+every screen since — under an App Store listing called TaxTrail, three weeks
+after the rename was reported complete.
+
+**Why nothing caught it.** Every check that ran was consistent with the failure:
+`tsc` and the tests passed, because the tree was simply the old one. The canon
+was *not* corrupted — `ROADMAP.md` still had the URL scheme and
+`expo-document-picker` unticked, and `STATUS.md` still listed restore as
+pending. The only artifact asserting the work existed was the commit message.
+Checking the roadmap against the repo would have caught it; re-reading the
+commit message would not.
+
+**The likely mechanism** is the branch-reset step in the working agreement:
+`git checkout -B <branch> origin/main` discards uncommitted work in the tree.
+Run after the `mobile/` edits and before staging them, it leaves exactly this —
+the canon edits re-applied, the app edits gone, and a commit message written
+from intent rather than from the diff.
+
+**Practice, going forward:**
+
+1. **Verify a change from the repo, not from the message that claims it.** For
+   anything user-visible, grep the built source. `ROADMAP.md` is the checklist
+   worth reconciling against the tree before a build, precisely because it is
+   maintained by hand and did not follow the message into being wrong.
+2. **`git status` before the reset, not after.** The reset is safe only on a
+   clean tree; on a dirty one it is a silent revert.
+3. **Grep split across JSX nodes.** `ReceiptSnap` survived two rename sweeps as
+   `Receipt<Text …>Snap</Text>`. A rename search must include the bare stems
+   (`Receipt`, `Snap`), not just the joined word.
+
+Redone in full today, plus a regression the second attempt adds: restore is
+hidden unless `expo-document-picker` is actually present, because JS ships over
+the air and can land on a binary compiled without the native module.
+
+---
+
+## Note on D-035
+
+`D-035` was never issued — it does not appear anywhere in this repo's history.
+The gap is real, not a missing file. `D-037` was briefly used twice (the
+distribution-certificate correction and the app-icon change); the icon entry was
+renumbered to **D-038** and its references in `STATUS.md` and
+`mobile/scripts/make-icons.py` updated.

@@ -1,7 +1,7 @@
 // TaxTrail — root component. Custom three-tab shell (no navigation library:
 // fewer native deps = safer single EAS build), same layout as the PWA.
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { T } from './src/lib/theme';
@@ -42,6 +42,22 @@ function Root() {
     refresh();
   }, [refresh]);
 
+  // taxtrail://capture -> jump to the scanner. This is what makes a one-action
+  // Shortcut worth setting up: Control Centre, Lock Screen or the Action Button
+  // land in the camera rather than the last tab used (D-024).
+  useEffect(() => {
+    const open = (url: string | null) => {
+      if (!url) return;
+      // Both taxtrail://capture and taxtrail:///capture reach us, and iOS may
+      // hand back a trailing slash; compare on the path alone.
+      const path = url.replace(/^taxtrail:\/*/, '').replace(/\/+$/, '').split('?')[0];
+      if (path === 'capture') setTab('capture');
+    };
+    Linking.getInitialURL().then(open).catch(() => {});
+    const sub = Linking.addEventListener('url', (e) => open(e.url));
+    return () => sub.remove();
+  }, []);
+
   return (
     <View style={[s.app, { paddingTop: insets.top }]}>
       <FallbackPaywall
@@ -53,7 +69,7 @@ function Root() {
       />
       <View style={s.header}>
         <Text style={s.brand}>
-          Receipt<Text style={{ color: T.accent }}>Snap</Text>
+          Tax<Text style={{ color: T.accent }}>Trail</Text>
         </Text>
         <View style={s.badge}>
           <View style={s.dot} />
@@ -64,7 +80,7 @@ function Root() {
       <View style={{ flex: 1 }}>
         {tab === 'capture' && <CaptureScreen onSaved={() => { refresh(); setTab('receipts'); }} />}
         {tab === 'receipts' && <ReceiptsScreen receipts={receipts} onChanged={refresh} />}
-        {tab === 'summary' && <SummaryScreen receipts={receipts} pro={pro} onProChanged={refresh} />}
+        {tab === 'summary' && <SummaryScreen receipts={receipts} pro={pro} onChanged={refresh} />}
       </View>
 
       <View style={[s.tabbar, { paddingBottom: Math.max(insets.bottom, 10) }]}>

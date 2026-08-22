@@ -36,8 +36,15 @@ with your own already-merged work. This has bitten four times.
 Before starting any change:
 
 ```bash
+git status --short                                        # must be empty first
 git fetch origin main && git checkout -B <branch> origin/main
 ```
+
+**`git status` first, every time.** `checkout -B` silently discards uncommitted
+work in the tree. Run it mid-change and the edits are gone with no warning — see
+D-040, where a whole PR's worth of app changes vanished this way and only the
+canon edits, re-applied afterwards, made it into the commit. The commit message
+still described the lost work, so nothing downstream caught it.
 
 If you only notice after committing, replay just the unmerged commits — do not
 resolve a conflict against yourself:
@@ -121,11 +128,47 @@ This costs a build, so batch them.
    Disable anything unnecessary by passing `false` to the relevant plugin option
    (see `expo-image-picker`'s `microphonePermission`, `expo-location`'s
    `locationAlwaysPermission`).
-4. Verify New Architecture compatibility for non-Expo packages — look for
+4. **Check the entitlements file too**, not just `Info.plist`. An added
+   entitlement invalidates the existing provisioning profile and means redoing
+   credentials (D-011):
+   ```bash
+   cat ios/*/*.entitlements     # `<dict/>` means nothing was added
+   ```
+   Some plugins add entitlements only under a condition — `expo-document-picker`
+   adds iCloud ones **only** if `ios.usesIcloudStorage` is set, which this app
+   does not set. Read the plugin's own source (`node_modules/<pkg>/plugin/build`)
+   rather than assuming either way.
+5. Verify New Architecture compatibility for non-Expo packages — look for
    `codegenConfig` in the package's `package.json`. RN 0.83 has no legacy
    bridge fallback.
-5. Preflight in CI, then request approval for the build.
-6. Bump `APP_BUILD` in `mobile/src/lib/version.ts`.
+6. **If the new module is reachable from JS that ships over the air, guard it.**
+   An `eas update` can land on a binary compiled before the module existed;
+   `require` it in a `try`/`catch` and hide the control rather than offering one
+   that throws (see `isRestoreAvailable` in `exportShare.ts`).
+7. Bump the build number — see the next section.
+8. Preflight in CI, then request approval for the build.
+
+---
+
+## Bump the build number — same commit that dispatches the build
+
+`autoIncrement` is **off** (D-039). The build number lives in git, so it does
+not move on its own, and both places must move together:
+
+| File | Field | What it drives |
+|---|---|---|
+| `mobile/app.json` | `ios.buildNumber` | the `CFBundleVersion` Apple sees |
+| `mobile/src/lib/version.ts` | `APP_BUILD` | the version stamp in the Summary footer |
+
+**Do this in the same commit that dispatches the build, not before.**
+`version.ts` ships over the air, so bumping `APP_BUILD` early would make a
+phone still running the *previous* binary display the *next* build's number —
+which is the exact drift D-039 exists to stop.
+
+Forgetting is not silent: the `Build number preflight` step asks App Store
+Connect which numbers already exist for this marketing version and fails the run
+**before** `eas build` starts, so it costs no quota. Its error names the number
+to set.
 
 ---
 

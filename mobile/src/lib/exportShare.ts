@@ -3,10 +3,12 @@
 // XLSX is built with SheetJS (pure JS, Hermes-safe) — see xlsxExport.ts.
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import type { Receipt } from './db';
+import { addReceipt, allReceipts, type Receipt } from './db';
 import { exportRows } from './rows';
 import { buildXlsxBase64 } from './xlsxExport';
+import { saveRestoredImage } from './ocr';
 const X = require('./exporters.js');
+const R = require('./restorePlan.js');
 
 async function shareText(filename: string, content: string, mimeType: string): Promise<void> {
   const path = `${FileSystem.cacheDirectory}${filename}`;
@@ -149,4 +151,111 @@ export async function exportArchive(receipts: Receipt[]): Promise<void> {
 export async function exportBackup(receipts: Receipt[]): Promise<void> {
   const payload = JSON.stringify({ app: 'TaxTrail', version: 2, exportedAt: new Date().toISOString(), receipts }, null, 1);
   await shareText(`taxtrail-backup-${new Date().toISOString().slice(0, 10)}.json`, payload, 'application/json');
+}
+
+/**
+ * Read an archive back in.
+ *
+ * The counterpart to exportArchive, and the thing that makes the export a
+ * backup rather than a souvenir: until this existed, an archive could leave the
+ * phone but never return (D-016). Restoring is what a new phone, a reinstall,
+ * or a restored-from-iCloud device needs.
+ *
+ * **Re-importing the same archive is a no-op.** Rows are fingerprinted on
+ * merchant + date + total, so a user who restores twice — or restores onto a
+ * device that already has some of these receipts — gets the missing ones and no
+ * duplicates. The fingerprint deliberately ignores id: ids are reassigned by
+ * SQLite on insert and say nothing about whether two rows are the same receipt.
+ *
+ * Everything happens on device. The picker hands back a file URL; nothing is
+ * uploaded, and no permission prompt is involved (the iOS document picker is a
+ * system UI that grants access to exactly the file chosen).
+ */
+// expo-document-picker is a native module, so it exists only in a build that
+// was compiled with it. JS ships over the air and can therefore land on an older
+// binary — so ask, rather than assume, and let the UI hide the control instead of
+// offering one that cannot work.
+function documentPicker(): any | null {
+  try {
+    const m = require('expo-document-picker');
+    return typeof m?.getDocumentAsync === 'function' ? m : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isRestoreAvailable(): boolean {
+  return documentPicker() != null;
+}
+
+export interface RestoreResult {
+  imported: number;
+  skipped: number;
+  images: number;
+  imagesMissing: number;
+}
+
+export async function restoreArchive(): Promise<RestoreResult | null> {
+  const DocumentPicker = documentPicker();
+  if (!DocumentPicker) {
+    throw new Error('Restore needs the newest version of the app. Update from the App Store, then try again.');
+  }
+  // `type` is a MIME type: the iOS module maps it with UTType(mimeType:), which
+  // turns application/zip into public.zip-archive. A UTI passed here is silently
+  // dropped by compactMap, so do not pass one.
+  const picked = await DocumentPicker.getDocumentAsync({
+    type: 'application/zip',
+    copyToCacheDirectory: true,
+    multiple: false,
+  });
+  if (picked.canceled || !picked.assets?.length) return null;
+
+  const b64 = await FileSystem.readAsStringAsync(picked.assets[0].uri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  const JSZip = require('jszip');
+  const zip = await JSZip.loadAsync(b64, { base64: true });
+
+  const entry = zip.file('backup.json');
+  if (!entry) {
+    throw new Error("That zip has no backup.json — it is not a TaxTrail archive.");
+  }
+  const payload = JSON.parse(await entry.async('string'));
+  const rows: any[] = Array.isArray(payload?.receipts) ? payload.receipts : [];
+  if (!rows.length) return { imported: 0, skipped: 0, images: 0, imagesMissing: 0 };
+
+  const existing = new Set((await allReceipts()).map(R.fingerprint));
+  const { toImport, skipped } = R.planRestore(rows, existing, new Date().toISOString());
+
+  const result: RestoreResult = { imported: 0, skipped, images: 0, imagesMissing: 0 };
+
+  for (let i = 0; i < toImport.length; i++) {
+    const { imageFile, ...row } = toImport[i];
+
+    let imagePath: string | null = null;
+    let thumbPath: string | null = null;
+    if (imageFile) {
+      const img = zip.file(`images/${imageFile}`);
+      if (img) {
+        try {
+          const saved = await saveRestoredImage(await img.async('base64'), i);
+          imagePath = saved.imagePath;
+          thumbPath = saved.thumbPath;
+          result.images += 1;
+        } catch {
+          // An image that will not write must not cost the row it belongs to —
+          // the data is the tax record; the photo is the substantiation.
+          result.imagesMissing += 1;
+        }
+      } else {
+        result.imagesMissing += 1;
+      }
+    }
+
+    await addReceipt({ ...row, imagePath, thumbPath });
+    result.imported += 1;
+  }
+
+  return result;
 }

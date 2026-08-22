@@ -46,5 +46,49 @@ check('CSV BOM + header', csv.charCodeAt(0) === 0xFEFF && csv.includes('Date,Mer
 const txf = X.buildTXF(rows, new Date(2026, 7, 1));
 check('TXF codes present', txf.content.includes('N304') && txf.content.includes('N301'));
 
+// Restore-from-archive planning (pure half of exportShare.restoreArchive)
+const RP = require('../src/lib/restorePlan.js');
+const NOW = '2026-08-22T00:00:00.000Z';
+const arch = [
+  { merchant: 'Costco', date: '2026-07-01', total: 140.35, imageFile: 'a.jpg' },
+  { merchant: 'Safeway', date: '2026-07-02', total: 22.10 },
+];
+
+// Fresh device: everything comes in.
+const first = RP.planRestore(arch, new Set(), NOW);
+check('restore: empty device imports all', first.toImport.length === 2 && first.skipped === 0);
+
+// Same archive again, now that those receipts exist — the no-op the UI promises.
+const onDevice = new Set(first.toImport.map(RP.fingerprint));
+const second = RP.planRestore(arch, onDevice, NOW);
+check('restore: re-importing the same archive is a no-op',
+  second.toImport.length === 0 && second.skipped === 2);
+
+// Partial overlap: only the missing one is added.
+const partial = RP.planRestore(arch, new Set([RP.fingerprint(arch[0])]), NOW);
+check('restore: only missing receipts are added',
+  partial.toImport.length === 1 && partial.toImport[0].merchant === 'Safeway' && partial.skipped === 1);
+
+// Fingerprint ignores id, case and cent formatting; a different total is a different receipt.
+check('restore: fingerprint ignores id/case/whitespace',
+  RP.fingerprint({ id: 7, merchant: '  COSTCO  ', date: '2026-07-01T12:00:00Z', total: 140.3 })
+    === RP.fingerprint({ id: 91, merchant: 'costco', date: '2026-07-01', total: 140.30 }));
+check('restore: a different total is a different receipt',
+  RP.fingerprint({ merchant: 'Costco', date: '2026-07-01', total: 140.35 })
+    !== RP.fingerprint({ merchant: 'Costco', date: '2026-07-01', total: 140.36 }));
+
+// A duplicate inside one archive collapses, so a malformed export cannot double-insert.
+const dupes = RP.planRestore([arch[0], { ...arch[0], id: 99 }], new Set(), NOW);
+check('restore: duplicates within one archive collapse',
+  dupes.toImport.length === 1 && dupes.skipped === 1);
+
+// An older/sparser archive must still yield an importable row.
+const sparse = RP.planRestore([{ merchant: 'Corner Store' }], new Set(), NOW);
+const row = sparse.toImport[0];
+check('restore: a sparse row is filled in, not dropped',
+  sparse.toImport.length === 1 && row.total === 0 && row.date === '' &&
+  Array.isArray(row.allocations) && row.salesTax === null && row.createdAt === NOW);
+check('restore: non-array payload yields nothing', RP.planRestore(null, new Set(), NOW).toImport.length === 0);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

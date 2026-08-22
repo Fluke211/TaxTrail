@@ -62,6 +62,30 @@ export async function processReceiptPhoto(sourceUri: string): Promise<OcrResult>
   return processReceiptPages([sourceUri]);
 }
 
+// Restore path: an archived JPEG comes back as base64 with no thumbnail — the
+// archive stores the full image only. Write it into the documents directory the
+// same way a fresh capture would, and regenerate the 200px thumbnail so the
+// receipt list has something to show. `seq` keeps names unique inside one
+// restore, since Date.now() does not move between iterations.
+export async function saveRestoredImage(base64: string, seq: number): Promise<{ imagePath: string; thumbPath: string }> {
+  await ensureDir();
+  const stamp = `${Date.now()}-${String(seq).padStart(4, '0')}`;
+  const imagePath = `${DIR}${stamp}.jpg`;
+  await FileSystem.writeAsStringAsync(imagePath, base64, { encoding: FileSystem.EncodingType.Base64 });
+
+  let thumbPath = imagePath;
+  try {
+    const thumbUri = await resizeTo(imagePath, 200, 0.7);
+    thumbPath = `${DIR}${stamp}-thumb.jpg`;
+    await FileSystem.copyAsync({ from: thumbUri, to: thumbPath });
+  } catch {
+    // A thumbnail that will not render is not worth losing the receipt over;
+    // fall back to the full image, which the list can still display.
+    thumbPath = imagePath;
+  }
+  return { imagePath, thumbPath };
+}
+
 export async function deleteReceiptFiles(r: { imagePath: string | null; thumbPath: string | null }): Promise<void> {
   for (const p of [r.imagePath, r.thumbPath]) {
     if (p) { try { await FileSystem.deleteAsync(p, { idempotent: true }); } catch {} }
