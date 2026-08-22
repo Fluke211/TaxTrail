@@ -113,6 +113,39 @@ inside eas-cli before submitting anything, so EAS has no record of it: it
 consumed neither a build nor a waiver. An earlier note in this session guessed
 the waiver pool had moved to 7/10; it had not.
 
+## TestFlight submission — done 2026-08-21
+
+| | |
+|---|---|
+| Submission | `833b2322-d1e7-4395-9a72-d9ebf0c4e614` |
+| Build | `8fdd9bd0…` · v1.0.0 build 2 |
+| ASC App ID | `6797163508` |
+| TestFlight | https://appstoreconnect.apple.com/apps/6797163508/testflight/ios |
+
+Apple processes the binary for 5–10 minutes and emails when it finishes.
+
+**Noted, non-fatal:** the run logged *"App Store Connect credentials are
+incomplete, skipping TestFlight setup"* and still uploaded successfully. That
+step only auto-configures internal testing groups, so **adding an internal
+tester may be a manual step** in App Store Connect the first time.
+
+**Getting here took three eas.json corrections**, each from reading source
+rather than the error text, because eas-cli's guidance was incomplete each
+time:
+
+1. *"Set `ascAppId` in the submit profile"* — true, but not where
+2. `"submit.production.ascAppId" is not allowed` — it belongs under `ios`
+3. *"App Store Connect API Keys cannot be set up in --non-interactive mode"* —
+   **the submit flow does not read the build's ASC env vars.** It resolves the
+   key from the submit profile, so the profile now references the same variables
+   through eas-json's `env-string` interpolation
+
+That third point is the one worth remembering: build and submit resolve Apple
+credentials by different routes, and D-034 only established the build half.
+
+None of the three failures cost anything — they errored inside eas-cli before
+reaching EAS's services.
+
 ## App Store Small Business Program
 
 Applied 2026-08-21. Apple emails a confirmation that enrollment is **under

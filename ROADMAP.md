@@ -99,7 +99,9 @@ that touches `Info.plist` or entitlements should ride along in the same one.
 ## Sep–Oct 2026 — soft launch
 
 - [x] Production build — build 2, `8fdd9bd0…`, 2026-08-21
-- [ ] App Store submission (`eas submit` → TestFlight → review)
+- [x] Upload to App Store Connect / TestFlight — 2026-08-21
+- [ ] Install from TestFlight and use it on a real receipt run
+- [ ] App Store review submission (listing metadata, screenshots, privacy answers)
 - [ ] Listing: subtitle "Private, on-device tax scans"; **screenshot 2 is the
       privacy-label comparison** against Keeper / QuickBooks / Wave — that
       contrast is the whole pitch
