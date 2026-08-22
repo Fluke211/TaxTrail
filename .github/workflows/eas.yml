@@ -191,7 +191,7 @@ jobs:
               print("\n=== App Store Connect app records ===")
               for a in data.get("data", []):
                   at = a.get("attributes", {})
-                  print(f"  {at.get('name')}  ->  {at.get('bundleId')}")
+                  print(f"  {at.get('name')}  ->  {at.get('bundleId')}   ascAppId={a.get('id')}")
 
           code, certs = call("GET", "/v1/certificates?limit=200")
           if code == 200:
