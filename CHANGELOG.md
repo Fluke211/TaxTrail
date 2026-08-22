@@ -163,6 +163,17 @@ No changes made to the PWA in the 2026-08-01/02 sessions.
 - Records that the `appl_` key already in the repo is the **public SDK key** and
   cannot manage the project; a v2 secret key is a different credential
 
+### 2026-08-21
+
+- **Build 2 submitted to TestFlight** — submission
+  `833b2322-d1e7-4395-9a72-d9ebf0c4e614`
+- `eas.yml`: `submit` step, gated on `confirm_submit: SUBMIT` like the build
+- `eas.json`: iOS submit profile carries `ascAppId` and points at the ASC key
+  through `env-string` interpolation. Submit resolves Apple credentials
+  differently from build — it does not read the build's env vars
+- `asc-check` prints `ascAppId`, so the value comes from Apple rather than a
+  dashboard URL
+
 ### 2026-08-16
 
 - **App Store Connect API key wired into CI** (D-034). Verified against
