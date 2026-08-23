@@ -10,7 +10,7 @@ the artwork as code means the next tweak is a diff, not a redraw.
 Design notes, so the choices are not re-litigated:
   * The receipt is cut at BOTH ends, like a strip torn from a till roll.
   * The teeth are shallow and numerous. Deep teeth read as damaged paper at
-    icon size — that was the bug this replaced (see DECISIONS.md D-037).
+    icon size — that was the bug this replaced (see DECISIONS.md D-038).
   * Notches are carved INTO the card, never drawn hanging off it, so the
     silhouette stays whole.
   * Corners are square where the cut edges are, because rounding fights a cut.

@@ -11,6 +11,45 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### Staged — v1.0.0 (build 3) · js r12
+
+Not built yet. Everything here needs a native build, so it goes in one.
+
+- **App header now reads TaxTrail.** Last user-visible instance of the old name;
+  it survived two rename sweeps as `Receipt<Text>Snap</Text>`, split across JSX
+  nodes (D-040)
+- **New app icon** — a receipt cut at both ends, shallow teeth, generated from
+  `mobile/scripts/make-icons.py` (D-038)
+- **`taxtrail://capture` deep link** opens straight into the scanner (D-024),
+  which is what makes a Control Centre / Lock Screen / Action Button shortcut
+  worth setting up. Verified in the generated `Info.plist`: `CFBundleURLTypes`
+  carries `taxtrail`, permissions unchanged at five, entitlements still empty
+- **Restore from a receipt archive** (`expo-document-picker`) — closes the loop
+  D-016 opened. The archive export has existed since js r3 with nothing able to
+  read it back, which makes it a backup in name only. Re-importing the same
+  archive is a no-op: rows are fingerprinted on merchant + date + total, and
+  duplicates within one archive collapse too. A row whose image is missing still
+  imports — the data is the tax record, the photo is the substantiation
+- Restore is **hidden** unless `expo-document-picker` is present, since JS ships
+  over the air and can land on a binary compiled without the native module
+- `mobile/src/lib/restorePlan.js` — the pure half, with 8 tests. 18/18 green
+- **Build numbers now live in git** (D-039). `autoIncrement` is off, and a free
+  App Store Connect read fails the workflow before `eas build` spends quota if
+  the number is already taken
+
+### v1.0.0 (build 2) · js r11 — 2026-08-21
+
+First build under the TaxTrail identity, and the first App Store distribution
+build. Submitted to TestFlight (submission `833b2322…`).
+
+- Bundle identifier `com.tylerthornbrue.taxtrail`, distribution certificate and
+  provisioning profile created (D-037)
+- **The footer on this build reads `build 1`** — `autoIncrement` bumped the
+  number on the runner without committing it, so the repo and the binary
+  disagreed. Fixed in the entry below (D-039)
+- **The header on this build reads `ReceiptSnap`** — the rename missed it, and
+  the PR that claimed to fix it shipped no app changes at all (D-040)
+
 ### v1.0.0 (build 1) · js r11 — 2026-08-12
 
 - **Privacy link now points at `taxtrail.app`**, and so do both App Store URLs.

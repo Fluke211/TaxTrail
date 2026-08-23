@@ -26,8 +26,7 @@ air.
       `expo-image-picker` photo path (js r3)
 - [x] Multi-page capture for long receipts a single frame can't hold (js r3)
 - [x] Receipt archive export — images can leave the device (js r3, D-016)
-- [ ] Restore from an archive — needs `expo-document-picker`, so it waits for
-      the production build
+- [x] Restore from an archive — done, staged for the next build (D-040)
 - [ ] Store every page of a multi-page receipt, not just the first (schema
       migration: one image per receipt today)
 - [x] Parser diagnostics export — raw OCR text + what the parser made of it
@@ -90,10 +89,12 @@ that touches `Info.plist` or entitlements should ride along in the same one.
 - [x] **Clear a name and rename everywhere** — now **TaxTrail** (D-026).
       Bundle identifier changed, so a new provisioning profile is required
       before this build
-- [ ] **URL scheme + `capture` deep link** (D-024). `mobile/app.json` has no
-      `scheme` today. Unlocks a Control Center / Lock Screen / Action Button
-      button via a one-action user shortcut, plus Android launcher shortcuts
-- [ ] `expo-document-picker`, for restore-from-archive
+- [x] **URL scheme + `capture` deep link** (D-024) — `taxtrail://capture`.
+      Unlocks a Control Center / Lock Screen / Action Button button via a
+      one-action user shortcut, plus Android launcher shortcuts. Staged
+- [x] `expo-document-picker`, for restore-from-archive — staged
+- [x] **App header reads TaxTrail** (D-040) — staged; build 2 still says
+      ReceiptSnap
 - [ ] Store every page of a multi-page receipt (schema migration)
 
 ## Sep–Oct 2026 — soft launch

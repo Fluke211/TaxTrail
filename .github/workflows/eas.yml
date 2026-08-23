@@ -377,6 +377,124 @@ jobs:
           rm -rf ios
           echo "Preflight complete."
 
+      # A production build that reuses a build number already on App Store
+      # Connect is dead on arrival: Apple rejects the upload, so the build is
+      # spent for nothing. Checking costs one free API read and happens BEFORE
+      # `eas build` runs, so a caught mistake costs no quota. See D-039.
+      - name: Build number preflight (production only)
+        if: inputs.step == 'build' && inputs.build_profile == 'production'
+        working-directory: ${{ github.workspace }}/mobile
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_ASC_API_KEY_PATH:-}" ]; then
+            echo "::warning::No Apple API key, so the build number could not be checked against App Store Connect. Proceeding."
+            exit 0
+          fi
+          pip install --quiet "pyjwt[crypto]" >/dev/null
+
+          cat > /tmp/buildnum.py <<'PYEOF'
+          import json, os, sys, time, urllib.request, urllib.error, urllib.parse, jwt
+
+          KEY  = open(os.environ["EXPO_ASC_API_KEY_PATH"]).read()
+          KID  = os.environ["EXPO_ASC_KEY_ID"]
+          ISS  = os.environ["EXPO_ASC_ISSUER_ID"]
+          BASE = "https://api.appstoreconnect.apple.com"
+
+          app  = json.load(open("app.json"))["expo"]
+          MARKETING = str(app["version"])
+          LOCAL     = str(app["ios"]["buildNumber"])
+          ASC_APP   = str(json.load(open("eas.json"))["submit"]["production"]["ios"]["ascAppId"])
+
+          print(f"app.json      version {MARKETING}  buildNumber {LOCAL}")
+          print(f"ascAppId      {ASC_APP}")
+
+          now = int(time.time())
+          token = jwt.encode(
+              {"iss": ISS, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+              KEY, algorithm="ES256", headers={"kid": KID, "typ": "JWT"})
+
+          def get(path):
+              req = urllib.request.Request(
+                  BASE + path,
+                  headers={"Authorization": f"Bearer {token}",
+                           "Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as r:
+                      return r.status, json.loads(r.read() or b"{}")
+              except urllib.error.HTTPError as e:
+                  raw = e.read()
+                  try: return e.code, json.loads(raw or b"{}")
+                  except Exception: return e.code, {"raw": raw[:300].decode("utf-8", "replace")}
+              except Exception as e:
+                  return 0, {"raw": str(e)}
+
+          def key(v):
+              # eas-cli allows up to three dot-separated integers; compare as a tuple.
+              try: return tuple(int(x) for x in str(v).split("."))
+              except ValueError: return None
+
+          # /v1/builds carries the BUILD number in attributes.version; the
+          # marketing version lives on the related preReleaseVersion. Ask for
+          # the prerelease record for this marketing version, then its builds.
+          taken, source = [], None
+          q = urllib.parse.urlencode({"filter[app]": ASC_APP,
+                                      "filter[version]": MARKETING, "limit": 10})
+          code, data = get(f"/v1/preReleaseVersions?{q}")
+          print(f"  preReleaseVersions   HTTP {code}")
+          if code == 200:
+              source = "preReleaseVersions"
+              for pre in data.get("data", []):
+                  c2, d2 = get(f"/v1/preReleaseVersions/{pre['id']}/builds?limit=200")
+                  print(f"  builds for {pre['id']}   HTTP {c2}")
+                  if c2 == 200:
+                      taken += [b.get("attributes", {}).get("version") for b in d2.get("data", [])]
+          if source is None:
+              # Fallback: every build for the app, filtered client-side.
+              q = urllib.parse.urlencode({"filter[app]": ASC_APP,
+                                          "include": "preReleaseVersion", "limit": 200})
+              code, data = get(f"/v1/builds?{q}")
+              print(f"  builds (fallback)    HTTP {code}")
+              if code == 200:
+                  source = "builds"
+                  pre_by_id = {i["id"]: i.get("attributes", {}).get("version")
+                               for i in data.get("included", [])
+                               if i.get("type") == "preReleaseVersions"}
+                  for b in data.get("data", []):
+                      rel = b.get("relationships", {}).get("preReleaseVersion", {}).get("data") or {}
+                      if pre_by_id.get(rel.get("id")) == MARKETING:
+                          taken.append(b.get("attributes", {}).get("version"))
+
+          if source is None:
+              print("::warning::Could not read builds from App Store Connect, so the build "
+                    "number was not verified. Proceeding — if the upload is rejected as a "
+                    "duplicate, bump expo.ios.buildNumber and rebuild.")
+              sys.exit(0)
+
+          taken = [t for t in taken if t]
+          print(f"build numbers already on App Store Connect for {MARKETING}: "
+                f"{sorted(taken, key=lambda v: key(v) or ()) or 'none'}")
+
+          local = key(LOCAL)
+          if local is None:
+              print(f"::error::expo.ios.buildNumber is {LOCAL!r}, which is not a number.")
+              sys.exit(1)
+
+          clash = [t for t in taken if key(t) is not None and key(t) >= local]
+          if clash:
+              highest = max(key(t) for t in taken if key(t) is not None)
+              nxt = highest[:-1] + (highest[-1] + 1,)
+              print(f"::error::buildNumber {LOCAL} is not above what Apple already has "
+                    f"for {MARKETING} (highest: {'.'.join(str(x) for x in highest)}). The "
+                    f"upload would be rejected and the build wasted. Set "
+                    f"expo.ios.buildNumber to {'.'.join(str(x) for x in nxt)} in "
+                    f"mobile/app.json, set APP_BUILD to match in "
+                    f"mobile/src/lib/version.ts, commit, and re-run.")
+              sys.exit(1)
+
+          print(f"OK — build number {LOCAL} is free for version {MARKETING}.")
+          PYEOF
+          python3 /tmp/buildnum.py
+
       - name: EAS build (iOS development client)
         if: inputs.step == 'build'
         working-directory: ${{ github.workspace }}/mobile
