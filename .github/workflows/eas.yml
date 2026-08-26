@@ -32,6 +32,14 @@ on:
         required: false
         type: string
         default: "dev client bundle"
+      update_branch:
+        description: 'Which EAS branch/channel to publish to (step: update). production = TestFlight'
+        required: false
+        type: choice
+        default: production
+        options:
+          - production
+          - development
       confirm_submit:
         description: 'Type SUBMIT to authorize uploading a build to App Store Connect (step: submit)'
         required: false
@@ -319,20 +327,37 @@ jobs:
           PY
           rm -f builds.json
 
-      # Publishes the JS bundle to the `development` channel so the dev client can
-      # launch it without a Metro dev server — which cannot be kept running from
-      # CI, and is impractical to babysit from a phone.
+      # Publishes the JS bundle over the air. The channel is baked into each
+      # binary at build time, so publishing to the wrong branch is the classic
+      # way an update appears to do nothing — this step was hardcoded to
+      # `development` and therefore could never reach TestFlight. It now takes
+      # the branch as an input and states, before publishing, exactly which
+      # binary it is about to reach and which version stamp it carries.
       - name: Publish EAS Update
         if: inputs.step == 'update'
         working-directory: ${{ github.workspace }}/mobile
         run: |
           set -euo pipefail
+          BRANCH="${{ inputs.update_branch }}"
+          echo "================================================================"
+          echo " Publishing to EAS branch/channel: $BRANCH"
+          case "$BRANCH" in
+            production)
+              echo " Reaches: the App Store / TestFlight build."
+              echo "          bundle com.tylerthornbrue.taxtrail — real testers." ;;
+            development)
+              echo " Reaches: the ad-hoc dev client only (build 1)."
+              echo "          OLD bundle id; purchases and restore do not work there." ;;
+          esac
+          echo " Version stamp carried by this bundle:"
+          grep -E "APP_VERSION|APP_BUILD|JS_REVISION" src/lib/version.ts | sed 's/^/   /'
+          echo "================================================================"
           npx eas-cli@latest update \
-            --branch development \
+            --branch "$BRANCH" \
             --message "${{ inputs.update_message }}" \
             --non-interactive
-          echo "--- channels ---"
-          npx eas-cli@latest channel:view development --non-interactive || true
+          echo "--- channel after publish ---"
+          npx eas-cli@latest channel:view "$BRANCH" --non-interactive || true
 
       - name: Configure EAS project + OTA updates
         if: inputs.step == 'configure'
