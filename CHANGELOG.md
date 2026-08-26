@@ -14,8 +14,12 @@ visible version, and it gets recorded here.
 ### v1.0.0 (build 3) · js r12 — 2026-08-26
 
 Everything staged since build 2, in one build. Tyler lifted the build-rationing
-constraint (end of the EAS billing month), so the batch ships as a single
+constraint (end of the EAS billing month), so the batch shipped as a single
 production build rather than waiting further.
+
+Build `43156c07-a964-4a6c-b8a1-ae38d92586ea`, submission
+`d680e7f6-f407-4e79-a458-c46c47b35335`. Credentials reused unchanged, so
+`expo-document-picker` cost no credential regeneration (D-011 does not apply).
 
 - **App header now reads TaxTrail.** Last user-visible instance of the old name;
   it survived two rename sweeps as `Receipt<Text>Snap</Text>`, split across JSX
@@ -37,12 +41,18 @@ production build rather than waiting further.
 - `mobile/src/lib/restorePlan.js` — the pure half, with 8 tests. 18/18 green
 - **Build numbers now live in git** (D-039). `autoIncrement` is off, and a free
   App Store Connect read fails the workflow before `eas build` spends quota if
-  the number is already taken
+  the number is already taken. Its first run confirmed the diagnosis outright —
+  Apple reported `['2']` as the only number on file for 1.0.0, which is exactly
+  what `autoIncrement` would have produced again
+- `step: update` can target a channel (it hardcoded `development`, so it could
+  never reach TestFlight); it now prints the target binary and version stamp
+  before publishing
 
 ### OTA — v1.0.0 (build 2) · js r12 — 2026-08-26
 
 Published to the **`production`** channel, so it reached the TestFlight build
-without a native build.
+without a native build. Update group `2cb556d9-e656-4109-aae9-eeeadc5066ba`,
+runtime `1.0.0`, from commit `4de5450`.
 
 - Carries the **TaxTrail header fix** to build 2, which had been showing
   *ReceiptSnap* since 2026-08-21 (D-040)
