@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 2) · js r12** | On Tyler's iPhone via TestFlight. The *ReceiptSnap* header was fixed over the air on 2026-08-26; the *build 1* footer needs the binary, so it clears with build 3 |
+| iOS app (`mobile/`) | **v1.0.0 (build 3) · js r12** | Submitted to TestFlight 2026-08-26. Build 2 also runs js r12 via OTA, so its header reads TaxTrail even before build 3 is installed |
 
 ---
 
@@ -117,27 +117,72 @@ inside eas-cli before submitting anything, so EAS has no record of it: it
 consumed neither a build nor a waiver. An earlier note in this session guessed
 the waiver pool had moved to 7/10; it had not.
 
-## Build 3 — the staged batch, dispatched 2026-08-26
+## Build 3 — shipped 2026-08-26
 
 Tyler lifted the build-rationing constraint (end of the EAS billing month) and
-approved the batch, so everything that had been waiting goes in one build:
+approved the batch, so everything waiting since build 2 went out in one build.
 
-| What | Why it needed a build |
+| | |
 |---|---|
-| App header reads **TaxTrail** (D-040) | also shipped over the air to build 2 |
-| New app icon (D-038) | icons are compiled in; cannot ship OTA |
-| `taxtrail://capture` deep link (D-024) | URL scheme lives in `Info.plist` |
-| Restore from archive (`expo-document-picker`) | native module |
+| Build ID | `43156c07-a964-4a6c-b8a1-ae38d92586ea` |
+| Artifact | `https://expo.dev/artifacts/eas/7Ny0dnDkS01g1r85HVZLBIGZY1BfN9FfVstaWi97XMM.ipa` |
+| Version | **v1.0.0 (build 3) · js r12** |
+| Profile | `production` — App Store distribution |
+| Build time | ~5 minutes (07:39:35 → 07:44:50 UTC) |
+| Submission | `d680e7f6-f407-4e79-a458-c46c47b35335` — uploaded successfully |
 
-`buildNumber` and `APP_BUILD` both moved 2 -> 3 in the dispatch commit, per
-D-039. The `Build number preflight` step verifies against App Store Connect that
-3 is free **before** `eas build` spends anything.
+**What it carries:** the TaxTrail header (D-040), the new icon (D-038),
+`taxtrail://capture` (D-024), and restore-from-archive.
 
-**The header fix reached build 2 first, over the air** (js r12, `production`
-channel). It was published *before* the bump so the bundle still carries
-`APP_BUILD = 2` — an update carrying the next build's number would make the
-current binary misreport itself. Getting there required fixing `step: update`,
-which hardcoded `--branch development` and so could never reach TestFlight.
+**Credentials were reused, not regenerated** — distribution certificate
+`500CBE8813BA0F35CB336E6F982E7BE1` and profile `23LJTJK3K7`, both unchanged.
+That is the D-011 question answered empirically: `expo-document-picker` adds
+iCloud entitlements only under `ios.usesIcloudStorage`, so the profile stayed
+valid. Reading the plugin's source beforehand predicted this correctly.
+
+**The build-number preflight earned itself on its first run.** It asked App
+Store Connect what existed for version 1.0.0 and got back exactly one number:
+
+```
+build numbers already on App Store Connect for 1.0.0: ['2']
+OK — build number 3 is free for version 1.0.0.
+```
+
+That is direct confirmation of the D-039 diagnosis rather than an inference:
+with `autoIncrement` still on, this build would have been numbered **2** — the
+number Apple already had — and the upload would have been rejected *after* the
+build was spent.
+
+**Non-fatal, worth knowing:** eas-cli logged *"Distribution Certificate is not
+validated for non-interactive builds"* and failed to prompt for an Apple Team
+ID. It skipped Apple-side *validation* and used the stored credentials; the
+build signed and finished. Not an error, and not something to chase.
+
+**Quota, read from `step: usage` rather than counted by hand:** **4 builds on
+record, all in 2026-08** — 3 FINISHED (this one, build 2, the August dev
+client) and 1 ERRORED (the August 2 signing failure). Against 30/month plus 10
+waived, rationing was never close to binding. Worth remembering the next time a
+build feels expensive: the constraint has been imagined more often than real.
+
+## The header fix reached build 2 first, over the air
+
+Published to the **`production`** channel before the build-number bump landed,
+so the bundle still carries `APP_BUILD = 2` and build 2 reports itself honestly.
+
+| | |
+|---|---|
+| Update group | `2cb556d9-e656-4109-aae9-eeeadc5066ba` |
+| Branch / channel | `production` |
+| Runtime version | `1.0.0` |
+| From commit | `4de5450` |
+
+On build 2 the other three changes are inert by design: no URL scheme in that
+binary, and the Restore card hides itself when `expo-document-picker` is absent.
+
+Getting there required fixing `step: update`, which hardcoded
+`--branch development` and so could never reach TestFlight at all — the failure
+the runbook's "which build am I updating?" section warns about, wired into the
+tooling.
 
 ## TestFlight submission — done 2026-08-21
 
