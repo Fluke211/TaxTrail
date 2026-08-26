@@ -185,14 +185,29 @@ common way an OTA update appears to do nothing.
 
 **Build 1 is stale and drifting.** It carries the *old* bundle identifier, so
 RevenueCat — now configured for the new one — will not validate purchases
-against it, and it has no `expo-document-picker`, so the Restore button added in
-js r12 fails there. It is still fine for parser and UI work; it is not a place
-to test anything involving purchases or restore.
+against it, and it has no `expo-document-picker`, so the Restore card added in
+js r12 stays hidden there (`isRestoreAvailable()`). It is still fine for parser
+and UI work; it is not a place to test purchases or restore.
 
 **Default to TestFlight + `--branch production`.** It is the actual shipping
 artifact, purchases work against the matching bundle identifier, and JS changes
 still land in seconds without a build or a review. TestFlight builds expire
 after 90 days.
+
+**Publish it with `step: update` and the `update_branch` input** (defaults to
+`production`). That input exists because the step used to hardcode
+`--branch development` and therefore *could not* reach TestFlight at all — the
+exact failure this section warns about, wired into the tooling. Before
+publishing, the step now prints which binary the channel reaches and the
+`version.ts` stamp the bundle carries, so the run log records what went where.
+
+**`APP_BUILD` must match the binary you are publishing to**, not the next one.
+It ships inside the JS bundle, so an update carrying a bumped `APP_BUILD` makes
+the *current* binary misreport itself. Publish the OTA before the build-number
+bump lands, or bump `JS_REVISION` and publish again afterwards. A build never
+regresses to an older update: `LauncherSelectionPolicyFilterAware` picks the
+matching-runtime update with the newest `commitTime`, and a fresh build's
+embedded bundle is newer than anything published before it.
 
 ## Iterate on the device
 
