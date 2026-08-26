@@ -17,7 +17,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.tylerthornbrue.taxtrail",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false

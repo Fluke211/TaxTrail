@@ -11,9 +11,11 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
-### Staged — v1.0.0 (build 3) · js r12
+### v1.0.0 (build 3) · js r12 — 2026-08-26
 
-Not built yet. Everything here needs a native build, so it goes in one.
+Everything staged since build 2, in one build. Tyler lifted the build-rationing
+constraint (end of the EAS billing month), so the batch ships as a single
+production build rather than waiting further.
 
 - **App header now reads TaxTrail.** Last user-visible instance of the old name;
   it survived two rename sweeps as `Receipt<Text>Snap</Text>`, split across JSX
@@ -36,6 +38,20 @@ Not built yet. Everything here needs a native build, so it goes in one.
 - **Build numbers now live in git** (D-039). `autoIncrement` is off, and a free
   App Store Connect read fails the workflow before `eas build` spends quota if
   the number is already taken
+
+### OTA — v1.0.0 (build 2) · js r12 — 2026-08-26
+
+Published to the **`production`** channel, so it reached the TestFlight build
+without a native build.
+
+- Carries the **TaxTrail header fix** to build 2, which had been showing
+  *ReceiptSnap* since 2026-08-21 (D-040)
+- Deliberately published **before** the build-number bump landed, so the bundle
+  still carries `APP_BUILD = 2` and build 2 reports itself correctly. The deep
+  link is inert there (no URL scheme in that binary) and the Restore card stays
+  hidden (`isRestoreAvailable()` finds no `expo-document-picker`)
+- Required fixing `step: update`, which hardcoded `--branch development` and so
+  could never reach TestFlight at all
 
 ### v1.0.0 (build 2) · js r11 — 2026-08-21
 
