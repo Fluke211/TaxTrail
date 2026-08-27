@@ -2,6 +2,7 @@
 // fewer native deps = safer single EAS build), same layout as the PWA.
 import React, { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { T } from './src/lib/theme';
@@ -85,15 +86,22 @@ function Root() {
 
       <View style={[s.tabbar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         {([
-          ['capture', '📷', 'Capture'],
-          ['receipts', '🧾', 'Receipts'],
-          ['summary', '📊', 'Summary'],
-        ] as [Tab, string, string][]).map(([key, icon, label]) => (
-          <Pressable key={key} style={s.tabBtn} onPress={() => { setTab(key); if (key !== 'capture') refresh(); }}>
-            <Text style={{ fontSize: 20, opacity: tab === key ? 1 : 0.45 }}>{icon}</Text>
-            <Text style={[s.tabLabel, tab === key && { color: T.accent }]}>{label}</Text>
-          </Pressable>
-        ))}
+          ['capture', 'camera', 'Capture'],
+          ['receipts', 'receipt', 'Receipts'],
+          ['summary', 'stats-chart', 'Summary'],
+        ] as [Tab, 'camera' | 'receipt' | 'stats-chart', string][]).map(([key, icon, label]) => {
+          const active = tab === key;
+          return (
+            <Pressable key={key} style={s.tabBtn} onPress={() => { setTab(key); if (key !== 'capture') refresh(); }}>
+              <Ionicons
+                name={active ? icon : (`${icon}-outline` as const)}
+                size={23}
+                color={active ? T.accent : T.muted2}
+              />
+              <Text style={[s.tabLabel, active && { color: T.accent }]}>{label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
       <StatusBar style="light" />
     </View>

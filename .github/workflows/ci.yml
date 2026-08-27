@@ -1,0 +1,82 @@
+name: CI
+
+# Runs on every pull request and every push to main, with no secrets and no
+# network beyond npm. The EAS workflow also runs these checks, but only when
+# somebody remembers to dispatch it — which meant nothing was verified at the
+# moment a PR was actually merged.
+#
+# Deliberately does NOT call eas-cli or expo-doctor: both need EXPO_TOKEN and
+# reach api.expo.dev, which makes the job slower and able to fail for reasons
+# that have nothing to do with the diff.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      # The version stamp is Tyler's first standing rule, and it silently
+      # drifted for weeks: app.json said buildNumber 1 while the binary on
+      # TestFlight was build 2 (D-039). Nothing caught it because nothing
+      # compared the two. This does, for free, on every PR.
+      - name: Version stamp agrees with app.json
+        run: |
+          python3 - <<'PY'
+          import json, re, sys
+
+          app = json.load(open("app.json"))["expo"]
+          src = open("src/lib/version.ts").read()
+
+          def const(name):
+              m = re.search(rf"export const {name} = '?([^';]+)'?;", src)
+              if not m:
+                  sys.exit(f"::error::could not find {name} in src/lib/version.ts")
+              return m.group(1).strip()
+
+          problems = []
+          if const("APP_BUILD") != str(app["ios"]["buildNumber"]):
+              problems.append(
+                  f"APP_BUILD is {const('APP_BUILD')} but app.json ios.buildNumber is "
+                  f"{app['ios']['buildNumber']}. They ship together (D-039): the footer "
+                  f"would report a different build than the binary actually is.")
+          if const("APP_VERSION") != str(app["version"]):
+              problems.append(
+                  f"APP_VERSION is {const('APP_VERSION')} but app.json version is "
+                  f"{app['version']}.")
+
+          for p in problems:
+              print(f"::error::{p}")
+          if problems:
+              sys.exit(1)
+          print(f"OK — v{const('APP_VERSION')} (build {const('APP_BUILD')}) "
+                f"· js r{const('JS_REVISION')}, and app.json agrees.")
+          PY
