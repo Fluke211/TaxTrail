@@ -8,6 +8,80 @@ Full reasoning: `MARKET_AND_GTM_STRATEGY.md` §5.3.
 
 ---
 
+## Pre-launch checklist — agreed 2026-08-26
+
+Everything that stands between build 3 and an App Store submission. Ordered by
+what blocks what, not by size.
+
+### Blocked on Apple (start these first — they are pure waiting)
+
+- [ ] **Sign the Paid Applications agreement.** Until this is active, *every*
+      RevenueCat product fetch returns nothing and the paywall degrades to
+      "Store unavailable" — so the purchase flow cannot be tested at all. This
+      gates monetization end to end.
+- [ ] Confirm **App Store Small Business Program** acceptance (applied; Apple
+      quotes "over a month", and the 15% rate applies 15 days after the end of
+      the fiscal month of approval)
+
+### Correctness — the highest-risk item
+
+- [ ] **Audit every export format aimed at a specific tax package.** Tyler's
+      call, and the right one: a wrong number that imports cleanly is worse
+      than a file that fails to import.
+      - [ ] **TXF sign convention.** `buildTXF` writes expenses as *negative*
+            (`'$-' + amount`). Verify against the TXF spec whether Schedule C
+            expense codes want positive values — if they want positive, every
+            import lands with flipped signs and nothing errors.
+      - [ ] TXF record structure: `V042` header, `TS` / `N` / `C1` / `L1` / `$`
+            ordering, and whether the `X` description record is portable
+      - [ ] `TXF_CODES` -> Schedule C line mapping, category by category
+      - [ ] QuickBooks 3-column CSV against QuickBooks' documented import shape
+      - [ ] CPA CSV and XLSX: column headers, form grouping, sales-tax split
+      - [ ] End-to-end import into at least one real package. **This is the
+            part no amount of spec-reading substitutes for** — it needs Tyler
+            or a trial licence.
+      - [ ] Remove the dead ExcelJS `buildWorkbook` path in `exporters.js` —
+            the app uses SheetJS (`xlsxExport.ts`); exceljs does not work in RN
+
+### Parser quality
+
+- [ ] **Grow the corpus.** Tyler scans real receipts, exports Summary ->
+      *Parser diagnostics*, and the dump lands in `mobile/__tests__/corpus/`.
+      `npm run test:score` turns it into a number that can be moved.
+- [ ] Fix whatever the score run flags, with a fixture per bug
+
+### Polish
+
+- [x] **Tab bar icons: Ionicons, outline/filled by state** (js r13) — the emoji
+      set read as placeholder art
+- [ ] `SKStoreReviewController` prompt after the 3rd successful scan
+- [ ] Test the free-tier gate by actually crossing 10 scans in a month
+
+### Store submission
+
+- [ ] Screenshots — **screenshot 2 is the privacy-label comparison** against
+      Keeper / QuickBooks / Wave; that contrast is the entire pitch
+- [ ] App Privacy questionnaire answers (drafted in `docs/APP_STORE_LISTING.md`)
+- [ ] App Review notes explaining on-device OCR, so the "Data Not Collected"
+      claim is not challenged
+- [ ] Final listing copy pass
+
+### Engineering hygiene
+
+- [x] **CI on pull requests** — `.github/workflows/ci.yml`: unit tests, `tsc`,
+      and a version-stamp check that would have caught the D-039 drift
+- [ ] Android has never been audited — decide whether it is in scope for launch
+      at all, or explicitly parked
+
+### Deferred, with reasons
+
+- Native Control Center control (D-024) — needs a WidgetKit `ControlWidget`,
+  which is SDK 56 / `@bacons/apple-targets` territory. The user-made Shortcut
+  on `taxtrail://capture` covers it for now.
+- Store every page of a multi-page receipt (schema migration)
+
+---
+
 ## Now — get the dev client onto the phone
 
 - [x] EAS project created and OTA-configured

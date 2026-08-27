@@ -11,6 +11,27 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### OTA — v1.0.0 (build 3) · js r13 — 2026-08-26
+
+- **Tab bar uses Ionicons instead of emoji**, outline when inactive and solid
+  when selected — the iOS idiom, and something emoji cannot express, which was
+  most of why the old bar read as placeholder art
+- Ships over the air: `expo-font` is already autolinked through `expo` itself,
+  so `FontLoaderModule` is compiled into build 3, and the `.ttf` is a static
+  `import` that Metro treats as an asset. No build required
+- `@expo/vector-icons` promoted to a direct dependency. It was only reachable
+  at `expo/node_modules/@expo/vector-icons`, so importing it directly would
+  have failed to resolve at runtime, not just in `tsc`
+
+### Repository — 2026-08-26
+
+- **CI on pull requests** (`.github/workflows/ci.yml`) — unit tests, `tsc`, and
+  a check that `APP_BUILD`/`APP_VERSION` agree with `app.json`. Tests previously
+  ran only when someone remembered to dispatch the EAS workflow, so nothing was
+  verified at the moment a PR merged. The version check is aimed squarely at the
+  D-039 drift and was negative-tested in both directions
+- Pre-launch checklist added to `ROADMAP.md`
+
 ### v1.0.0 (build 3) · js r12 — 2026-08-26
 
 Everything staged since build 2, in one build. Tyler lifted the build-rationing
