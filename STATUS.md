@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 3) · js r16** | On TestFlight. r17 is staged in `main` and not yet published — see below |
+| iOS app (`mobile/`) | **v1.0.0 (build 3) · js r17** | On TestFlight. r17 carries the pre-launch correctness batch (D-045 … D-048) |
 
 ---
 
@@ -24,9 +24,9 @@ Cleared in the overnight session:
 | CI | Runs unit tests, `tsc`, the synthetic corpus, and a version-stamp check on every PR |
 | Store listing | Privacy answers re-verified against the code; both URLs and the contact address confirmed live |
 
-**Staged and not yet shipped:** everything above is JS-only and sits in `main`
-unpublished. `JS_REVISION` is still **16**; publishing is one `eas update` and
-one bump to r17.
+**Shipped as js r17.** Everything above is JS-only and went out over the air;
+no native build was needed. The Summary footer should read
+`TaxTrail v1.0.0 (build 3) · js r17` once the app has restarted twice.
 
 ### Blocked on Tyler — none of it is code
 

@@ -11,6 +11,10 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### OTA — v1.0.0 (build 3) · js r17 — 2026-08-29
+
+The pre-launch correctness batch. Everything below shipped in this revision.
+
 ### Exports — 2026-08-29
 
 Audit of every package-specific export against its spec (D-046). Five real
