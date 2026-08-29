@@ -116,7 +116,16 @@ what blocks what, not by size.
 - [ ] App Privacy questionnaire answers (drafted in `docs/APP_STORE_LISTING.md`)
 - [ ] App Review notes explaining on-device OCR, so the "Data Not Collected"
       claim is not challenged
-- [ ] Final listing copy pass
+- [x] **Final listing copy pass** — every number checked against the code.
+      "29 categories" was wrong (28 are selectable; the 29th is
+      "Uncategorized"), and the QuickBooks wording promised Desktop users a
+      format Desktop cannot import. Both corrected; the rest verified accurate
+- [ ] **Rename "Meals & Entertainment" to "Business Meals"** — entertainment
+      has been nondeductible since the TCJA and the instructions say twice not
+      to put it on that line, so the label invites miscategorization into a
+      50%-deductible bucket. Needs a data migration (the name is stored on
+      every receipt and allocation), so it is Tyler's call, not an unattended
+      edit
 
 ### Engineering hygiene
 

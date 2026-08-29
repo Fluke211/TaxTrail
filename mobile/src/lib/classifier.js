@@ -93,7 +93,7 @@
     },
     {
       name: 'Rent & Lease', group: 'Facilities',
-      scheduleC: 'Line 20 — Rent or lease',
+      scheduleC: 'Line 20b — Rent/lease, other business property',
       keywords: ['rent due', 'monthly rent', 'lease payment', 'storage unit', 'self storage',
         'public storage', 'coworking', 'wework', 'regus', 'office rent', 'booth rent']
     },
@@ -143,7 +143,7 @@
     },
     {
       name: 'Interest Paid', group: 'Financial & Admin',
-      scheduleC: 'Line 16 — Interest (mortgage/other)',
+      scheduleC: 'Line 16b — Interest, other (16a is mortgage)',
       keywords: ['interest charged', 'finance charge', 'loan interest', 'interest payment', 'apr']
     },
     {
