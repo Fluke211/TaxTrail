@@ -456,20 +456,57 @@
     return s;
   }
 
+  // Where the receipt stops describing the purchase and starts advertising.
+  //
+  // A real Bass Pro receipt for fishing bait ends with a coupon: "Bring your
+  // Bass Pro Shops receipt ... to our Islamorada Fish Company RESTAURANT and
+  // receive $5 off your food purchase". The word "restaurant" scored, and a
+  // bait receipt was filed as a 50%-deductible business meal.
+  //
+  // Only searched in the BACK HALF of the receipt, because these phrases also
+  // appear legitimately near the top — a real Cabelas receipt has "NOW HIRING"
+  // on line 3, and cutting there would discard the entire purchase.
+  var PROMO_MARKER = /(facebook\.com|twitter\.com|youtube\.com|instagram\.com|no purchase necessary|take our survey|tell us how we did|how was your visit|keep in touch|join the club|bring your|see website for rules|chance to win|scan the qr|sign up for|now hiring|save on gear|thank you for shopping|customer service 1-|survey)/i;
+
+  function promoBoundary(lines) {
+    for (var i = Math.floor(lines.length / 2); i < lines.length; i++) {
+      if (PROMO_MARKER.test(lines[i])) return i;
+    }
+    return lines.length;
+  }
+
   function classify(text, merchant) {
+    var allLines = String(text || '').split('\n');
+    var cut = promoBoundary(allLines);
+    // The body is what the shop sold you; the tail is marketing. A keyword that
+    // appears ONLY in the tail still counts, at a quarter weight, so a genuine
+    // signal is not thrown away — it just cannot outvote the actual purchase.
+    var body = ((merchant || '') + '\n' + allLines.slice(0, cut).join('\n')).toLowerCase();
+    var tail = allLines.slice(cut).join('\n').toLowerCase();
     var haystack = ((merchant || '') + '\n' + text).toLowerCase();
     var best = null;
     CATEGORIES.forEach(function (cat) {
       var score = 0, hits = [];
+      var bodyScore = 0;
       cat.keywords.forEach(function (kw) {
-        var idx = haystack.indexOf(kw);
-        if (idx !== -1) {
+        var inBody = body.indexOf(kw) !== -1;
+        var inTail = !inBody && tail.indexOf(kw) !== -1;
+        if (inBody || inTail) {
           // Keyword in the merchant name is worth more than in the body
           var inMerchant = merchant && merchant.toLowerCase().indexOf(kw) !== -1;
-          score += (inMerchant ? 3 : 1) * Math.min(kw.length, 12);
+          var weight = inMerchant ? 3 : (inBody ? 1 : 0.25);
+          var points = weight * Math.min(kw.length, 12);
+          score += points;
+          if (inBody) bodyScore += points;
           hits.push(kw.trim());
         }
       });
+      // Marketing copy is not evidence of what was bought. A category whose
+      // entire case rests on the promotional footer does not qualify at all —
+      // otherwise a coupon for a restaurant files a bait receipt as a meal.
+      // Tail hits still break ties between categories that DID earn body
+      // points; they just cannot win on their own.
+      if (bodyScore <= 0) score = 0;
       if (score > 0 && (!best || score > best.score)) {
         best = { name: cat.name, scheduleC: cat.scheduleC, score: score, hits: hits };
       }
@@ -494,6 +531,36 @@
     'Comcast', 'Xfinity', 'Spectrum', 'AutoZone', 'Valvoline', 'Firestone', 'Goodyear',
     'Geico', 'Progressive', 'Allstate', 'Lyft', 'Uber', 'Wawa', 'Sheetz', 'Kwik Trip'
   ];
+
+  // Some receipts never print the store's name at all. A real Home Depot
+  // receipt opens "How doers get more done." — the merchant parsed as
+  // "How doers" and nothing matched, so it landed Uncategorized.
+  var SLOGANS = [
+    ['how doers get more done', 'Home Depot'],
+    ['save money. live better', 'Walmart'],
+    ['expect more. pay less', 'Target'],
+  ];
+
+  /**
+   * A slogan names the shop even when the shop's name is nowhere on the paper.
+   *
+   * Matched against whitespace-flattened text, because OCR wraps: the real
+   * receipt reads "How doers" / "get more done." on two separate lines.
+   *
+   * Unlike brandFromText this OVERRIDES an extracted merchant rather than
+   * merely filling in for a missing one — "How doers" is not a shop. It is
+   * kept separate from the BRANDS list on purpose: brand names get mentioned
+   * incidentally (one receipt in the corpus has an entire second receipt
+   * appended to it), whereas a slogan at the top is the shop identifying
+   * itself.
+   */
+  function sloganBrand(text) {
+    var flat = String(text || '').toLowerCase().replace(/\s+/g, ' ');
+    for (var g = 0; g < SLOGANS.length; g++) {
+      if (flat.indexOf(SLOGANS[g][0]) !== -1) return SLOGANS[g][1];
+    }
+    return null;
+  }
 
   function brandFromText(text) {
     var lower = text.toLowerCase();
@@ -746,16 +813,60 @@
     return [6, 0];
   }
 
+  /**
+   * Repair a total that picked up the subtotal from a stacked column.
+   *
+   * Some receipts print every label first and every value after, so the amounts
+   * line up by POSITION rather than by adjacency. Verbatim from a real Target
+   * receipt (__tests__/corpus/target-column.txt):
+   *
+   *     SUBTOTAL
+   *     T = VA TAX 6.00000 on $25.00
+   *     TOTAL
+   *     $25.00      <- belongs to SUBTOTAL
+   *     $1.50       <- belongs to the tax line
+   *     $26.50      <- belongs to TOTAL
+   *
+   * "The amount is on this line or the next" then hands TOTAL the subtotal, and
+   * the receipt exports $1.50 light. Silently, because $25.00 is a real number
+   * printed on the receipt.
+   *
+   * The repair is deliberately narrow. It fires only when ALL of:
+   *   - a subtotal and a tax were both found,
+   *   - the chosen total equals the subtotal to the cent, and
+   *   - subtotal + tax appears VERBATIM as an amount somewhere on the receipt.
+   *
+   * That last condition is what makes this safe. A genuinely tax-inclusive
+   * receipt, where the total legitimately equals the subtotal, does not also
+   * print their sum — so there is nothing for this to match and it stands down.
+   */
+  function repairColumnTotal(lines, total, subtotal, tax) {
+    if (total === null || !subtotal || !tax) return total;
+    if (Math.abs(total - subtotal) >= 0.005) return total;
+    var want = Math.round((subtotal + tax) * 100) / 100;
+    if (Math.abs(want - total) < 0.005) return total;
+    for (var i = 0; i < lines.length; i++) {
+      var found = scanMoney(lines[i]);
+      for (var j = 0; j < found.length; j++) {
+        var v = normalizeAmount(found[j][1]);
+        if (v !== null && Math.abs(v - want) < 0.005) return want;
+      }
+    }
+    return total;
+  }
+
   function parseReceipt(rawText) {
     var text = (rawText || '').replace(/\r/g, '');
     var lines = text.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
-    var merchant = extractMerchant(lines);
-    if (!merchant) merchant = brandFromText(text);   // fallback: recognized brand anywhere
+    var merchant = sloganBrand(text)                 // strongest: the shop's own slogan
+      || extractMerchant(lines)
+      || brandFromText(text);                        // fallback: recognized brand anywhere
     var total = applyTip(lines, extractTotal(lines));
     var date = extractDate(text);
     var category = classify(text, merchant);
     var items = extractLineItems(lines);
     var taxInfo = extractTaxInfo(lines);
+    total = repairColumnTotal(lines, total, taxInfo.subtotal, taxInfo.tax);
     return {
       items: items,
       taxRate: taxInfo.rate,
