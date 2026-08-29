@@ -403,6 +403,41 @@ jobs:
           set -euo pipefail
           npx expo-doctor || echo "::warning::expo-doctor reported issues - review before building"
           npx expo prebuild --platform ios --no-install
+
+          # Print every permission string the generated Info.plist carries.
+          #
+          # CLAUDE.md requires inspecting this after any config-plugin change,
+          # because plugins add permissions SILENTLY — expo-image-picker adds a
+          # microphone request, expo-location adds always-on location (D-007).
+          # For an app whose differentiator is the "Data Not Collected" label,
+          # an unexplained permission is corrosive.
+          #
+          # This used to be impossible: the step deleted ios/ immediately after
+          # prebuild, so nobody could read the artifact the rule is about.
+          echo "================================================================"
+          echo " Info.plist permission strings (every NS*UsageDescription)"
+          echo "================================================================"
+          PLIST=$(find ios -name "Info.plist" -path "*/TaxTrail/*" | head -1)
+          if [ -z "$PLIST" ]; then PLIST=$(find ios -name "Info.plist" | head -1); fi
+          if [ -n "$PLIST" ]; then
+            python3 - "$PLIST" <<'PYEOF'
+          import plistlib, sys
+          with open(sys.argv[1], "rb") as f:
+              d = plistlib.load(f)
+          keys = sorted(k for k in d if k.endswith("UsageDescription"))
+          for k in keys:
+              print(f"  {k}")
+              print(f"      {d[k]}")
+          print(f"\n  {len(keys)} permission(s).")
+          bonjour = d.get("NSBonjourServices")
+          if bonjour:
+              print(f"  NSBonjourServices: {bonjour}")
+          PYEOF
+          else
+            echo "::warning::No Info.plist found after prebuild — could not verify permissions."
+          fi
+          echo "================================================================"
+
           rm -rf ios
           echo "Preflight complete."
 
