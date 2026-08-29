@@ -1,11 +1,47 @@
 # Status
 
-**Last updated:** 2026-08-26 · Update this file at the end of every working session.
+**Last updated:** 2026-08-29 · Update this file at the end of every working session.
 
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 3) · js r12** | Submitted to TestFlight 2026-08-26. Build 2 also runs js r12 via OTA, so its header reads TaxTrail even before build 3 is installed |
+| iOS app (`mobile/`) | **v1.0.0 (build 3) · js r16** | On TestFlight. r17 is staged in `main` and not yet published — see below |
+
+---
+
+## Where things stand — 2026-08-29
+
+**Pre-launch correctness work is done; what remains needs Tyler or a device.**
+
+Cleared in the overnight session:
+
+| | |
+|---|---|
+| Export audit (D-046) | Five real defects fixed. The TXF sign convention — the one with the most at stake — turned out to be **already correct**; it is recorded emphatically so nobody "fixes" it later |
+| Parser (D-045) | Amounts printed `1. 49` matched nothing at all. Fixed; the synthetic corpus went from 12.6% to 100% on that artifact |
+| Gates (D-043) | Free-tier limit and the review prompt are pure functions with tests. The review prompt was genuinely broken |
+| Android (D-047) | Audited and **explicitly parked**. OCR was never the blocker — that assumption was wrong |
+| CI | Runs unit tests, `tsc`, the synthetic corpus, and a version-stamp check on every PR |
+| Store listing | Privacy answers re-verified against the code; both URLs and the contact address confirmed live |
+
+**Staged and not yet shipped:** everything above is JS-only and sits in `main`
+unpublished. `JS_REVISION` is still **16**; publishing is one `eas update` and
+one bump to r17.
+
+### Blocked on Tyler — none of it is code
+
+1. **Sandbox purchase test** — monthly, annual, lifetime, and Restore. The
+   Paid Applications agreement is active and all three products read
+   `READY_TO_SUBMIT`, so this is unblocked for the first time.
+2. **Screenshots**, six of them. Slot 2 is the privacy-label comparison, which
+   is the entire pitch.
+3. **Import one export into real tax software.** The whole audit is
+   spec-reading; nobody has fed a `.txf` to TurboTax. This is the largest
+   remaining unknown in the product.
+4. **Real receipts** for the corpus, via Summary → Parser diagnostics. The
+   synthetic corpus supplements it and never replaces it.
+5. **One test email** to `support@taxtrail.app`.
+6. **Small Business Program** acceptance (applied; Apple quotes over a month).
 
 ---
 

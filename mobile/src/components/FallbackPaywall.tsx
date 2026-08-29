@@ -14,7 +14,7 @@ import { T } from '../lib/theme';
 // Apple's standard EULA, which applies unless a custom one is supplied in
 // App Store Connect. Linking to it satisfies the "terms of use" requirement.
 const EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
-const PRIVACY_URL = 'https://taxtrail.app/privacy.html';
+const PRIVACY_URL = 'https://taxtrail.app/privacy';
 
 export interface PaywallPackage {
   id: string;

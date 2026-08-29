@@ -116,8 +116,17 @@ what blocks what, not by size.
 
 - [x] **CI on pull requests** — `.github/workflows/ci.yml`: unit tests, `tsc`,
       and a version-stamp check that would have caught the D-039 drift
-- [ ] Android has never been audited — decide whether it is in scope for launch
-      at all, or explicitly parked
+- [x] **Android audited and explicitly parked** (D-047). The audit overturned
+      the standing assumption: OCR is *not* the blocker —
+      `expo-text-extractor` has an Android build, every other dependency does
+      too, `app.json` already has the package name and adaptive icon, and the
+      only `Platform.OS` branches in the app are a keyboard behaviour and a
+      font name. It is parked because the parser is tuned on Apple Vision and
+      Android uses ML Kit (a different engine, accuracy unknown, and the
+      *unbundled* variant that pulls its model through Play Services — which
+      needs a careful answer for the privacy label), plus a second store is a
+      second everything, and tax season governs. Revisit after iOS ships, and
+      start by collecting an ML Kit corpus
 
 ### Deferred, with reasons
 

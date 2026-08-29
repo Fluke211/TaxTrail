@@ -99,9 +99,21 @@ your accountant — all on your device.
 
 | Field | Value |
 |---|---|
-| Support URL | `https://taxtrail.app/support.html` |
-| Privacy Policy URL | `https://taxtrail.app/privacy.html` |
+| Support URL | `https://taxtrail.app/support` |
+| Privacy Policy URL | `https://taxtrail.app/privacy` |
 | Marketing URL | optional — leave blank until there's a real site |
+
+**Use the extensionless forms above.** Verified 2026-08-29: the `.html` URLs
+return a 308 to these, which Apple follows fine, but there is no reason to
+hand a reviewer a redirect. Both final URLs return 200 with real content, and
+both pages carry `support@taxtrail.app` as the contact (it is behind
+Cloudflare's email obfuscation in the HTML, so a naive grep shows
+`[email protected]` — the address is really there).
+
+`taxtrail.app` has Cloudflare Email Routing MX records, so the domain accepts
+mail. **What is NOT verified is that a routing rule exists for `support@`
+specifically** — send one test message before submitting. Apple emails this
+address, and so will every user.
 
 ---
 
@@ -122,6 +134,8 @@ TaxTrail performs all receipt processing on-device.
   destination. The app has no network destination of its own.
 - The only network activity is subscription validation via RevenueCat, and
   over-the-air JS updates via Expo. Neither receives receipt data.
+- The paywall links to Apple's standard EULA and to the privacy policy. Those
+  open in Safari when tapped; the app itself issues no HTTP requests.
 
 Permissions:
 - Camera — photographing receipts.
@@ -129,6 +143,13 @@ Permissions:
 - Face ID — optional app lock. No biometric data is accessed.
 - Location (when in use) — optional mileage logging. Declining leaves all other
   functionality intact.
+
+These four are the complete set. Verified 2026-08-29 against the plugin
+configuration in `app.json`: `expo-image-picker` and `expo-camera` both set
+`microphonePermission: false`, and `expo-location` sets both always-on variants
+to `false`, so none of those keys is generated (D-007). The local-network key
+`expo-dev-launcher` adds in development is stripped by a build phase in any
+non-Debug configuration, so it does not ship either (D-044).
 
 To test Pro without purchasing, use the sandbox account provided, or note that
 the free tier permits 10 scans per month with full parsing and CSV export.
@@ -175,9 +196,18 @@ Caption every one. Screenshots are read as a slideshow, not studied.
 
 ## Pre-submission checklist
 
-- [ ] D-022 resolved; App Privacy answers match reality
-- [ ] Contact email filled into `privacy.html` and `support.html`
-- [ ] Both URLs load
+- [x] D-022 resolved; App Privacy answers match reality — **re-verified
+      2026-08-29 against the code**: no analytics or advertising dependency in
+      `package.json`, and the only URLs anywhere in `src/` are the two
+      `Linking.openURL` targets on the paywall. The app makes no HTTP request
+      of its own, so "nothing about receipts is collected" is defensible as
+      written
+- [x] Contact email filled into `privacy.html` and `support.html` —
+      `support@taxtrail.app` on both, and the domain has MX records. Still
+      send one test message; a routing rule for `support@` specifically was
+      not verifiable from here
+- [x] Both URLs load — 200 after a 308 to the extensionless form. Use the
+      extensionless URLs in App Store Connect
 - [ ] Production build (`channel: production`) — the dev-only update button
       disappears automatically (D-019)
 - [ ] Screenshots at required sizes

@@ -1805,3 +1805,50 @@ QuickBooks. Everything above is spec-reading. The byte-exact fixtures in
 `__tests__/classifier.test.js` pin the output so it cannot drift, but a fixture
 proves the file matches the spec as I read it — not that the importer agrees.
 That test needs Tyler or a trial licence and stays open on the roadmap.
+
+## D-047
+
+**Android is parked for launch — but not for the reason anyone assumed**
+(2026-08-29)
+
+Android had never been audited. The assumption in the room was that OCR would be
+the blocker, since the app is built on Apple Vision. **That assumption is
+wrong**, and it is worth writing down so nobody re-derives it:
+
+- `expo-text-extractor` ships an Android implementation. It is not iOS-only.
+- Every other dependency has an Android build too, including
+  `react-native-document-scanner-plugin`.
+- `app.json` already carries an Android package name and an adaptive icon.
+- The only `Platform.OS` branches in the whole app are cosmetic — a keyboard
+  behaviour and a monospace font name.
+
+So Android is technically plausible today. It is parked anyway, for four
+reasons that have nothing to do with feasibility:
+
+1. **The parser is tuned on Apple Vision output, and Android is not Vision.**
+   `expo-text-extractor`'s Android build depends on
+   `com.google.android.gms:play-services-mlkit-text-recognition`. ML Kit is a
+   different engine with different line ordering and different error modes.
+   Every fixture in `__tests__/corpus/` is Vision output, and the synthetic
+   generator's noise model is built from those same artifacts. **The measured
+   accuracy on Android is not "probably similar" — it is unknown**, and the
+   corpus that would tell us does not exist.
+
+2. **It is the *unbundled* ML Kit variant**, so the model is delivered through
+   Google Play Services rather than shipped in the binary. That means a Play
+   Services dependency (no AOSP or Amazon devices) and a first-use network
+   fetch. For an app whose entire differentiator is the "Data Not Collected"
+   label, that needs a careful answer before it needs a build — not after.
+
+3. **A second store is a second everything**: Play Console account, a separate
+   Data Safety declaration, separate RevenueCat products and Play Billing
+   configuration, separate screenshots and review process.
+
+4. **Tax season governs.** Installs run ~5x in late January and collapse after
+   April 15. iOS has not shipped yet. Splitting attention across a second
+   platform before the first one is in the store spends the only window that
+   matters.
+
+**Revisit after the iOS launch, and start by collecting an ML Kit corpus** —
+the same "Parser diagnostics" export, from an Android device. Nothing else
+about Android should be estimated until that number exists.
