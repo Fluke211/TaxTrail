@@ -46,6 +46,58 @@ check('CSV BOM + header', csv.charCodeAt(0) === 0xFEFF && csv.includes('Date,Mer
 const txf = X.buildTXF(rows, new Date(2026, 7, 1));
 check('TXF codes present', txf.content.includes('N304') && txf.content.includes('N301'));
 
+// Amounts over $999 printed WITHOUT a thousands separator. MONEY began with
+// [0-9]{1,3}, so it matched only the last three digits before the decimal:
+// "1124.06" was read as 124.06 and "12345.67" as 345.67. Found by the synthetic
+// corpus; on a tax record this silently understates a large purchase by an
+// order of magnitude.
+const big = C.parseReceipt(
+  'HOME DEPOT\nLUMBER  1124.06\nSubtotal  1124.06\nTAX  81.49\nTOTAL  1205.55');
+check('four figures, no separator: total', big.total === 1205.55, big.total);
+check('four figures, no separator: subtotal', big.subtotal === 1124.06, big.subtotal);
+
+const huge = C.parseReceipt('TRACTOR SUPPLY\nEQUIPMENT  12345.67\nTOTAL  12345.67');
+check('five figures, no separator', huge.total === 12345.67, huge.total);
+
+const grouped = C.parseReceipt('HOME DEPOT\nLUMBER  1,124.06\nTOTAL SALE  1,205.55');
+check('thousands separator still parses', grouped.total === 1205.55, grouped.total);
+
+const twoSeps = C.parseReceipt('EQUIPMENT CO\nEXCAVATOR  123,456.78\nTOTAL  123,456.78');
+check('two separators still parse', twoSeps.total === 123456.78, twoSeps.total);
+
+// Above $1,000,000 extractTotal declines on purpose — a receipt scanner for a
+// sole proprietor seeing seven figures is far more likely to be reading OCR
+// garbage than a real purchase. Asserted so the guard is deliberate, not lore.
+const absurd = C.parseReceipt('AUCTION\nLOT 1  1,234,567.89\nTOTAL  1,234,567.89');
+check('seven figures rejected as implausible', absurd.total === null, absurd.total);
+
+// Must not start matching partway through a longer digit run, and must still
+// ignore three-decimal unit prices.
+const unitPrice = C.parseReceipt(
+  'SAFEWAY\n2113016285 BLACK PEPPER   4.88 4.968\nTOTAL  4.88');
+check('three-decimal unit price still ignored', unitPrice.total === 4.88, unitPrice.total);
+
+// A printed tax rate on the SAME line as its amount. Found by the synthetic
+// corpus (scripts/synth-corpus.js) on its first run: MONEY matched "8.25" out
+// of "8.25%" and the RATE was returned as the tax. US receipts print this way
+// constantly, so it was wrong on a large share of real input.
+const rateSameLine = C.parseReceipt(
+  'HOME DEPOT\n2X4 LUMBER  100.00\nSUBTOTAL  100.00\nTAX 8.25%   8.25\nTOTAL  108.25');
+check('printed rate on the tax line is not the tax', rateSameLine.taxTotal === 8.25, rateSameLine.taxTotal);
+
+const rateDiffers = C.parseReceipt(
+  'OFFICE DEPOT\nCOPY PAPER  123.80\nSUB-TOTAL  123.80\nGET 8.00%   9.90\nAMOUNT DUE  133.70');
+check('rate and tax differ: tax wins, not the rate', rateDiffers.taxTotal === 9.90, rateDiffers.taxTotal);
+check('rate and tax differ: rate still read', Math.abs(rateDiffers.taxRatePrinted - 0.08) < 1e-9, rateDiffers.taxRatePrinted);
+check('rate and tax differ: total unaffected', rateDiffers.total === 133.70, rateDiffers.total);
+
+// The Bass Pro shape must keep working: there the money comes FIRST and the
+// percent belongs to an "@" clause, so the amount is the taxable base and the
+// tax is computed from it. The fix above must not touch this path.
+const atRate = C.parseReceipt(
+  'BASS PRO SHOPS\nLURE  13.98\nTAX  $13.98 @ 6.0%\nTOTAL  14.82');
+check('taxable-base "@ rate%" still computes tax', Math.abs(atRate.taxTotal - 0.84) < 0.01, atRate.taxTotal);
+
 // Restore-from-archive planning (pure half of exportShare.restoreArchive)
 const RP = require('../src/lib/restorePlan.js');
 const NOW = '2026-08-22T00:00:00.000Z';

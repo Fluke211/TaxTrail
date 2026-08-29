@@ -1449,6 +1449,73 @@ the air and can land on a binary compiled without the native module.
 
 ---
 
+## D-041
+
+**Parser test data is generated, not collected. Two real bugs on the first run,
+one of them silently losing money.**
+
+Date: 2026-08-29 · Status: accepted
+
+Tyler asked whether receipt photos could be pulled off the internet in bulk to
+improve the parser. The answer was no, for a reason that is worth keeping:
+
+**Images are the wrong unit.** The corpus is OCR *text*; `classifier.js` never
+sees an image. And the OCR is Apple Vision via `expo-text-extractor` — iOS-only,
+on-device, not runnable from a CI or agent session. Any image would have to be
+OCR'd by a different engine, whose line ordering and error modes differ from
+Apple Vision's, so the parser would be tuned against the wrong distribution.
+Secondary but real: receipt photos online are mostly licensed stock, and the
+genuine ones carry names, partial card numbers and loyalty IDs that must not be
+committed to a public repo.
+
+**What replaced it:** `mobile/scripts/synth-corpus.js` generates receipts from
+known numbers, so ground truth is a fact rather than a hand annotation — the
+one thing scraped images cannot supply. Deterministic from a seed, nothing
+written to the repo, scored by `npm run test:synth` against a committed
+baseline so it ratchets rather than blocking.
+
+**It paid for itself immediately. Two genuine bugs, both in `MONEY`:**
+
+1. **A printed tax rate was read as the tax.** `TAX 8.25%   3.71` → the parser
+   returned **8.25**. `MONEY` matched `8.25` out of `8.25%` before reaching the
+   real amount. US receipts print the rate on the tax line constantly, so this
+   was wrong on a large share of real input. Fixed by skipping any match
+   immediately followed by `%` — while leaving the Bass Pro `$13.98 @ 6.0%`
+   taxable-base path alone, which is verified by its own test.
+
+2. **Amounts over $999 without a thousands separator lost their leading
+   digits.** `MONEY` began `[0-9]{1,3}`, so `1124.06` matched as **124.06** and
+   `12345.67` as **345.67**. A $12,345 equipment purchase would have been
+   recorded as $345 — on a tax record, an order of magnitude understated, with
+   nothing anywhere reporting an error. Fixed by accepting either a properly
+   grouped number or a plain digit run; greedy `[0-9]+` means a match can no
+   longer begin midway through a number. **No lookbehind**, deliberately —
+   Hermes support is not worth betting the parser on.
+
+Neither is exotic. Both would have hit real users, and neither was going to
+surface from five hand-collected receipts.
+
+**Two lessons about the method itself, both learned the hard way in one
+session:**
+
+- **An expected value must state what the receipt says, not what you think the
+  answer is.** The first hard version scored tips as parser failures. They were
+  not: whether a restaurant tip belongs in "the total" is a *product* decision.
+  It is now reported in its own bucket rather than buried in the headline number
+  — see the open question in `ROADMAP.md`.
+- **A corpus that scores 100% has stopped teaching.** The first version passed
+  everything, which meant it was only confirming what already worked. The
+  formats that found bug #2 were added specifically because the score was
+  suspiciously clean.
+
+**Deliberately not claimed:** a synthetic pass does not mean a receipt parses on
+device. This generator does not reproduce Apple Vision. Tyler's own receipts
+remain the only on-distribution data, and the synthetic corpus supplements them
+rather than replacing them.
+
+
+---
+
 ## Note on D-035
 
 `D-035` was never issued — it does not appear anywhere in this repo's history.
