@@ -1597,6 +1597,57 @@ while failing closed locks someone out of the app they just installed.
 
 ---
 
+## D-044
+
+**The `NSLocalNetworkUsageDescription` in the generated Info.plist does NOT
+ship. Settled — do not re-raise.**
+
+Date: 2026-08-29 · Status: accepted
+
+`npx expo prebuild` produces an `Info.plist` with **five** usage descriptions,
+one of which reads:
+
+> Expo Dev Launcher uses the local network to discover and connect to
+> development servers running on your computer.
+
+On an app whose differentiator is "Data Not Collected" that looks alarming — a
+shipping binary asking for local network access to reach dev servers is exactly
+the unexplained permission D-007 warns about. It is also **not what ships.**
+
+`expo-dev-launcher`'s config plugin adds a `PBXShellScriptBuildPhase` whose
+script begins:
+
+```sh
+if [ "$CONFIGURATION" != "Debug" ]; then
+  ...
+  # Only delete the description if it matches the dev-launcher default text
+  if echo "$DESC" | grep -q "Expo Dev Launcher"; then
+    /usr/libexec/PlistBuddy -c "Delete :NSLocalNetworkUsageDescription" ...
+```
+
+It strips both that key and the `_expo._tcp` Bonjour service from every
+non-Debug build. Production builds are Release, so the shipped binary carries
+**four** permissions — camera, photo library, Face ID, location — which is
+exactly what the App Review notes in `docs/APP_STORE_LISTING.md` claim.
+
+**Two things to remember from this:**
+
+- **A prebuild `Info.plist` is the source, not the artifact.** The runbook's
+  "inspect the generated Info.plist" step is still right, but it sees the input
+  to the build, not its output. A key present there may still be stripped.
+- **The strip is conditional on the default text.** If anyone ever overrides
+  `NSLocalNetworkUsageDescription` with custom wording, the `grep -q "Expo Dev
+  Launcher"` no longer matches and the key **will** ship. So do not "fix" this
+  by writing a nicer description — that is the one change that would actually
+  break it.
+
+Investigated because the review notes list four permissions and prebuild showed
+five. The discrepancy was real; the conclusion is that the notes are correct and
+the plist is not the last word.
+
+
+---
+
 ## Note on D-035
 
 `D-035` was never issued — it does not appear anywhere in this repo's history.

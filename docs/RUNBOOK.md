@@ -128,6 +128,11 @@ This costs a build, so batch them.
    Disable anything unnecessary by passing `false` to the relevant plugin option
    (see `expo-image-picker`'s `microphonePermission`, `expo-location`'s
    `locationAlwaysPermission`).
+   **A prebuild `Info.plist` is the build's INPUT, not its output.** Config
+   plugins can add a shell build phase that edits the plist during the build —
+   `expo-dev-launcher` strips its local-network key from every non-Debug build
+   that way (D-044). A key visible here may not ship; check the plugin's build
+   phases before concluding one does.
 4. **Check the entitlements file too**, not just `Info.plist`. An added
    entitlement invalidates the existing provisioning profile and means redoing
    credentials (D-011):
