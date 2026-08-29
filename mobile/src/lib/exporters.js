@@ -41,6 +41,22 @@
   }
 
   // ---------- QuickBooks Online 3-column bank CSV ----------
+  //
+  // ONLINE only. QuickBooks Desktop cannot import bank transactions from CSV
+  // at all — it wants Web Connect (.qbo) — so the label and filename say so.
+  //
+  // Date/Description/Amount is one of the two layouts Intuit documents ("Each
+  // file needs either 3 (Date, Description, Amount) or 4 ... columns"), and the
+  // header row uses their exact field names so the mapping step auto-resolves.
+  // Negative for money out is their documented convention: the sample table
+  // reads "Example of a payment / -100.00" against "Example of a deposit /
+  // 200.00".
+  //
+  // The date is MM/DD/YYYY, which QuickBooks accepts but does NOT default to —
+  // its own guidance recommends dd/mm/yyyy. For days 1-12 both readings are
+  // valid and the import succeeds silently wrong, so the export screen tells
+  // the user to set the format at the mapping step. That warning is the
+  // load-bearing part; a wrong BOM fails loudly, a wrong date format does not.
   function buildQBO(rows) {
     var table = [['Date', 'Description', 'Amount']];
     rows.slice().sort(function (a, b) { return a.date.localeCompare(b.date); }).forEach(function (r) {
@@ -48,26 +64,68 @@
       var desc = r.merchant + ' - ' + r.category + (r.notes ? ' - ' + r.notes : '');
       table.push([mmddyyyy, desc, (-r.amount).toFixed(2)]);
     });
-    return BOM + toCSV(table);
+    // No BOM here, deliberately. The BOM on the CPA CSV exists because that
+    // file gets opened in Excel, which otherwise sniffs it as Windows-1252.
+    // Nobody opens this one — it goes straight into QuickBooks' parser, where
+    // a leading BOM can only ever be read as part of the first header name.
+    return toCSV(table);
   }
 
   // ---------- TXF v042 (TurboTax Desktop / H&R Block / TaxAct) ----------
-  function buildTXF(rows, exportDate) {
+  //
+  // Refnums that use Record Format 3 ("$ amount / P description") rather than
+  // format 1 ("$ amount"). The Frm column of the v042 refnum table is the
+  // authority; 302 is the only one TaxTrail emits:
+  //
+  //   2 302  "Other business expense"   Y   C   E   3   2011:C:27
+  //   2 304  "Advertising"              Y   N   E   1   2011:C:8
+  //                                                 ^ Frm
+  //
+  // The changelog records the move explicitly: "RNum 302 changed to Record
+  // Format 3". Schedule C line 27 is itemized in Part V, and P is the field
+  // that carries each item's description — which is why 302 needs it and the
+  // single-line codes do not.
+  var TXF_FORMAT_3 = { 302: true };
+
+  function buildTXF(rows, exportDate, appVersion) {
     var byCode = {}, skipped = 0;
     rows.forEach(function (r) {
       if (C.taxFormOf(r.category) !== 'Schedule C') { skipped++; return; }
       var code = C.TXF_CODES[r.category];
       if (!code) { skipped++; return; }
-      byCode[code] = byCode[code] || { sum: 0, cats: {} };
+      byCode[code] = byCode[code] || { sum: 0, byCat: {} };
       byCode[code].sum += r.amount;
-      byCode[code].cats[r.category] = true;
+      byCode[code].byCat[r.category] = (byCode[code].byCat[r.category] || 0) + r.amount;
     });
+
+    // Zero-padded MM/DD/YYYY. The v035 changelog changed the header export date
+    // to mm/dd/yyyy and the spec's own example is "D 08/20/2011"; the previous
+    // "D9/1/2026" matched neither.
     var d = exportDate || new Date();
-    var ds = (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
-    var out = ['V042', 'ATaxTrail', 'D' + ds, '^'];
+    var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    var ds = p2(d.getMonth() + 1) + '/' + p2(d.getDate()) + '/' + d.getFullYear();
+    // "A" is defined as which program *including version* wrote the file.
+    var out = ['V042', 'A' + ascii('TaxTrail' + (appVersion ? ' ' + appVersion : '')), 'D' + ds, '^'];
+
     Object.keys(byCode).sort(function (a, b) { return a - b; }).forEach(function (code) {
-      out.push('TS', 'N' + code, 'C1', 'L1', '$-' + byCode[code].sum.toFixed(2),
-        'X' + ascii(Object.keys(byCode[code].cats).join('; ')), '^');
+      var entry = byCode[code];
+      if (TXF_FORMAT_3[code]) {
+        // One record per category, each with its own P line and its own L,
+        // matching the spec's own format-3 example (N287 on L1 and L2). The
+        // previous output merged every "other" category into a single record
+        // and put their names in an X line, which lost the Part V itemization
+        // the format exists to carry.
+        Object.keys(entry.byCat).sort().forEach(function (cat, i) {
+          out.push('TS', 'N' + code, 'C1', 'L' + (i + 1),
+            '$-' + entry.byCat[cat].toFixed(2), 'P' + ascii(cat), '^');
+        });
+      } else {
+        // Format 1 is exactly T, N, C, L, $. No X: the spec only ever shows X
+        // on TD detail records, where it is a fixed-column layout beginning
+        // with a space and a date — a bare category name there is text sitting
+        // where an importer expects a date.
+        out.push('TS', 'N' + code, 'C1', 'L1', '$-' + entry.sum.toFixed(2), '^');
+      }
     });
     return { content: out.join('\r\n') + '\r\n', codes: Object.keys(byCode).length, skipped: skipped };
   }

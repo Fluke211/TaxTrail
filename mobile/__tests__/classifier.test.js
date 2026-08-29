@@ -43,8 +43,94 @@ const rows = [
 ];
 const csv = X.buildCpaCSV(rows);
 check('CSV BOM + header', csv.charCodeAt(0) === 0xFEFF && csv.includes('Date,Merchant,Amount,Tax Form'));
+
+// The BOM belongs on the CPA CSV, which a human opens in Excel, and NOT on the
+// QuickBooks file, which is machine-read by QBO's importer — there a leading
+// BOM can only be read as part of the first header name, and the mapping step
+// then fails to match the "Date" column.
+const qbo = X.buildQBO(rows);
+check('QuickBooks CSV carries no BOM', qbo.charCodeAt(0) !== 0xFEFF);
+check('QuickBooks CSV header is matchable', qbo.indexOf('Date,Description,Amount') === 0);
+// Money out is negative, per Intuit's sample table ("Example of a payment /
+// -100.00" against "Example of a deposit / 200.00").
+check('QuickBooks amounts are negative for money out', qbo.includes(',-74.45'));
+check('QuickBooks dates are MM/DD/YYYY', qbo.includes('07/01/2026'));
 const txf = X.buildTXF(rows, new Date(2026, 7, 1));
 check('TXF codes present', txf.content.includes('N304') && txf.content.includes('N301'));
+
+// ---------------------------------------------------------------------------
+// TXF v042 — byte-exact, because every field in this file is load-bearing and
+// an importer that mis-reads one does not complain, it just files a wrong
+// number. Checked field by field against the v042 spec (see D-046):
+//
+//   header      "The fields for the Header of the file are: V version /
+//               A accounting program name/version / D export date"
+//   date        v035 changelog: "Changed date format to mm/dd/yyyy" — so the
+//               month and day are ZERO-PADDED. This used to emit "D8/1/2026".
+//   order       "This is the recommended order: T type / N refnum / C copy /
+//               L line / X detail" with "$ amount" before any X
+//   sign        "Expenses, losses, and money spent ... are negative numbers"
+//   format 1    T, N, C, L, $ — and nothing else. No X on a summary record.
+//   line ends   CRLF, and a trailing CRLF after the final "^"
+const TXF_EXPECT = [
+  'V042', 'ATaxTrail 1.0.0 r16', 'D08/01/2026', '^',
+  'TS', 'N301', 'C1', 'L1', '$-74.45', '^',
+  'TS', 'N304', 'C1', 'L1', '$-50.00', '^',
+].join('\r\n') + '\r\n';
+const txfExact = X.buildTXF(rows, new Date(2026, 7, 1), '1.0.0 r16');
+check('TXF is byte-exact', txfExact.content === TXF_EXPECT,
+  JSON.stringify(txfExact.content));
+
+// Refnum 302 is Record Format 3 ("$ amount / P description"), per the Frm
+// column of the refnum table and the changelog line "RNum 302 changed to
+// Record Format 3". Schedule C line 27 is itemized in Part V, so each category
+// needs its OWN record with its own P and its own L — the spec's format-3
+// example does exactly this, with N287 on L1 and again on L2.
+//
+// The old output merged every "other" category into ONE record and listed the
+// names in an X line, which is not a field that belongs on a summary record at
+// all. The itemization was lost.
+const otherRows = [
+  { date: '2026-07-01', merchant: 'Adobe', amount: 59.99, category: 'Software & Subscriptions', sc: '', notes: '', rid: 'R1', split: '', business: true, taxPortion: null },
+  { date: '2026-07-02', merchant: 'Bank', amount: 12.00, category: 'Bank & Merchant Fees', sc: '', notes: '', rid: 'R2', split: '', business: true, taxPortion: null },
+  { date: '2026-07-03', merchant: 'Adobe', amount: 40.01, category: 'Software & Subscriptions', sc: '', notes: '', rid: 'R3', split: '', business: true, taxPortion: null },
+];
+const other = X.buildTXF(otherRows, new Date(2026, 7, 1), '1.0.0 r16');
+const OTHER_EXPECT = [
+  'V042', 'ATaxTrail 1.0.0 r16', 'D08/01/2026', '^',
+  'TS', 'N302', 'C1', 'L1', '$-12.00', 'PBank & Merchant Fees', '^',
+  'TS', 'N302', 'C1', 'L2', '$-100.00', 'PSoftware & Subscriptions', '^',
+].join('\r\n') + '\r\n';
+check('TXF format 3: one record per category, P line, incrementing L',
+  other.content === OTHER_EXPECT, JSON.stringify(other.content));
+check('TXF: no X line on a summary record', other.content.indexOf('\r\nX') === -1);
+
+// Postage is Schedule C line 18 ("Include on this line your expenses for
+// office supplies and postage"), which is refnum 313 — not the 302 catch-all.
+// Employee benefits is line 14, refnum 308, which is what the app's own
+// category label already claimed; 302 made the file contradict the UI.
+const mapRows = [
+  { date: '2026-07-01', merchant: 'USPS', amount: 20.00, category: 'Shipping & Postage', sc: '', notes: '', rid: 'R1', split: '', business: true, taxPortion: null },
+  { date: '2026-07-02', merchant: 'Gusto', amount: 30.00, category: 'Employee Benefits', sc: '', notes: '', rid: 'R2', split: '', business: true, taxPortion: null },
+];
+const mapped = X.buildTXF(mapRows, new Date(2026, 7, 1), 'v');
+check('postage maps to 313 (line 18), not the 302 catch-all',
+  mapped.content.includes('N313') && !mapped.content.includes('N302'));
+check('employee benefits maps to 308 (line 14)', mapped.content.includes('N308'));
+check('app label and TXF code agree on employee benefits',
+  /Line 14/.test(C.CATEGORIES.filter(function (c) { return c.name === 'Employee Benefits'; })[0].scheduleC));
+
+// The IRS swapped these two sub-lines for tax year 2025: 27a became the
+// energy-efficient-buildings deduction (Form 7205) and "Other expenses (from
+// line 48)" moved to 27b. The 2026 draft keeps the 2025 ordering, so this is
+// not a one-year blip. Every affected label is display-only, but a CPA reading
+// "Line 27a" against a current return is being told the wrong box.
+check('no category still claims line 27a',
+  C.CATEGORIES.every(function (c) { return !/27a/.test(c.scheduleC || ''); }));
+check('other-expense categories say 27b',
+  /Line 27b/.test(C.CATEGORIES.filter(function (c) { return c.name === 'Software & Subscriptions'; })[0].scheduleC));
+check('postage label moved to line 18',
+  /Line 18/.test(C.CATEGORIES.filter(function (c) { return c.name === 'Shipping & Postage'; })[0].scheduleC));
 
 // Amounts over $999 printed WITHOUT a thousands separator. MONEY began with
 // [0-9]{1,3}, so it matched only the last three digits before the decimal:

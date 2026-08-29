@@ -7,6 +7,7 @@ import { addReceipt, allReceipts, type Receipt } from './db';
 import { exportRows } from './rows';
 import { buildXlsxBase64 } from './xlsxExport';
 import { saveRestoredImage } from './ocr';
+import { APP_VERSION, JS_REVISION } from './version';
 const X = require('./exporters.js');
 const R = require('./restorePlan.js');
 
@@ -30,13 +31,17 @@ export async function exportCSV(receipts: Receipt[]): Promise<void> {
 }
 
 export async function exportTXF(receipts: Receipt[]): Promise<void> {
-  const txf = X.buildTXF(exportRows(receipts), new Date());
+  // The TXF "A" record is defined as which program *including version*
+  // wrote the file, so a CPA opening it can tell which build produced it.
+  const txf = X.buildTXF(exportRows(receipts), new Date(), `${APP_VERSION} r${JS_REVISION}`);
   await shareText(`taxtrail-${year()}.txf`, txf.content, 'application/octet-stream');
 }
 
 export async function exportQBO(receipts: Receipt[]): Promise<void> {
   const qbo: string = X.buildQBO(exportRows(receipts));
-  await shareText(`taxtrail-quickbooks-${year()}.csv`, qbo, 'text/csv');
+  // "-online-" is not cosmetic: QuickBooks Desktop cannot import bank
+  // transactions from CSV, so a Desktop user downloading this would be stuck.
+  await shareText(`taxtrail-quickbooks-online-${year()}.csv`, qbo, 'text/csv');
 }
 
 export async function exportXLSX(receipts: Receipt[]): Promise<void> {

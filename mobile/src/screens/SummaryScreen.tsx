@@ -169,7 +169,7 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
           ['csv', 'CPA CSV (organized by IRS form)', false, () => exportCSV(receipts)],
           ['xlsx', 'Excel workbook (.xlsx)' + (pro ? '' : '  ·  PRO'), true, () => exportXLSX(receipts)],
           ['txf', 'TXF for tax software' + (pro ? '' : '  ·  PRO'), true, () => exportTXF(receipts)],
-          ['qbo', 'QuickBooks 3-column CSV' + (pro ? '' : '  ·  PRO'), true, () => exportQBO(receipts)],
+          ['qbo', 'QuickBooks Online (3-column CSV)' + (pro ? '' : '  ·  PRO'), true, () => exportQBO(receipts)],
           ['archive', 'Receipt archive (.zip — images + data)', false, () => exportArchive(receipts)],
           ['backup', 'Full JSON backup (data only)', false, () => exportBackup(receipts)],
           ['diag', 'Parser diagnostics (raw OCR text)', false, () => exportDiagnostics(receipts)],
@@ -181,6 +181,19 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
               : <Text style={{ color: T.text, fontSize: 14 }}>{label}</Text>}
           </Pressable>
         ))}
+        {/*
+          QuickBooks accepts MM/DD/YYYY but does not default to it — Intuit's
+          own guidance recommends dd/mm/yyyy. For any day from 1 to 12 both
+          readings are valid, so the import succeeds and files the transaction
+          in the wrong month with no error. That silence is why this warning
+          sits next to the button rather than in a help page nobody opens.
+        */}
+        <Text style={s.restoreNote}>
+          Importing to QuickBooks Online: at the column-mapping step, set the
+          date format to MM/DD/YYYY. It defaults to day-first, which files
+          anything before the 13th of a month under the wrong month without
+          reporting an error.
+        </Text>
       </View>
 
       {canRestore && (

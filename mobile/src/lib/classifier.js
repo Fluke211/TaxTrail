@@ -67,7 +67,7 @@
     },
     {
       name: 'Software & Subscriptions', group: 'Everyday Operations',
-      scheduleC: 'Line 27a — Other expenses (software)',
+      scheduleC: 'Line 27b — Other expenses (software)',
       keywords: ['adobe', 'microsoft 365', 'office 365', 'quickbooks', 'intuit', 'dropbox',
         'google workspace', 'gsuite', 'zoom.us', 'zoom video', 'slack', 'github', 'godaddy',
         'namecheap', 'squarespace', 'wix', 'shopify', 'canva', 'subscription', 'saas',
@@ -75,7 +75,7 @@
     },
     {
       name: 'Shipping & Postage', group: 'Everyday Operations',
-      scheduleC: 'Line 27a — Other expenses (postage)',
+      scheduleC: 'Line 18 — Office expense (postage)',
       keywords: ['usps', 'postal service', 'fedex', 'ups store', 'ups ground', 'dhl', 'postage',
         'stamps', 'shipping label', 'priority mail', 'first-class', 'parcel']
     },
@@ -137,7 +137,7 @@
     },
     {
       name: 'Bank & Merchant Fees', group: 'Financial & Admin',
-      scheduleC: 'Line 27a — Other expenses (bank/merchant fees)',
+      scheduleC: 'Line 27b — Other expenses (bank/merchant fees)',
       keywords: ['bank fee', 'service charge', 'overdraft', 'wire fee', 'merchant fee', 'processing fee',
         'stripe fee', 'square fee', 'paypal fee', 'monthly maintenance fee', 'atm fee']
     },
@@ -154,13 +154,13 @@
     },
     {
       name: 'Education & Training', group: 'Financial & Admin',
-      scheduleC: 'Line 27a — Other expenses (education)',
+      scheduleC: 'Line 27b — Other expenses (education)',
       keywords: ['udemy', 'coursera', 'linkedin learning', 'training', 'seminar', 'workshop', 'conference',
         'tuition', 'certification', 'course fee', 'webinar']
     },
     {
       name: 'Dues & Memberships', group: 'Financial & Admin',
-      scheduleC: 'Line 27a — Other expenses (dues)',
+      scheduleC: 'Line 27b — Other expenses (dues)',
       keywords: ['membership dues', 'chamber of commerce', 'association dues', 'trade association',
         'annual dues', 'union dues']
     },
@@ -648,13 +648,20 @@
     'Meals & Entertainment': 294,
     'Utilities & Phone': 318,
     'Wages & Payroll': 297,
-    // The rest of the business categories flow to "Other business expense"
+    // Postage is line 18, not "other". The Line 18 instruction is one sentence:
+    // "Include on this line your expenses for office supplies and postage."
+    'Shipping & Postage': 313,
+    // 308 is Schedule C line 14, which is what this category's own scheduleC
+    // string already told the user. Sending it to 302 meant the TXF file
+    // contradicted the app's own display of where the money would land.
+    'Employee Benefits': 308,
+    // The rest have no dedicated refnum and genuinely belong in Part V, which
+    // is what "Other business expense" is. Each keeps its own record so the
+    // itemization survives — see buildTXF and D-046.
     'Software & Subscriptions': 302,
-    'Shipping & Postage': 302,
     'Bank & Merchant Fees': 302,
     'Education & Training': 302,
     'Dues & Memberships': 302,
-    'Employee Benefits': 302,
     'General Merchandise': 302,
     'Home Office': null,             // Form 8829 — not a plain Sch C expense code
     'Depreciation / Equipment': null, // Form 4562 — needs asset entry, not a TXF expense

@@ -30,17 +30,32 @@ what blocks what, not by size.
 
 ### Correctness — the highest-risk item
 
-- [ ] **Audit every export format aimed at a specific tax package.** Tyler's
-      call, and the right one: a wrong number that imports cleanly is worse
-      than a file that fails to import.
-      - [ ] **TXF sign convention.** `buildTXF` writes expenses as *negative*
-            (`'$-' + amount`). Verify against the TXF spec whether Schedule C
-            expense codes want positive values — if they want positive, every
-            import lands with flipped signs and nothing errors.
-      - [ ] TXF record structure: `V042` header, `TS` / `N` / `C1` / `L1` / `$`
-            ordering, and whether the `X` description record is portable
-      - [ ] `TXF_CODES` -> Schedule C line mapping, category by category
-      - [ ] QuickBooks 3-column CSV against QuickBooks' documented import shape
+- [x] **Audit every export format aimed at a specific tax package** (D-046).
+      Tyler's call, and the right one: it found five real defects.
+      - [x] **TXF sign convention — already correct.** Negative is what the
+            v042 spec requires for expense codes. Verified against four
+            independent copies including a capture of Intuit's own page. Do
+            not "fix" this later.
+      - [x] TXF record structure — header date now zero-padded (`D08/01/2026`,
+            was `D8/1/2026`), `A` record carries the version, and the `X` line
+            is gone from summary records: `X` is a detail-record field whose
+            layout is columnar, so a bare category name sat where an importer
+            expects a date
+      - [x] **Refnum 302 is Record Format 3**, not 1. Each "other" category now
+            gets its own record with a `P` description and an incrementing `L`,
+            which is how Part V itemization is meant to survive. The old output
+            merged five categories into one record and lost it
+      - [x] `TXF_CODES` -> Schedule C mapping — two were wrong. Postage moved
+            to 313 (line 18) and Employee Benefits to 308 (line 14); the
+            latter had the export contradicting the app's own UI
+      - [x] **Schedule C line 27a is 27b for TY2025** — the IRS swapped the
+            sub-lines. Four labels were correct for TY2024 and wrong for the
+            returns being filed now
+      - [x] QuickBooks: BOM dropped from that file only, renamed "QuickBooks
+            Online" (Desktop cannot import bank CSV at all), and the export
+            screen now warns to set the date format at the mapping step —
+            day-first silently files anything before the 13th in the wrong
+            month
       - [ ] CPA CSV and XLSX: column headers, form grouping, sales-tax split
       - [ ] End-to-end import into at least one real package. **This is the
             part no amount of spec-reading substitutes for** — it needs Tyler

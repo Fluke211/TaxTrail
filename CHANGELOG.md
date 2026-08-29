@@ -11,6 +11,34 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### Exports — 2026-08-29
+
+Audit of every package-specific export against its spec (D-046). Five real
+defects; the one with the most at stake turned out to be already correct.
+
+- **TXF sign convention was already right** — negative for expenses is what
+  v042 requires. Verified against four independent copies of the spec
+- **Refnum 302 is Record Format 3.** Each "other business expense" category now
+  gets its own record with a `P` description and its own `L`, instead of five
+  categories merged into one record with their names in an `X` line. `X` is a
+  detail-record field with a columnar layout, so the old output put a category
+  name where an importer expects a date — and lost the Part V itemization
+- **Two categories mapped to the wrong refnum.** Postage → 313 (line 18, per
+  "office supplies and postage"), Employee Benefits → 308 (line 14). The
+  second meant the exported file contradicted the app's own category label
+- **Schedule C "Other expenses" is line 27b, not 27a**, for tax year 2025 — the
+  IRS swapped it with the Form 7205 deduction. Four labels were stale
+- TXF header date is zero-padded (`D08/01/2026`), and the `A` record now
+  carries the app version, as the spec's definition of that field requires
+- **QuickBooks CSV no longer starts with a BOM.** It is machine-read by QBO's
+  importer, where a BOM can only be read as part of the first header name; the
+  CPA CSV keeps its BOM because that one gets opened in Excel
+- Renamed to **QuickBooks Online** — Desktop cannot import bank transactions
+  from CSV at all, so the generic name pointed Desktop users at a dead end
+- The export screen now warns to set the date format at QuickBooks' mapping
+  step. It defaults to day-first, which files anything before the 13th of a
+  month in the wrong month **with no error at all**
+
 ### Parser — 2026-08-29
 
 - **Amounts whose decimal point Vision read as a space are recovered.**

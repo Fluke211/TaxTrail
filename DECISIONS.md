@@ -1701,3 +1701,94 @@ copied from artifacts visible in the real corpus rather than invented, and one
 of the two turned out to be a real defect while the other was already handled.
 That ratio is the point: **when the corpus goes quiet, take the next hard case
 from real data, not from imagination.**
+
+## D-046
+
+**Export-format audit: what was wrong, and the one thing that was already
+right** (2026-08-29)
+
+Tyler's call to audit every package-specific export before shipping was correct.
+A file that fails to import is a support email; a file that imports cleanly with
+wrong numbers is a wrong tax return. Findings, each checked against a primary
+source rather than recalled:
+
+### TXF sign convention — ALREADY CORRECT, no change
+
+This was the open question with the most at stake, and the answer is that
+`buildTXF` was right all along. The v042 spec's definition of the `$` field:
+"Income, gains, and money received are positive numbers. Expenses, losses, and
+money spent (including tax payments) are negative numbers." The refnum table
+carries a per-code `Sgn` column, and every Schedule C expense code TaxTrail uses
+is `E`. The spec's own Schedule C example ends `TS / N304 / C1 / L1 / $-668.00`.
+Verified against four independent copies of the spec, including a Wayback
+capture of Intuit's own first-party page. **Do not "fix" this later.**
+
+### Record format 3 — was wrong, now fixed
+
+Refnum 302 "Other business expense" is Record Format 3, not 1. The changelog
+says so in as many words: "RNum 302 changed to Record Format 3". Format 3 is
+`$ amount` + **`P description`**, and the spec's example emits one record per
+description with an incrementing `L` (N287 on L1, then L2).
+
+TaxTrail merged five categories into a single N302 record and listed their names
+in an `X` line. `X` is a *detail-record* field — it appears only on `TD` records
+in every example and in GnuCash, and its layout is columnar, beginning with a
+space and a date. A bare category name there sits exactly where an importer
+parsing columns expects a date. Schedule C line 27 is itemized in Part V, so the
+old output also threw away the itemization the format exists to carry.
+
+### Two categories were mapped to the wrong refnum
+
+- **Shipping & Postage → 302** should be **313** (Office expense). The Line 18
+  instruction is one sentence: "Include on this line your expenses for office
+  supplies and postage."
+- **Employee Benefits → 302** should be **308** (line 14). Refnum 308 exists and
+  is exactly this. Worse, the app's own category label already said "Line 14 —
+  Employee benefit programs", so the exported file contradicted the screen the
+  user had just read.
+
+### Schedule C line 27a became 27b for tax year 2025
+
+The IRS swapped the sub-lines: 27a is now the energy-efficient-buildings
+deduction (Form 7205) and "Other expenses (from line 48)" moved to 27b. Four
+category labels said 27a — correct for TY2024, wrong for the returns being filed
+now. The 2026 draft keeps the 2025 ordering, so this is not a one-year blip.
+
+### QuickBooks: the BOM comes off, the date format gets a warning
+
+Column order, negative-for-money-out and the header names are all correct
+against Intuit's documented 3-column layout. Two changes:
+
+- **BOM removed from the QuickBooks file only.** It exists on the CPA CSV
+  because a human opens that one in Excel, which otherwise sniffs Windows-1252.
+  Nobody opens the QuickBooks file — it goes into QBO's parser, where a leading
+  BOM can only be read as part of the first header name. Intuit's docs never
+  mention BOMs either way, so this is judgement, but it is asymmetric: the BOM
+  buys nothing in this file and can only cost.
+- **The date format now carries a warning in the UI.** MM/DD/YYYY is accepted
+  but Intuit's own guidance recommends dd/mm/yyyy, and QuickBooks asks the user
+  to pick at the mapping step. For any day from 1 to 12 both readings are valid,
+  so a wrong choice imports **silently** into the wrong month. This is the
+  highest-consequence finding in the whole audit precisely because nothing
+  fails: a wrong BOM is a greyed-out button, a wrong date format is a clean
+  import of wrong data.
+
+Also renamed the export to "QuickBooks Online" (file
+`taxtrail-quickbooks-online-<year>.csv`). QuickBooks **Desktop** cannot import
+bank transactions from CSV at all — it needs Web Connect `.qbo` — so the old
+generic name pointed Desktop users at a file that could never work.
+
+### Deliberately NOT done
+
+Intuit's docs say "Remove numbers from cells in the Description column".
+Stripping digits would mangle "7-Eleven" and "Store #1234" into nonsense, which
+trades a documented-but-unconfirmed import risk for guaranteed data loss. Left
+alone, noted here so the next person does not have to re-reason it.
+
+### Still unverified, and it is the part that matters most
+
+Nobody has imported any of these files into TurboTax, H&R Block, TaxAct or
+QuickBooks. Everything above is spec-reading. The byte-exact fixtures in
+`__tests__/classifier.test.js` pin the output so it cannot drift, but a fixture
+proves the file matches the spec as I read it — not that the importer agrees.
+That test needs Tyler or a trial licence and stays open on the roadmap.
