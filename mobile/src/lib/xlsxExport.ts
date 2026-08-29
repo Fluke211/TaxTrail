@@ -6,6 +6,24 @@ import * as XLSX from 'xlsx';
 import type { ExportRow } from './exporters';
 const C = require('./classifier.js');
 
+// Money columns are written as plain numbers, which Excel then renders as "10"
+// and "1" rather than "10.00" and "1.00". In a workbook a CPA reads down a
+// column of, that is a readability defect worth two lines: a mixed column of
+// 10, 1, 2.5 is genuinely harder to scan than 10.00, 1.00, 2.50.
+//
+// `z` is a cell number format and is supported by SheetJS CE on write — the
+// data-bar formatting the PWA had via ExcelJS is what CE cannot do, not this.
+function formatMoneyColumns(ws: XLSX.WorkSheet, cols: number[]): void {
+  if (!ws['!ref']) return;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (const c of cols) {
+    for (let r = range.s.r; r <= range.e.r; r++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      if (cell && cell.t === 'n') cell.z = '#,##0.00';
+    }
+  }
+}
+
 export function buildXlsxBase64(rows: ExportRow[], yearLabel: string): string {
   const wb = XLSX.utils.book_new();
 
@@ -45,6 +63,7 @@ export function buildXlsxBase64(rows: ExportRow[], yearLabel: string): string {
 
   const wsSummary = XLSX.utils.aoa_to_sheet(summary);
   wsSummary['!cols'] = [{ wch: 42 }, { wch: 46 }, { wch: 9 }, { wch: 14 }];
+  formatMoneyColumns(wsSummary, [3]); // Total — the "Entries" count stays an integer
   XLSX.utils.book_append_sheet(wb, wsSummary, `Summary ${yearLabel}`);
 
   // ---- Transaction tabs ----
@@ -57,11 +76,13 @@ export function buildXlsxBase64(rows: ExportRow[], yearLabel: string): string {
   const wsC = XLSX.utils.aoa_to_sheet([header, ...schedC.map(toRow)]);
   wsC['!cols'] = header.map((h, i) => ({ wch: i === 1 || i === 4 || i === 5 ? 30 : 13 }));
   wsC['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: schedC.length, c: header.length - 1 } }) };
+  formatMoneyColumns(wsC, [2, 6]); // Amount, Sales Tax Portion
   XLSX.utils.book_append_sheet(wb, wsC, 'Schedule C');
 
   const wsO = XLSX.utils.aoa_to_sheet([header, ...other.map(toRow)]);
   wsO['!cols'] = wsC['!cols'];
   wsO['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: other.length, c: header.length - 1 } }) };
+  formatMoneyColumns(wsO, [2, 6]);
   XLSX.utils.book_append_sheet(wb, wsO, 'Other Forms + Personal');
 
   return XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });

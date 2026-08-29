@@ -61,8 +61,13 @@ what blocks what, not by size.
             categories exported as $0.99 and $0.01 across two exported as
             $0.02. Now largest-remainder in whole cents, and the Summary
             screen uses the same split so the app and the file agree
-      - [ ] CPA CSV and XLSX: column headers and form grouping (the sales-tax
-            split above is done)
+      - [x] CPA CSV and XLSX: headers, form grouping and money formatting.
+            The workbook was built and read back rather than eyeballed — the
+            two files share one header row, the form grouping and within-form
+            ordering are correct, and the business sales-tax figure now comes
+            out at exactly $1.00 on the split-receipt case that used to give
+            $0.99. Money columns are now written with a number format, so a
+            CPA reads 10.00 rather than 10
       - [ ] End-to-end import into at least one real package. **This is the
             part no amount of spec-reading substitutes for** — it needs Tyler
             or a trial licence.

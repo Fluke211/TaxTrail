@@ -69,6 +69,10 @@ defects; the one with the most at stake turned out to be already correct.
   largest-remainder in whole cents (D-048)
 - The Summary screen uses the same split, so summing the CSV's "Sales Tax
   Portion" column gives exactly the figure the app displays
+- **Excel money columns are formatted as money.** Amounts were written as bare
+  numbers, so a column read 10, 1, 2.5 instead of 10.00, 1.00, 2.50 — harder
+  to scan in the one export built for a human to read down. The "Entries"
+  count is deliberately left as an integer
 
 ### Repository — 2026-08-29
 
