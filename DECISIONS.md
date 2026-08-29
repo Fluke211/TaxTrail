@@ -2149,3 +2149,54 @@ Two decisions inside the sanitizer worth stating:
 The capture screen was never affected — it holds its fields as strings. Only
 editing an existing receipt was broken, which is exactly where a user goes to
 *correct* a number.
+
+## D-053
+
+**Build 4 carries the native modules for work that has not shipped yet**
+(2026-08-29)
+
+Tyler has two days of free EAS builds left and wants one now. A native build is
+the only moment native modules can be added, so the question is not "what
+feature is ready" but "what will we wish were compiled in."
+
+Added, with the SDK 55 versions taken from `expo/bundledNativeModules.json`
+rather than guessed — `api.expo.dev` is blocked from these sessions, so
+`npx expo install` cannot resolve versions here, but the map ships inside the
+`expo` package:
+
+| Module | Version | For |
+|---|---|---|
+| `react-native-gesture-handler` | ~2.30.0 | swipe-to-delete with real iOS momentum |
+| `react-native-reanimated` | 4.2.1 | required by gesture-handler's Swipeable |
+| `react-native-worklets` | 0.8.3 | pulled in by reanimated 4 |
+| `expo-mail-composer` | ~55.0.16 | the feedback flow's prefilled mail |
+
+**All three React Native packages declare `codegenConfig`**, which RN 0.83
+requires — there is no legacy bridge fallback (CLAUDE.md). Verified by reading
+each `package.json`, not assumed.
+
+### The trap that would have wasted the credit
+
+Reanimated 4 needs the `react-native-worklets` Babel plugin, and this project
+has **no `babel.config.js` at all**. A missing plugin does not fail the build —
+it fails at runtime, so the credit is spent on a binary that crashes.
+
+Read `babel-preset-expo`'s shipped source to settle it:
+
+```js
+// Automatically add `react-native-reanimated/plugin` when the package is installed.
+hasModule('react-native-worklets') && ... ? [require('react-native-worklets/plugin')]
+```
+
+The preset adds it automatically when the package is present. **No
+`babel.config.js` is needed**, and adding one would risk overriding this.
+
+### GestureHandlerRootView ships with the module, not the feature
+
+`GestureHandlerRootView` must be the outermost view or gesture-handler's
+recognizers never receive touches — and the failure is silent, a swipe simply
+does nothing. It is wired into `App.tsx` now, with the module, so build 4
+carries it and swipe-to-delete can then ship entirely over the air.
+
+Swipe-to-delete itself is deliberately NOT in this build. The binary's job is
+to contain the native surface; the behaviour is JS and follows by OTA.

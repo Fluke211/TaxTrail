@@ -11,6 +11,19 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### Build 4 — v1.0.0 (build 4) · js r22 — 2026-08-29
+
+First native build since 26 August, cut so the submitted binary does not embed
+stale JS and so the native surface for pending work is compiled in (D-053).
+
+- Adds `react-native-gesture-handler`, `react-native-reanimated` and
+  `expo-mail-composer`. All New Architecture compatible (`codegenConfig`
+  present), versions taken from `expo/bundledNativeModules.json`
+- `GestureHandlerRootView` wired as the outermost view, so swipe-to-delete can
+  ship over the air afterwards
+- No `babel.config.js` added: `babel-preset-expo` already adds the worklets
+  plugin automatically when the package is installed
+
 ### OTA — v1.0.0 (build 3) · js r21 — 2026-08-29
 
 - **Editing a receipt's total or sales tax could not accept a decimal point.**

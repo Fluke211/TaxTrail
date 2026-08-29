@@ -2,8 +2,8 @@
 // APP_VERSION/BUILD change only with a native build; JS_REVISION bumps with
 // every OTA (EAS Update) push so Tyler can verify which JS he's running.
 export const APP_VERSION = '1.0.0';
-export const APP_BUILD = 3;
-export const JS_REVISION = 21;
+export const APP_BUILD = 4;
+export const JS_REVISION = 22;
 
 export function versionStamp(): string {
   return `TaxTrail v${APP_VERSION} (build ${APP_BUILD}) · js r${JS_REVISION}`;
