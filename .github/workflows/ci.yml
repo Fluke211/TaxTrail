@@ -38,6 +38,12 @@ jobs:
       - name: Install
         run: npm ci
 
+      # A native dependency at a version this Expo SDK was not built with is
+      # how a build dies in "Install pods" with an error that is only readable
+      # on expo.dev — which these sessions cannot reach. Free to check here.
+      - name: Native dependency versions match the Expo SDK
+        run: node scripts/check-expo-pins.js
+
       - name: Unit tests
         run: npm run test:unit
 

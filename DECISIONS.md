@@ -2200,3 +2200,57 @@ carries it and swipe-to-delete can then ship entirely over the air.
 
 Swipe-to-delete itself is deliberately NOT in this build. The binary's job is
 to contain the native surface; the behaviour is JS and follows by OTA.
+
+## D-054
+
+**Build 4 failed on a dependency npm chose for us** (2026-08-29)
+
+The build died in `Install pods` with "Unknown error. See logs of the Install
+pods build phase" — and **that log lives on expo.dev, which is blocked from
+these sessions**, so the error itself was unreadable from here.
+
+What was findable: `react-native-worklets` was installed at **0.8.3** while Expo
+SDK 55 pins **0.7.4**.
+
+Nobody chose 0.8.3. It arrived as a transitive peer of `react-native-reanimated`
+(which only asks for `>=0.7.0`) when the three modules for build 4 were added.
+Their versions were taken from `expo/bundledNativeModules.json` and were
+correct — the failure was the fourth package that came in behind them, unasked.
+
+`npx expo install` exists to prevent exactly this, and cannot run here:
+`api.expo.dev` is blocked (CLAUDE.md), so packages get added with plain
+`npm install` and a hand-copied version. **A hand-check covers the packages you
+thought about. It cannot cover the ones you didn't.**
+
+So the durable fix is `scripts/check-expo-pins.js`, run in CI: it walks every
+package in `bundledNativeModules.json`, compares against what is actually
+installed in `node_modules` (not merely what `package.json` declares), and names
+the exact `npm install --save-exact` line to fix each one. Verified by
+reintroducing 0.8.3 and watching it fail.
+
+### The allowlist, and why it has to exist
+
+The check immediately flagged a second divergence: `expo-font` resolves to
+**57.0.1** at top level against a pin of `~55.0.8`. That one is **fine**, and
+proving it mattered more than fixing it:
+
+- `@expo/vector-icons@15` depends on `expo-font@57`, which npm hoists.
+- `expo` keeps its own nested copy at the pinned `55.0.8`, so the native module
+  the SDK links is the right one; 57 is only a JS consumer of the API.
+- The lockfile shows this arrangement is **unchanged since before build 3**,
+  which built and shipped.
+
+A check that fails on a proven-good condition blocks every PR, so it carries an
+`ALLOWED` map — and the rule for that map is that each entry needs evidence it
+has shipped, not a hunch.
+
+### Still unconfirmed
+
+The pod log was never read, so the worklets drift is a **strong hypothesis, not
+a confirmed cause**. It is a real divergence from the tested set and worth
+fixing regardless. If the retry fails the same way, the next move is for Tyler
+to open the build's expo.dev page and paste the `Install pods` error — that URL
+is reachable from his browser and not from here.
+
+Build failures are not charged against the EAS quota (D-015), so the retry is
+cheap.
