@@ -11,7 +11,7 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
-### Staged — v1.0.0 (build 3) · js r15
+### OTA — v1.0.0 (build 3) · js r16 — 2026-08-29
 
 Two parser fixes, both found by the new synthetic corpus (D-041), both
 affecting real receipts:
@@ -21,8 +21,15 @@ affecting real receipts:
 - **Amounts over $999 no longer lose their leading digits.** `1124.06` parsed
   as `124.06`, and `12345.67` as `345.67` — a $12,345 purchase recorded as
   $345, with no error anywhere. This is the more serious of the two
+- **Tips now count toward the total** (D-042). A card slip prints the pre-tip
+  figure as "AMOUNT CHARGED" and the real amount lower down, so every tipped
+  meal was under-deducted. Added only when the receipt prints the post-tip
+  figure — a total that already includes the tip is not double-counted, a
+  suggested-tip guide is not a charge, and a handwritten tip leaves the total
+  alone. Over-reporting a deduction is the worse failure, so the rule only
+  moves in the direction the receipt confirms
 - `npm run test:synth` — thousands of generated receipts with exact ground
-  truth, scored per format against a committed baseline. 30 unit tests, up
+  truth, scored per format against a committed baseline. 35 unit tests, up
   from 23
 
 ### OTA — v1.0.0 (build 3) · js r13 — 2026-08-26

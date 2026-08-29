@@ -98,6 +98,37 @@ const atRate = C.parseReceipt(
   'BASS PRO SHOPS\nLURE  13.98\nTAX  $13.98 @ 6.0%\nTOTAL  14.82');
 check('taxable-base "@ rate%" still computes tax', Math.abs(atRate.taxTotal - 0.84) < 0.01, atRate.taxTotal);
 
+// A tip is part of what the meal cost, so it counts toward the deductible
+// total (D-042). Card slips print the pre-tip figure first and the real amount
+// lower down, so the parser used to take the smaller one.
+const tipped = C.parseReceipt(
+  'THE RUSTY GRILL\nBURGER  240.00\nSTATE TAX  48.71\nAMOUNT CHARGED  288.71\nTIP  41.64\nAMOUNT PAID  330.35');
+check('tip counts toward the total', tipped.total === 330.35, tipped.total);
+
+// The dangerous direction is the opposite one: inflating a deduction. Adding a
+// tip to a total that already includes it must not happen, so the post-tip
+// figure has to be printed before it is trusted.
+const alreadyIncluded = C.parseReceipt(
+  'THE RUSTY GRILL\nBURGER  20.00\nTIP  4.00\nTOTAL  24.00');
+check('tip not double-counted when total already includes it',
+  alreadyIncluded.total === 24.00, alreadyIncluded.total);
+
+// Handwritten tip: nothing printed to add, so the printed total stands.
+const handwritten = C.parseReceipt(
+  'THE RUSTY GRILL\nBURGER  20.00\nTAX  1.65\nTOTAL  21.65\nTIP  ________\nTOTAL  ________');
+check('handwritten tip leaves the total alone', handwritten.total === 21.65, handwritten.total);
+
+// A suggested-tip guide is advice, not a charge — and it prints plausible
+// post-tip totals, which is exactly what would fool a careless rule.
+const guide = C.parseReceipt(
+  'THE RUSTY GRILL\nBURGER  20.00\nTOTAL  20.00\nSUGGESTED TIP\n15% = 3.00\n18% = 3.60\n20% = 4.00');
+check('suggested-tip guide is not a charge', guide.total === 20.00, guide.total);
+
+// GRATUITY is the same thing under another name.
+const grat = C.parseReceipt(
+  'CAFE\nLUNCH  50.00\nTOTAL  50.00\nGRATUITY  9.00\nTOTAL PAID  59.00');
+check('gratuity counts too', grat.total === 59.00, grat.total);
+
 // Restore-from-archive planning (pure half of exportShare.restoreArchive)
 const RP = require('../src/lib/restorePlan.js');
 const NOW = '2026-08-22T00:00:00.000Z';

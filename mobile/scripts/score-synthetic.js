@@ -55,7 +55,6 @@ for (const rec of receipts) {
   const missed = [];
   for (const f of FIELDS) {
     if (rec.expected[f] === undefined) continue;
-    if (f === 'total' && rec.axes.tip) continue;   // scored in its own bucket
     // Cent-level equality; these are exact numbers by construction.
     const ok = parsed[f] !== null && parsed[f] !== undefined &&
       Math.abs(parsed[f] - rec.expected[f]) < 0.005;
@@ -63,15 +62,11 @@ for (const rec of receipts) {
     if (!ok) missed.push({ field: f, want: rec.expected[f], got: parsed[f] });
   }
 
-  // Tip receipts are scored separately: the gap there is a product decision
-  // (does a tip count toward the total?), not a parser defect, and mixing the
-  // two would make the headline number mean nothing.
+  // Tips now count toward the total (D-042), so they are scored as an ordinary
+  // total rather than held in their own bucket.
   if (rec.axes.tip) {
-    const paidOk = parsed.total !== null &&
-      Math.abs((parsed.total || 0) - rec.expected.total) < 0.005;
-    bump(stats, 'total (tip: amount paid)', paidOk);
-    bump(stats, 'total (tip: printed total)', parsed.total !== null &&
-      Math.abs((parsed.total || 0) - rec.expected.totalPreTip) < 0.005);
+    bump(axisStats, 'tip=yes', parsed.total !== null &&
+      Math.abs((parsed.total || 0) - rec.expected.total) < 0.005);
   }
 
   const dateOk = !!parsed.date;
@@ -79,8 +74,8 @@ for (const rec of receipts) {
   if (!dateOk) missed.push({ field: 'date', want: '(a date)', got: parsed.date });
 
   // The total is the field a wrong answer hurts most, so axes are scored on it.
-  const totalOk = rec.axes.tip ? true : (parsed.total !== null &&
-    Math.abs((parsed.total || 0) - rec.expected.total) < 0.005);
+  const totalOk = parsed.total !== null &&
+    Math.abs((parsed.total || 0) - rec.expected.total) < 0.005;
   bump(axisStats, `totalLabel=${rec.axes.totalLabel}`, totalOk);
   bump(axisStats, `layout=${rec.axes.layout}`, totalOk);
   bump(axisStats, `noise=${rec.axes.noise}`, totalOk);

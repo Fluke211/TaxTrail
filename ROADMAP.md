@@ -54,11 +54,9 @@ what blocks what, not by size.
       thousands of generated receipts with exact ground truth. Found and fixed
       two real bugs on its first run, including amounts over $999 losing their
       leading digits.
-- [ ] **Open product question: does a tip count toward the receipt total?**
-      The parser takes the printed `TOTAL`, which on a restaurant slip is
-      pre-tip. For a tax app the deductible figure is what was actually paid, so
-      meals may be systematically under-deducted. Currently reported separately
-      by `test:synth` rather than treated as a bug.
+- [x] **Tips count toward the total** (D-042) — Tyler's call. Added only when
+      the receipt prints the post-tip figure, so a total that already includes
+      the tip is never double-counted and a deduction is never inflated.
 - [ ] **Grow the real corpus.** Tyler scans real receipts, exports Summary ->
       *Parser diagnostics*, and the dump lands in `mobile/__tests__/corpus/`.
       Still the only on-distribution data — synthetic supplements it, never

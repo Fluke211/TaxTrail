@@ -1516,6 +1516,52 @@ rather than replacing them.
 
 ---
 
+## D-042
+
+**A tip counts toward the receipt total — but only when the receipt prints the
+post-tip figure.**
+
+Date: 2026-08-29 · Status: accepted · Tyler's call
+
+Raised by the synthetic corpus (D-041). A card slip prints the pre-tip figure
+first and the amount actually paid lower down:
+
+```
+AMOUNT CHARGED   288.71
+TIP               41.64
+AMOUNT PAID      330.35
+```
+
+`extractTotal` returned **288.71**. "AMOUNT CHARGED" matches the highest-priority
+total hint while "AMOUNT PAID" only matches a lower one, so the pre-tip line won
+on priority. For a tax app that means **every tipped meal was under-deducted**.
+
+**The rule is deliberately one-sided.** The tip is added only when the receipt
+itself prints the post-tip figure on a total-ish line. Without that confirmation
+there is no way to distinguish a pre-tip total from one that already includes
+the tip, and guessing wrong *inflates* a deduction — a worse failure than the
+one being fixed. Under-reporting an expense costs money; over-reporting it is
+the kind of error that matters in an audit, and this app's whole proposition is
+records a CPA can trust.
+
+Consequences of that choice, each covered by a test:
+
+- **Printed post-tip line** → tip added. The common card-slip case.
+- **Total already includes the tip** → left alone, no double count.
+- **Handwritten tip** → nothing printed to add, printed total stands. Correctly
+  out of scope; the user edits it if they want the tip captured.
+- **Suggested-tip guide** ("15% = 3.00") → ignored. These print plausible
+  post-tip totals, which is exactly what would fool a careless rule, so lines
+  carrying a `%` or the word "suggested" are never treated as a charge.
+
+**What would change this:** if real receipts turn up where the tip is printed
+but no post-tip total is, the conservative rule leaves money on the table and
+the trade-off is worth revisiting — with the audit risk stated explicitly, not
+assumed away.
+
+
+---
+
 ## Note on D-035
 
 `D-035` was never issued — it does not appear anywhere in this repo's history.
