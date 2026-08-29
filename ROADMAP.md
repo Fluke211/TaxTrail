@@ -119,6 +119,16 @@ what blocks what, not by size.
 
 ### Store submission
 
+- [ ] **Cut build 4 before submitting — the binary embeds stale JS.** Build 3
+      was compiled at js r12, and that bundle is what a brand-new install runs
+      until `expo-updates` fetches and applies the OTA on the *second* launch.
+      Confirmed on device 2026-08-29: Tyler deleted and reinstalled from
+      TestFlight and the footer read `build 3 · js r12`. For a TestFlight
+      tester that is a shrug; for an App Store user's first session it means
+      the old parser, the pre-rename category names, and no migration. The
+      submitted binary should embed current JS. **Costs one EAS build credit
+      and needs Tyler's explicit go** (CLAUDE.md)
+
 - [ ] Screenshots — **screenshot 2 is the privacy-label comparison** against
       Keeper / QuickBooks / Wave; that contrast is the entire pitch
 - [ ] App Privacy questionnaire answers (drafted in `docs/APP_STORE_LISTING.md`)
