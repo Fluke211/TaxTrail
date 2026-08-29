@@ -194,6 +194,13 @@ artifact, purchases work against the matching bundle identifier, and JS changes
 still land in seconds without a build or a review. TestFlight builds expire
 after 90 days.
 
+**Workflow inputs never reach the shell directly.** Every one is passed through
+`env:` and read as `"$VAR"`. A `${{ inputs.x }}` written inline is substituted
+into the script *before* bash parses it, so an update message containing
+`$1000` became a shell expansion and killed a publish under `set -u`. The same
+hole would let arbitrary text run commands in a job holding `EXPO_TOKEN` and an
+Apple signing key, so this is a rule rather than a preference.
+
 **Publish it with `step: update` and the `update_branch` input** (defaults to
 `production`). That input exists because the step used to hardcode
 `--branch development` and therefore *could not* reach TestFlight at all — the
