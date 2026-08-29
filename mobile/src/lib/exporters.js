@@ -87,6 +87,24 @@
   // single-line codes do not.
   var TXF_FORMAT_3 = { 302: true };
 
+  // Expense refnums carry Sgn=E, so the normal sign is "-". Negating the sum
+  // rather than prefixing a literal "-" matters because a category total CAN
+  // be negative: CaptureScreen stores the split remainder as
+  // total - sum(allocations) with no cap, so a $50 receipt split into two $30
+  // parts saves a -$10 allocation. String concatenation then emitted
+  // "$--10.00", a malformed record that an importer has no way to read.
+  //
+  // Negating also gives the right answer for that case rather than merely a
+  // well-formed one: a category that nets to a credit belongs on the expense
+  // line as a positive number, which is the same thing GnuCash does when it
+  // calls gnc-numeric-neg on the way out.
+  function txfAmount(sum) {
+    var v = -Number(sum);
+    if (!isFinite(v)) v = 0;
+    // "-0.00" is not a number any importer should have to interpret.
+    return '$' + (v === 0 ? 0 : v).toFixed(2);
+  }
+
   function buildTXF(rows, exportDate, appVersion) {
     var byCode = {}, skipped = 0;
     rows.forEach(function (r) {
@@ -117,14 +135,14 @@
         // the format exists to carry.
         Object.keys(entry.byCat).sort().forEach(function (cat, i) {
           out.push('TS', 'N' + code, 'C1', 'L' + (i + 1),
-            '$-' + entry.byCat[cat].toFixed(2), 'P' + ascii(cat), '^');
+            txfAmount(entry.byCat[cat]), 'P' + ascii(cat), '^');
         });
       } else {
         // Format 1 is exactly T, N, C, L, $. No X: the spec only ever shows X
         // on TD detail records, where it is a fixed-column layout beginning
         // with a space and a date — a bare category name there is text sitting
         // where an importer expects a date.
-        out.push('TS', 'N' + code, 'C1', 'L1', '$-' + entry.sum.toFixed(2), '^');
+        out.push('TS', 'N' + code, 'C1', 'L1', txfAmount(entry.sum), '^');
       }
     });
     return { content: out.join('\r\n') + '\r\n', codes: Object.keys(byCode).length, skipped: skipped };

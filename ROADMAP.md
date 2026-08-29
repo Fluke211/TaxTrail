@@ -95,6 +95,9 @@ what blocks what, not by size.
       (`wx TOTAL`). The first was a real defect — the total was recovered on
       only 12.6% of receipts carrying it — and is fixed; the second was
       already handled and is now pinned
+- [x] **Receipt splitting could exceed the receipt** (D-049) — found while
+      hardening something the export audit called unreachable. It was
+      reachable: the negative came from subtraction, not from typing a minus
 - [ ] Fix whatever the score run flags, with a fixture per bug
 - [ ] **Costco receipts land Uncategorized / low-confidence** — both real
       Costco dumps get the *amounts* right but the merchant line is OCR
