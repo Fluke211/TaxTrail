@@ -11,6 +11,20 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### Staged — v1.0.0 (build 3) · js r15
+
+Two parser fixes, both found by the new synthetic corpus (D-041), both
+affecting real receipts:
+
+- **A printed tax rate is no longer read as the tax.** `TAX 8.25%  3.71`
+  returned `8.25`. US receipts print the rate on the tax line constantly
+- **Amounts over $999 no longer lose their leading digits.** `1124.06` parsed
+  as `124.06`, and `12345.67` as `345.67` — a $12,345 purchase recorded as
+  $345, with no error anywhere. This is the more serious of the two
+- `npm run test:synth` — thousands of generated receipts with exact ground
+  truth, scored per format against a committed baseline. 30 unit tests, up
+  from 23
+
 ### OTA — v1.0.0 (build 3) · js r13 — 2026-08-26
 
 - **Tab bar uses Ionicons instead of emoji**, outline when inactive and solid

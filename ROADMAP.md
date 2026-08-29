@@ -50,9 +50,19 @@ what blocks what, not by size.
 
 ### Parser quality
 
-- [ ] **Grow the corpus.** Tyler scans real receipts, exports Summary ->
+- [x] **Synthetic corpus** (D-041) — `npm run test:synth` scores the parser over
+      thousands of generated receipts with exact ground truth. Found and fixed
+      two real bugs on its first run, including amounts over $999 losing their
+      leading digits.
+- [ ] **Open product question: does a tip count toward the receipt total?**
+      The parser takes the printed `TOTAL`, which on a restaurant slip is
+      pre-tip. For a tax app the deductible figure is what was actually paid, so
+      meals may be systematically under-deducted. Currently reported separately
+      by `test:synth` rather than treated as a bug.
+- [ ] **Grow the real corpus.** Tyler scans real receipts, exports Summary ->
       *Parser diagnostics*, and the dump lands in `mobile/__tests__/corpus/`.
-      `npm run test:score` turns it into a number that can be moved.
+      Still the only on-distribution data — synthetic supplements it, never
+      replaces it.
 - [ ] Fix whatever the score run flags, with a fixture per bug
 
 ### Polish
