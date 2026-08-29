@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 3) · js r17** | On TestFlight. r17 carries the pre-launch correctness batch (D-045 … D-048) |
+| iOS app (`mobile/`) | **v1.0.0 (build 3) · js r18** | On TestFlight. r18 adds the Business Meals rename + migration and Schedule C line 20a (D-050) |
 
 ---
 
@@ -40,8 +40,7 @@ no native build was needed. The Summary footer should read
    remaining unknown in the product.
 4. **Real receipts** for the corpus, via Summary → Parser diagnostics. The
    synthetic corpus supplements it and never replaces it.
-5. **One test email** to `support@taxtrail.app`.
-6. **Small Business Program** acceptance (applied; Apple quotes over a month).
+5. **Small Business Program** acceptance (applied; Apple quotes over a month).
 
 ---
 

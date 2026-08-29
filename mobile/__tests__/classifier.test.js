@@ -33,7 +33,7 @@ check('credit -A ignored', C.parseReceipt('STORE\nCOUPON 5.00-A\nTOTAL DUE 41.25
 
 // Classification sanity
 const meal = C.parseReceipt('The Rusty Grill\n123 Main St\nBURGER 12.99\nGRATUITY 3.00\nTOTAL 25.77');
-check('meal categorized', meal.category === 'Meals & Entertainment', meal.category);
+check('meal categorized', meal.category === 'Business Meals', meal.category);
 
 // Exporters (mobile copy)
 const X = require('../src/lib/exporters.js');
@@ -413,6 +413,90 @@ check('prorate: parts always sum to the whole, over many shapes', (function () {
   }
   return true;
 })());
+// ---------------------------------------------------------------------------
+// Renaming a category is a data migration (D-050).
+//
+// "Meals & Entertainment" became "Business Meals" because entertainment has
+// been nondeductible since the TCJA and the Schedule C instructions say twice
+// "Do not include entertainment expenses on this line" — the old name invited
+// filing an entertainment receipt into a 50%-deductible bucket.
+//
+// The name is a string on every saved receipt AND inside every allocation AND
+// inside every exported archive, so the old name keeps arriving forever.
+check('rename: the old name maps to the new one',
+  C.canonicalCategory('Meals & Entertainment') === 'Business Meals');
+check('rename: an unrelated category passes through untouched',
+  C.canonicalCategory('Insurance') === 'Insurance');
+check('rename: surrounding whitespace still resolves',
+  C.canonicalCategory('  Meals & Entertainment  ') === 'Business Meals');
+check('rename: null and undefined do not throw',
+  C.canonicalCategory(null) === null && C.canonicalCategory(undefined) === undefined);
+check('rename: the old name is gone from the category list',
+  C.CATEGORIES.every(function (c) { return c.name !== 'Meals & Entertainment'; }));
+check('rename: the new category kept the TXF code', C.TXF_CODES['Business Meals'] === 294);
+check('rename: the old name has no TXF code', C.TXF_CODES['Meals & Entertainment'] === undefined);
+check('rename: a restaurant receipt lands in Business Meals',
+  C.parseReceipt('THE RUSTY GRILL\nSERVER: MAY\nTOTAL 42.00').category === 'Business Meals');
+
+// The label now matches the form. The 2025 instructions head this line
+// "Deductible meals" and state "In most cases, the percentage is 50%".
+check('rename: the label matches the 2025 form wording',
+  C.CATEGORIES.filter(function (c) { return c.name === 'Business Meals'; })[0].scheduleC
+    === 'Line 24b — Deductible meals (50%)');
+
+// The migration rewrites allocations with a plain string replace on the QUOTED
+// JSON form. This asserts the assumption that makes that safe: only the
+// category value changes, the result is still valid JSON, and a Schedule C
+// label or note mentioning the same words is untouched.
+const allocBefore = JSON.stringify([
+  { category: 'Meals & Entertainment', scheduleC: 'Line 24b — Meals (50% deductible)', amount: 12.34 },
+  { category: 'Insurance', scheduleC: 'Line 15 — Insurance', amount: 5 },
+]);
+const allocAfter = allocBefore.split(JSON.stringify('Meals & Entertainment'))
+  .join(JSON.stringify('Business Meals'));
+const reparsed = JSON.parse(allocAfter);
+check('migration: allocation category is rewritten', reparsed[0].category === 'Business Meals');
+check('migration: the amount is untouched', reparsed[0].amount === 12.34);
+check('migration: a label mentioning the same words is untouched',
+  reparsed[0].scheduleC === 'Line 24b — Meals (50% deductible)');
+check('migration: other allocations are untouched',
+  reparsed[1].category === 'Insurance' && reparsed[1].amount === 5);
+
+// Restore must map on the way in, or an old archive resurrects a category that
+// no longer exists — and would export with no TXF code at all.
+const oldArchive = RP.planRestore([{
+  merchant: 'The Rusty Grill', date: '2026-07-01', total: 42,
+  category: 'Meals & Entertainment',
+  allocations: [{ category: 'Meals & Entertainment', scheduleC: '', amount: 42 }],
+}], new Set(), NOW);
+check('restore: an old archive imports under the new name',
+  oldArchive.toImport[0].category === 'Business Meals');
+check('restore: allocations inside an old archive are mapped too',
+  oldArchive.toImport[0].allocations[0].category === 'Business Meals');
+
+// ---------------------------------------------------------------------------
+// Schedule C line 20a — the one uncovered line that is actually receipt-shaped.
+//
+// The 2025 instructions split line 20 cleanly: "If you rented or leased
+// vehicles, machinery, or equipment, enter on line 20a" vs "Enter on line 20b
+// amounts paid to rent or lease other property, such as office space in a
+// building." Renting a lift produces a receipt; a mortgage interest statement
+// and a pension plan filing do not, which is why those lines stay uncovered.
+check('20a: the category exists and names the right line',
+  C.CATEGORIES.filter(function (c) { return c.name === 'Equipment Rental'; })[0].scheduleC
+    === 'Line 20a — Rent/lease: vehicles, machinery, equipment');
+check('20a: refnum 299 ("Rent on vehicles, mach, eq")', C.TXF_CODES['Equipment Rental'] === 299);
+check('20a: an equipment rental receipt lands there',
+  C.parseReceipt('SUNBELT RENTALS\nSCISSOR LIFT\nTOTAL 240.00').category === 'Equipment Rental',
+  C.parseReceipt('SUNBELT RENTALS\nSCISSOR LIFT\nTOTAL 240.00').category);
+// 20b is space, and must not be pulled into 20a by the new keywords.
+check('20b: office space rent still lands in Rent & Lease',
+  C.parseReceipt('REGUS\nOFFICE RENT\nMONTHLY RENT\nTOTAL 800.00').category === 'Rent & Lease',
+  C.parseReceipt('REGUS\nOFFICE RENT\nMONTHLY RENT\nTOTAL 800.00').category);
+// A car rented on a business trip is travel (24a), not 20a. Left deliberately.
+check('24a: a rental car on a trip still lands in Travel',
+  C.parseReceipt('HERTZ\nRENTAL CAR\nTOTAL 310.00').category === 'Travel & Lodging',
+  C.parseReceipt('HERTZ\nRENTAL CAR\nTOTAL 310.00').category);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -11,6 +11,25 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### OTA — v1.0.0 (build 3) · js r18 — 2026-08-29
+
+- **"Meals & Entertainment" is now "Business Meals"** (D-050). Entertainment
+  has been nondeductible since the TCJA and the Schedule C instructions say
+  twice not to put it on that line, so the old name invited scanning an
+  entertainment receipt into a 50%-deductible bucket. The label now matches the
+  form's own wording: "Line 24b — Deductible meals (50%)"
+- **Existing receipts are migrated.** There was no migration mechanism at all
+  before this; added a `PRAGMA user_version` runner. The rename rewrites the
+  category on every row and inside every allocation, and refreshes the stored
+  Schedule C label
+- **Archives exported before the rename still import correctly.** Restore maps
+  old category names through the same alias table, so an old backup lands under
+  the new name instead of resurrecting a category with no TXF code
+- **New category: Equipment Rental → Schedule C line 20a**, TXF refnum 299.
+  The line-coverage audit found it was the only uncovered Part II line that is
+  actually receipt-shaped — renting a lift or a trencher produces a receipt.
+  Office and storage rent stay on 20b; rental cars stay in Travel (24a)
+
 ### OTA — v1.0.0 (build 3) · js r17 — 2026-08-29
 
 The pre-launch correctness batch. Everything below shipped in this revision.

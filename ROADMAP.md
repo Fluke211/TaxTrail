@@ -128,12 +128,18 @@ what blocks what, not by size.
       "29 categories" was wrong (28 are selectable; the 29th is
       "Uncategorized"), and the QuickBooks wording promised Desktop users a
       format Desktop cannot import. Both corrected; the rest verified accurate
-- [ ] **Rename "Meals & Entertainment" to "Business Meals"** — entertainment
-      has been nondeductible since the TCJA and the instructions say twice not
-      to put it on that line, so the label invites miscategorization into a
-      50%-deductible bucket. Needs a data migration (the name is stored on
-      every receipt and allocation), so it is Tyler's call, not an unattended
-      edit
+- [x] **Renamed "Meals & Entertainment" to "Business Meals"** (D-050), with a
+      real migration: a `PRAGMA user_version` runner (there was none before),
+      plus alias mapping on archive restore so old backups still import
+- [x] **Schedule C line coverage audited against the 2025 form** (D-050). One
+      real gap — line 20a — now covered by a new **Equipment Rental** category
+      (TXF 299). Four lines stay uncovered on purpose because they are not
+      receipt-shaped: 12 depletion, 16a mortgage interest (Form 1098), 19
+      pension plans, 27a Form 7205
+- [ ] **Decide where moving trucks belong** — U-Haul/Penske/Ryder are a
+      vehicle rental by the letter of line 20a but a travel cost in practice.
+      Left where they land today rather than moved on a coin flip; a keyword
+      addition either way
 
 ### Engineering hygiene
 

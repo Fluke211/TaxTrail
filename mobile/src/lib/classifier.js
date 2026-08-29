@@ -12,8 +12,13 @@
   // ---- Category definitions (keyword → Schedule C-friendly category) ----
   var CATEGORIES = [
     {
-      name: 'Meals & Entertainment', group: 'Everyday Operations',
-      scheduleC: 'Line 24b — Meals (50% deductible)',
+      // Renamed from "Meals & Entertainment" (D-050). Entertainment has been
+      // nondeductible since the TCJA, and the Schedule C instructions say so
+      // twice — "Do not include entertainment expenses on this line" — so the
+      // old name invited filing an entertainment receipt into a 50%-deductible
+      // bucket. Old data is migrated; see CATEGORY_ALIASES below.
+      name: 'Business Meals', group: 'Everyday Operations',
+      scheduleC: 'Line 24b — Deductible meals (50%)',
       keywords: ['restaurant', 'cafe', 'caffe', 'coffee', 'espresso', 'grill', 'diner', 'bistro',
         'pizza', 'pizzeria', 'sushi', 'taco', 'burger', 'bbq', 'steakhouse', 'bakery', 'deli',
         'starbucks', 'mcdonald', 'chipotle', 'subway', 'wendy', 'chick-fil-a', 'chickfila',
@@ -96,6 +101,26 @@
       scheduleC: 'Line 20b — Rent/lease, other business property',
       keywords: ['rent due', 'monthly rent', 'lease payment', 'storage unit', 'self storage',
         'public storage', 'coworking', 'wework', 'regus', 'office rent', 'booth rent']
+    },
+    {
+      // Line 20a was the one Schedule C expense line with no category at all,
+      // and unlike the other four gaps (depletion, mortgage interest, pension
+      // plans, Form 7205) it is receipt-shaped: renting a trencher or a lift
+      // produces a receipt you photograph. The instructions draw the line
+      // cleanly — 20a is "vehicles, machinery, or equipment", 20b is "other
+      // property, such as office space in a building" — so this sits beside
+      // Rent & Lease rather than replacing any of it.
+      //
+      // Deliberately NOT claiming rental cars: a car rented while away from
+      // home on business is a travel expense (24a), and those merchants stay
+      // in Travel & Lodging. Moving trucks are the genuinely ambiguous case
+      // and are left where they land today.
+      name: 'Equipment Rental', group: 'Facilities',
+      scheduleC: 'Line 20a — Rent/lease: vehicles, machinery, equipment',
+      keywords: ['equipment rental', 'tool rental', 'rental yard', 'sunbelt rentals',
+        'united rentals', 'herc rentals', 'equipment lease', 'machinery rental',
+        'scissor lift', 'boom lift', 'skid steer', 'excavator rental',
+        'generator rental', 'rented equipment', 'rental return', 'day rate rental']
     },
     {
       name: 'Repairs & Maintenance', group: 'Facilities',
@@ -631,6 +656,28 @@
 
   // ---- TXF (Tax Exchange Format v042) Schedule C expense codes ----
   // Verified against the TXF v042 specification (taxdataexchange.org).
+  // ---- Renamed categories ----
+  //
+  // A category name is not just a label: it is stored as a string on every
+  // saved receipt, inside every allocation, and inside every exported archive.
+  // So renaming one is a data migration, and the old name keeps arriving
+  // forever afterwards from archives exported before the change.
+  //
+  // This map is the single place a rename is recorded. The SQLite migration
+  // rewrites stored rows from it, and restore rewrites imported rows through
+  // it, so an archive from before the rename lands under the new name instead
+  // of quietly recreating a category that no longer exists.
+  var CATEGORY_ALIASES = {
+    'Meals & Entertainment': 'Business Meals'
+  };
+
+  function canonicalCategory(name) {
+    if (name == null) return name;
+    var key = String(name).trim();
+    return Object.prototype.hasOwnProperty.call(CATEGORY_ALIASES, key)
+      ? CATEGORY_ALIASES[key] : name;
+  }
+
   var TXF_CODES = {
     'Advertising & Marketing': 304,
     'Car & Truck / Fuel': 306,
@@ -641,11 +688,13 @@
     'Professional Services': 298,
     'Office Supplies': 313,
     'Rent & Lease': 300,
+    // 299 "Rent on vehicles, mach, eq" -> 2011:C:20a, per the v042 refnum table.
+    'Equipment Rental': 299,
     'Repairs & Maintenance': 315,
     'Supplies & Materials': 301,
     'Taxes & Licenses': 316,
     'Travel & Lodging': 317,
-    'Meals & Entertainment': 294,
+    'Business Meals': 294,
     'Utilities & Phone': 318,
     'Wages & Payroll': 297,
     // Postage is line 18, not "other". The Line 18 instruction is one sentence:
@@ -737,6 +786,8 @@
     taxFormOf: taxFormOf,
     formSortKey: formSortKey,
     TXF_CODES: TXF_CODES,
+    CATEGORY_ALIASES: CATEGORY_ALIASES,
+    canonicalCategory: canonicalCategory,
     CATEGORIES: CATEGORIES.map(function (c) { return { name: c.name, scheduleC: c.scheduleC, group: c.group || 'Other' }; })
       .concat([{ name: 'Uncategorized', scheduleC: 'Review manually', group: 'Not Schedule C' }]),
     GROUP_ORDER: ['Everyday Operations', 'Vehicle & Travel', 'Facilities', 'People & Services',
