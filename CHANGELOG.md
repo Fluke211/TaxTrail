@@ -11,6 +11,19 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### OTA — v1.0.0 (build 3) · js r19 — 2026-08-29
+
+- **"Manage subscription" in the Summary export card**, shown only to
+  subscribers. Opens the App Store's own sheet via
+  `Purchases.showManageSubscriptions()`.
+
+  Found while testing: Apple gives no way to cancel a subscription bought
+  through TestFlight with a real Apple Account. Settings → Subscriptions does
+  not list it, and App Store Connect's "Clear Purchase History" only works on
+  sandbox testers — the only other exit is waiting out six accelerated
+  renewals. It is also the right thing to ship: a subscriber who cannot find
+  the cancel button asks for a refund instead of finding it
+
 ### OTA — v1.0.0 (build 3) · js r18 — 2026-08-29
 
 - **"Meals & Entertainment" is now "Business Meals"** (D-050). Entertainment
