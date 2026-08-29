@@ -1890,3 +1890,54 @@ shares and rounding once at the end, which is defensible in isolation and gives
 a mathematically exact total — but it would then disagree with the CSV by a
 cent, and the CPA reconciling the two has no way to tell which is right. One
 number, computed one way.
+
+## D-049
+
+**Splitting a receipt could exceed it, and the screen said otherwise**
+(2026-08-29)
+
+Found while hardening a latent issue the export audit flagged as "currently
+unreachable". It was reachable, and the path was two lines apart in the same
+file.
+
+`addSplit` checked only that the entered amount was positive. Nothing compared
+the running total of the splits against the receipt. `save()` then stored the
+leftover as `total - sum(allocations)`, so a **$50 receipt split into two $30
+parts saved a -$10 allocation**.
+
+The screen actively concealed it. The remainder hint read:
+
+```
+Remainder ${Math.max(0, totalNum - allocated).toFixed(2)} stays under "..."
+```
+
+The `Math.max(0, ...)` clamped the *display* while `save()` stored the raw
+negative — so the app said "Remainder $0.00" at the exact moment it was about
+to write minus ten dollars. A user had no way to see the problem.
+
+Downstream, `buildTXF` built its amount as `'$-' + sum.toFixed(2)`, which for a
+negative sum concatenated into **`$--10.00`** — a malformed record an importer
+cannot read, in the file whose whole job is to be read by other software.
+Reproduced before fixing.
+
+Three fixes, because each layer should hold on its own:
+
+1. **`addSplit` caps a split at what is left**, and says how much that is rather
+   than silently refusing.
+2. **The hint tells the truth.** No clamp; a negative remainder shows as
+   negative.
+3. **`buildTXF` negates rather than prefixing.** `'$' + (-sum).toFixed(2)`
+   cannot produce `$--`, and it gives the *right* answer as well as a
+   well-formed one: expense refnums carry `Sgn=E`, so a category that nets to a
+   credit belongs on the expense line as a positive number. This is what GnuCash
+   does when it calls `gnc-numeric-neg` on the way out.
+
+Layer 3 is not redundant with layer 1. `planRestore` accepts whatever a restored
+archive contains, so the exporter cannot assume the UI has already validated the
+numbers.
+
+**The lesson worth keeping:** the audit called this unreachable because the
+amount fields use `keyboardType="decimal-pad"`, which has no minus key. That was
+true and irrelevant — the negative was produced by *subtraction*, not typed. When
+a report says a bad value is unreachable, check every arithmetic path that
+constructs one, not just the inputs that accept one.

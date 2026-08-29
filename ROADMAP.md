@@ -61,8 +61,13 @@ what blocks what, not by size.
             categories exported as $0.99 and $0.01 across two exported as
             $0.02. Now largest-remainder in whole cents, and the Summary
             screen uses the same split so the app and the file agree
-      - [ ] CPA CSV and XLSX: column headers and form grouping (the sales-tax
-            split above is done)
+      - [x] CPA CSV and XLSX: headers, form grouping and money formatting.
+            The workbook was built and read back rather than eyeballed — the
+            two files share one header row, the form grouping and within-form
+            ordering are correct, and the business sales-tax figure now comes
+            out at exactly $1.00 on the split-receipt case that used to give
+            $0.99. Money columns are now written with a number format, so a
+            CPA reads 10.00 rather than 10
       - [ ] End-to-end import into at least one real package. **This is the
             part no amount of spec-reading substitutes for** — it needs Tyler
             or a trial licence.
@@ -90,6 +95,9 @@ what blocks what, not by size.
       (`wx TOTAL`). The first was a real defect — the total was recovered on
       only 12.6% of receipts carrying it — and is fixed; the second was
       already handled and is now pinned
+- [x] **Receipt splitting could exceed the receipt** (D-049) — found while
+      hardening something the export audit called unreachable. It was
+      reachable: the negative came from subtraction, not from typing a minus
 - [ ] Fix whatever the score run flags, with a fixture per bug
 - [ ] **Costco receipts land Uncategorized / low-confidence** — both real
       Costco dumps get the *amounts* right but the merchant line is OCR

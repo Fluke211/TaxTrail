@@ -378,16 +378,37 @@ procedure above.
 
 ## Parser fixes
 
-The classifier is shared between the PWA and the app and must stay in sync.
+`mobile/src/lib/classifier.js` is the only copy that matters. **Do not port
+anything back into `index.html`** — the PWA was retired at v5.5 (D-021) and
+CLAUDE.md forbids touching it. This section used to say otherwise; it was wrong.
 
 1. Add a regression fixture to `mobile/__tests__/` reproducing the bug. **Every
    reported parser bug gets a fixture** — that suite is the only thing keeping
-   the shared classifier honest.
+   the classifier honest.
 2. Fix `mobile/src/lib/classifier.js`.
-3. `npm run test:unit` — all green.
-4. Port the same fix to `index.html` (the PWA inlines its own copy), or
-   re-extract if the PWA is ahead.
+3. `npm run test:unit` and `npm run test:synth` — both green, and the synthetic
+   run must report no regressions against its baseline.
+4. **Prove the fixture actually tests the fix.** `git stash push --
+   src/lib/classifier.js`, re-run the suite, confirm the new tests FAIL, then
+   `git stash pop`. A test that passes before and after documents behaviour
+   rather than pinning a fix, which is worth knowing either way — but you
+   should know which one you wrote.
 5. Ship via OTA. Bump `JS_REVISION`.
+
+### When the synthetic corpus goes quiet
+
+If `npm run test:synth` reports 100% on every axis, it has stopped measuring the
+parser and started measuring the generator. **Take the next hard case from
+`__tests__/corpus/` — real Vision output — not from imagination.** That is how
+the spaced decimal (`1. 49`) was found: it was sitting in `costco-1.txt` the
+whole time, and the parser recovered the total on 12.6% of receipts carrying it
+(D-045).
+
+Add it as a named axis in `scripts/synth-corpus.js` and score it in
+`scripts/score-synthetic.js`, so a failure names the format rather than the
+receipt. Expect roughly half your guesses to be wrong — of the two axes added in
+D-045, one was a real defect and the other was already handled. That is the
+reason to measure both instead of fixing the one you assumed.
 
 ---
 

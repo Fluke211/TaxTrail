@@ -147,9 +147,16 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
     const total = parseFloat(pending.total) || 0;
     const salesTax = parseFloat(pending.salesTax);
     const merchant = pending.merchant.trim() || 'Unknown merchant';
-    const remainder = total - allocs.reduce((s, a) => s + a.amount, 0);
+    // Splits are capped at the receipt total (D-049), so the leftover cannot be
+    // negative. It CAN be exactly zero when the splits account for the whole
+    // receipt — and a $0.00 allocation would then become a $0.00 line in the
+    // CPA export, which is clutter a human has to read past and decide is
+    // nothing. Nothing left over means nothing to file under the base category.
+    const remainder = Math.round((total - allocs.reduce((s, a) => s + a.amount, 0)) * 100) / 100;
     const fullAllocs: Allocation[] = allocs.length
-      ? [{ category: pending.category, scheduleC: SC_BY_NAME[pending.category] || '', amount: Math.round(remainder * 100) / 100 }, ...allocs]
+      ? (remainder > 0
+        ? [{ category: pending.category, scheduleC: SC_BY_NAME[pending.category] || '', amount: remainder }, ...allocs]
+        : [...allocs])
       : [];
     const id = await addReceipt({
       createdAt: new Date().toISOString(),
@@ -192,21 +199,53 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
     void id;
   }, [pending, notes, allocs, onSaved]);
 
+  // Declared here rather than just above the render, because addSplit needs the
+  // receipt total to cap a split against it.
+  const allocated = allocs.reduce((s, a) => s + a.amount, 0);
+  const totalNum = pending ? parseFloat(pending.total) || 0 : 0;
+
   const addSplit = useCallback(() => {
     if (!pending) return;
     const amt = parseFloat(splitAmt);
     if (!amt || amt <= 0) return;
     const rate = pending.taxRate || 0;
     const withTax = splitTax && rate > 0;
+    const amount = Math.round(amt * (withTax ? 1 + rate : 1) * 100) / 100;
+
+    // Splits must not exceed the receipt. Nothing used to stop them: save()
+    // stores the leftover as total - sum(allocations), so two $30 splits on a
+    // $50 receipt saved a -$10 allocation. That negative flowed into every
+    // export — the TXF file got a malformed "$--10.00" record — and the
+    // remainder hint clamped itself to $0.00, so the screen said the split
+    // balanced when it did not.
+    // A blank or unparsed total is a different problem from an over-split one,
+    // and saying "the whole receipt is already split" when no total was read
+    // sends the user looking for splits that are not there.
+    if (totalNum <= 0) {
+      Alert.alert('Set the receipt total first',
+        'Splits are measured against the total, so enter it above before splitting.');
+      return;
+    }
+    const left = Math.round((totalNum - allocated) * 100) / 100;
+    if (amount > left) {
+      Alert.alert(
+        'That is more than the receipt',
+        left <= 0
+          ? 'The whole receipt is already split. Remove a split first.'
+          : `Only $${left.toFixed(2)} of this $${totalNum.toFixed(2)} receipt is left to split.`
+      );
+      return;
+    }
+
     const alloc: Allocation = {
       category: splitCat,
       scheduleC: SC_BY_NAME[splitCat] || '',
-      amount: Math.round(amt * (withTax ? 1 + rate : 1) * 100) / 100,
+      amount,
       ...(withTax ? { base: amt, tax: Math.round(amt * rate * 100) / 100 } : {}),
     };
     setAllocs((a) => [...a, alloc]);
     setSplitAmt('');
-  }, [pending, splitAmt, splitCat, splitTax]);
+  }, [pending, splitAmt, splitCat, splitTax, allocated, totalNum]);
 
   const splitPreview = useMemo(() => {
     const amt = parseFloat(splitAmt);
@@ -216,9 +255,6 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
     const tax = amt * rate;
     return `$${amt.toFixed(2)} + $${tax.toFixed(2)} tax = $${(amt + tax).toFixed(2)}`;
   }, [pending, splitAmt, splitTax]);
-
-  const allocated = allocs.reduce((s, a) => s + a.amount, 0);
-  const totalNum = pending ? parseFloat(pending.total) || 0 : 0;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -348,7 +384,8 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
                 </Pressable>
                 {allocs.length > 0 && (
                   <Text style={s.hint}>
-                    Remainder ${Math.max(0, totalNum - allocated).toFixed(2)} stays under “{pending.category}”.
+                    Remainder ${(Math.round((totalNum - allocated) * 100) / 100).toFixed(2)} stays
+                    under “{pending.category}”.
                   </Text>
                 )}
               </View>

@@ -105,6 +105,28 @@ check('TXF format 3: one record per category, P line, incrementing L',
   other.content === OTHER_EXPECT, JSON.stringify(other.content));
 check('TXF: no X line on a summary record', other.content.indexOf('\r\nX') === -1);
 
+// A category total CAN go negative, and the export used to emit a malformed
+// record when it did. CaptureScreen stored the split remainder as
+// total - sum(allocations) with nothing capping the splits, so a $50 receipt
+// split into two $30 parts saved a -$10 allocation; the amount was then built
+// by concatenating "$-" onto "-10.00", giving "$--10.00". An importer has no
+// way to read that. (The UI now caps a split at what is left, but restored
+// archives can carry anything, so the exporter must not depend on that.)
+const negRows = [
+  { date: '2026-07-01', merchant: 'Home Depot', amount: -10.00, category: 'Supplies & Materials', sc: '', notes: '', rid: 'R1', split: '1 of 3', business: true, taxPortion: null },
+  { date: '2026-07-01', merchant: 'Home Depot', amount: 30.00, category: 'Advertising & Marketing', sc: '', notes: '', rid: 'R1', split: '2 of 3', business: true, taxPortion: null },
+];
+const neg = X.buildTXF(negRows, new Date(2026, 7, 1), 'v');
+check('TXF: a negative category total never emits "$--"', neg.content.indexOf('$--') === -1, neg.content);
+// Sgn=E means the normal sign is "-", so negating is not just well-formed, it
+// is right: a category that nets to a credit belongs on the expense line as a
+// positive number. Same thing GnuCash does via gnc-numeric-neg.
+check('TXF: a credit reads as a positive amount on the expense line',
+  neg.content.includes('$10.00') && neg.content.includes('$-30.00'), neg.content);
+check('TXF: zero never prints as "-0.00"',
+  X.buildTXF([{ date: '2026-07-01', merchant: 'M', amount: 0, category: 'Supplies & Materials', sc: '', notes: '', rid: 'R1', split: '', business: true, taxPortion: null }],
+    new Date(2026, 7, 1), 'v').content.includes('$0.00'));
+
 // Postage is Schedule C line 18 ("Include on this line your expenses for
 // office supplies and postage"), which is refnum 313 — not the 302 catch-all.
 // Employee benefits is line 14, refnum 308, which is what the app's own

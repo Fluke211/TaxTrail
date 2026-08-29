@@ -11,6 +11,10 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### OTA — v1.0.0 (build 3) · js r17 — 2026-08-29
+
+The pre-launch correctness batch. Everything below shipped in this revision.
+
 ### Exports — 2026-08-29
 
 Audit of every package-specific export against its spec (D-046). Five real
@@ -56,6 +60,19 @@ defects; the one with the most at stake turned out to be already correct.
   was already handled correctly; it is pinned so it stays that way
 - CI now runs `test:synth` on every PR
 
+### Receipt splitting — 2026-08-29
+
+- **A split could exceed the receipt, and the screen hid it.** Nothing capped
+  the running total, so a $50 receipt split into two $30 parts saved a **-$10**
+  allocation — while the remainder hint clamped itself to "$0.00" and reported
+  the split as balanced. Splits are now capped, and the hint shows the real
+  remainder (D-049)
+- **The TXF file could contain a malformed amount.** A negative category total
+  concatenated into `$--10.00`, which an importer cannot read. The amount is
+  now negated rather than prefixed, so a category netting to a credit reads as
+  a positive number on the expense line — which is also what the spec's `Sgn=E`
+  convention calls for
+
 ### Exports — sales tax (2026-08-29)
 
 - **Splitting a receipt no longer loses or invents cents of sales tax.** Each
@@ -65,6 +82,10 @@ defects; the one with the most at stake turned out to be already correct.
   largest-remainder in whole cents (D-048)
 - The Summary screen uses the same split, so summing the CSV's "Sales Tax
   Portion" column gives exactly the figure the app displays
+- **Excel money columns are formatted as money.** Amounts were written as bare
+  numbers, so a column read 10, 1, 2.5 instead of 10.00, 1.00, 2.50 — harder
+  to scan in the one export built for a human to read down. The "Entries"
+  count is deliberately left as an integer
 
 ### Repository — 2026-08-29
 
