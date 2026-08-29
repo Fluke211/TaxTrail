@@ -490,10 +490,40 @@ jobs:
                       for sub in subs:
                           a = sub.get("attributes", {})
                           state = a.get("state")
+                          pid = a.get("productId")
                           flag = "ok " if state in FETCHABLE else "!! "
-                          print(f"    {flag}{a.get('productId')}  period={a.get('subscriptionPeriod')}  state={state}")
-                          if state not in FETCHABLE:
-                              problems.append(f"{a.get('productId')} is {state}")
+                          print(f"    {flag}{pid}  period={a.get('subscriptionPeriod')}  state={state}")
+                          if state in FETCHABLE:
+                              continue
+                          problems.append(f"{pid} is {state}")
+
+                          # Say which field is missing, not just that one is.
+                          missing = []
+                          c3, d3 = get(f"/v1/subscriptions/{sub['id']}/subscriptionLocalizations?limit=50")
+                          if c3 == 200:
+                              locs = d3.get("data", [])
+                              if not locs:
+                                  missing.append("display name + description (no localizations at all)")
+                              for loc in locs:
+                                  la = loc.get("attributes", {})
+                                  gaps = [f for f in ("name", "description") if not la.get(f)]
+                                  if gaps:
+                                      missing.append(f"{la.get('locale')}: {' and '.join(gaps)}")
+                                  elif "receiptsnap" in str(la.get("name", "")).lower():
+                                      missing.append(f"{la.get('locale')}: name still says ReceiptSnap "
+                                                     f"({la.get('name')!r}) — users see this")
+                          else:
+                              missing.append(f"could not read localizations (HTTP {c3})")
+
+                          c4, d4 = get(f"/v1/subscriptions/{sub['id']}/prices?limit=50")
+                          if c4 == 200:
+                              if not d4.get("data", []):
+                                  missing.append("price (no price set in any territory)")
+                          else:
+                              missing.append(f"could not read prices (HTTP {c4})")
+
+                          for m in missing:
+                              print(f"         needs: {m}")
 
           print("\n=== verdict ===")
           if problems:
