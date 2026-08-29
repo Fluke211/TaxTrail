@@ -337,9 +337,12 @@ jobs:
       - name: Publish EAS Update
         if: inputs.step == 'update'
         working-directory: ${{ github.workspace }}/mobile
+        env:
+          UPDATE_BRANCH: ${{ inputs.update_branch }}
+          UPDATE_MESSAGE: ${{ inputs.update_message }}
         run: |
           set -euo pipefail
-          BRANCH="${{ inputs.update_branch }}"
+          BRANCH="$UPDATE_BRANCH"
           echo "================================================================"
           echo " Publishing to EAS branch/channel: $BRANCH"
           case "$BRANCH" in
@@ -355,7 +358,7 @@ jobs:
           echo "================================================================"
           npx eas-cli@latest update \
             --branch "$BRANCH" \
-            --message "${{ inputs.update_message }}" \
+            --message "$UPDATE_MESSAGE" \
             --non-interactive
           echo "--- channel after publish ---"
           npx eas-cli@latest channel:view "$BRANCH" --non-interactive || true
@@ -707,13 +710,16 @@ jobs:
       - name: EAS build (iOS development client)
         if: inputs.step == 'build'
         working-directory: ${{ github.workspace }}/mobile
+        env:
+          CONFIRM_BUILD: ${{ inputs.confirm_build }}
+          BUILD_PROFILE: ${{ inputs.build_profile }}
         run: |
           set -euo pipefail
-          if [ "${{ inputs.confirm_build }}" != "BUILD" ]; then
+          if [ "$CONFIRM_BUILD" != "BUILD" ]; then
             echo "::error::Build not authorized. Re-run with confirm_build set to BUILD."
             exit 1
           fi
-          PROFILE="${{ inputs.build_profile }}"
+          PROFILE="$BUILD_PROFILE"
           if [ -n "${EXPO_ASC_API_KEY_PATH:-}" ]; then
             echo "Apple auth: App Store Connect API key — credentials can be created non-interactively."
           else
@@ -728,11 +734,13 @@ jobs:
       - name: Submit to App Store Connect (TestFlight)
         if: inputs.step == 'submit'
         working-directory: ${{ github.workspace }}/mobile
+        env:
+          CONFIRM_SUBMIT: ${{ inputs.confirm_submit }}
         run: |
           set -euo pipefail
           # Gated like the build: this uploads a binary to Apple under Tyler's
           # developer account, which is not something to trigger by accident.
-          if [ "${{ inputs.confirm_submit }}" != "SUBMIT" ]; then
+          if [ "$CONFIRM_SUBMIT" != "SUBMIT" ]; then
             echo "::error::Submit not authorized. Re-run with confirm_submit set to SUBMIT."
             exit 1
           fi

@@ -11,6 +11,15 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### Repository — 2026-08-29
+
+- **Workflow inputs no longer reach the shell.** `${{ inputs.* }}` was written
+  inline in four steps, so GitHub substituted the text before bash parsed it: an
+  update message containing `$1000` became a shell expansion and killed the r16
+  publish under `set -u`. Beyond the breakage, that shape lets arbitrary input
+  run commands in a job holding `EXPO_TOKEN` and an Apple signing key. All four
+  now pass through `env:`
+
 ### OTA — v1.0.0 (build 3) · js r16 — 2026-08-29
 
 Two parser fixes, both found by the new synthetic corpus (D-041), both
