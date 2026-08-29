@@ -96,6 +96,23 @@ function ocrNoise(r, line, level) {
   return out;
 }
 
+// Vision routinely puts a space where the decimal point is, so "1.49" arrives
+// as "1. 49". Verbatim from costco-1.txt: "E 1955255 POWER VEG      1. 49 A".
+// Applied to EVERY amount on the receipt, because the artifact comes from the
+// font and the scan, not from the line — a receipt that does it once does it
+// throughout, and a parser that recovers item prices but not the total is no
+// better off.
+function spaceTheDecimal(line) {
+  return line.replace(/(\d)\.(\d{2})(?!\d)/g, '$1. $2');
+}
+
+// A stray glyph fused to the front of the label — "wx TOTAL" in costco-1.txt,
+// where Vision merged a smudge into the word. The label is still legible to a
+// human, so the parser has no excuse.
+function glyphPrefix(r, line) {
+  return pick(r, ['wx ', 'x ', 'a ', '« ', '~ ']) + line;
+}
+
 function pad(left, right, width) {
   const gap = Math.max(2, width - left.length - right.length);
   return left + ' '.repeat(gap) + right;
@@ -144,6 +161,11 @@ function makeReceipt(r, i) {
     tip: false,               // set below — restaurants only
     bigTicket: r() < 0.15,    // four figures, so thousands separators appear
     taxNextLine: r() < 0.15,  // label and rate on one line, amount on the next
+    // Both lifted from costco-1.txt rather than imagined. They were added after
+    // the corpus hit 100% on every axis: a generator the parser aces has
+    // stopped earning its keep, and the real corpus was still failing.
+    spacedCents: r() < 0.12,  // "1. 49" — Vision drops a space on the decimal
+    glyphLabel: r() < 0.12,   // "wx TOTAL" — a smudge fused onto the label
   };
   axes.tip = isRestaurant && r() < 0.6;
 
@@ -230,11 +252,12 @@ function makeReceipt(r, i) {
     L.push(pad(taxLine, M(taxC), W));
   }
 
+  const totalLabel = axes.glyphLabel ? glyphPrefix(r, axes.totalLabel) : axes.totalLabel;
   if (axes.layout === 'next-line') {
-    L.push(axes.totalLabel);
+    L.push(totalLabel);
     L.push(M(totalC));
   } else {
-    L.push(pad(axes.totalLabel, M(totalC), W));
+    L.push(pad(totalLabel, M(totalC), W));
   }
 
   if (axes.tip) {
@@ -253,7 +276,10 @@ function makeReceipt(r, i) {
   const d = new Date(2026, int(r, 0, 11), int(r, 1, 28));
   L.push(`${fmtDate(r, d, axes.dateStyle)}  ${int(r, 0, 23)}:${String(int(r, 0, 59)).padStart(2, '0')}`);
 
-  const text = L.map((l) => ocrNoise(r, l, axes.noise)).join('\n');
+  let text = L.map((l) => ocrNoise(r, l, axes.noise)).join('\n');
+  // Last, so it applies to amounts the other noise has already mangled — the
+  // two artifacts co-occur on the real receipt.
+  if (axes.spacedCents) text = spaceTheDecimal(text);
 
   // On a restaurant slip the printed "TOTAL" is pre-tip and the amount actually
   // paid is the last line. Which of those is "the receipt total" is a product

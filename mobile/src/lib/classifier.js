@@ -67,7 +67,7 @@
     },
     {
       name: 'Software & Subscriptions', group: 'Everyday Operations',
-      scheduleC: 'Line 27a — Other expenses (software)',
+      scheduleC: 'Line 27b — Other expenses (software)',
       keywords: ['adobe', 'microsoft 365', 'office 365', 'quickbooks', 'intuit', 'dropbox',
         'google workspace', 'gsuite', 'zoom.us', 'zoom video', 'slack', 'github', 'godaddy',
         'namecheap', 'squarespace', 'wix', 'shopify', 'canva', 'subscription', 'saas',
@@ -75,7 +75,7 @@
     },
     {
       name: 'Shipping & Postage', group: 'Everyday Operations',
-      scheduleC: 'Line 27a — Other expenses (postage)',
+      scheduleC: 'Line 18 — Office expense (postage)',
       keywords: ['usps', 'postal service', 'fedex', 'ups store', 'ups ground', 'dhl', 'postage',
         'stamps', 'shipping label', 'priority mail', 'first-class', 'parcel']
     },
@@ -93,7 +93,7 @@
     },
     {
       name: 'Rent & Lease', group: 'Facilities',
-      scheduleC: 'Line 20 — Rent or lease',
+      scheduleC: 'Line 20b — Rent/lease, other business property',
       keywords: ['rent due', 'monthly rent', 'lease payment', 'storage unit', 'self storage',
         'public storage', 'coworking', 'wework', 'regus', 'office rent', 'booth rent']
     },
@@ -137,13 +137,13 @@
     },
     {
       name: 'Bank & Merchant Fees', group: 'Financial & Admin',
-      scheduleC: 'Line 27a — Other expenses (bank/merchant fees)',
+      scheduleC: 'Line 27b — Other expenses (bank/merchant fees)',
       keywords: ['bank fee', 'service charge', 'overdraft', 'wire fee', 'merchant fee', 'processing fee',
         'stripe fee', 'square fee', 'paypal fee', 'monthly maintenance fee', 'atm fee']
     },
     {
       name: 'Interest Paid', group: 'Financial & Admin',
-      scheduleC: 'Line 16 — Interest (mortgage/other)',
+      scheduleC: 'Line 16b — Interest, other (16a is mortgage)',
       keywords: ['interest charged', 'finance charge', 'loan interest', 'interest payment', 'apr']
     },
     {
@@ -154,13 +154,13 @@
     },
     {
       name: 'Education & Training', group: 'Financial & Admin',
-      scheduleC: 'Line 27a — Other expenses (education)',
+      scheduleC: 'Line 27b — Other expenses (education)',
       keywords: ['udemy', 'coursera', 'linkedin learning', 'training', 'seminar', 'workshop', 'conference',
         'tuition', 'certification', 'course fee', 'webinar']
     },
     {
       name: 'Dues & Memberships', group: 'Financial & Admin',
-      scheduleC: 'Line 27a — Other expenses (dues)',
+      scheduleC: 'Line 27b — Other expenses (dues)',
       keywords: ['membership dues', 'chamber of commerce', 'association dues', 'trade association',
         'annual dues', 'union dues']
     },
@@ -222,14 +222,41 @@
   // Deliberately does NOT skip "$13.98 @ 6.0%": there the money comes first and
   // the percent belongs to the "@" clause, which the caller handles separately.
   var MONEY_G = new RegExp(MONEY.source, 'g');
-  function matchMoney(line) {
-    if (!line) return null;
-    MONEY_G.lastIndex = 0;
-    var m;
-    while ((m = MONEY_G.exec(line)) !== null) {
-      if (!/^\s*%/.test(line.slice(m.index + m[0].length))) return m;
+
+  // Vision drops a space where the decimal point should be: costco-1.txt has
+  // "POWER VEG      1. 49 A" and "AMOUNT: $140. 35". MONEY does not match
+  // across that space, so such a line contributed NO amount at all — on the
+  // synthetic corpus the total was recovered on only 12.6% of receipts with
+  // this artifact.
+  //
+  // Tried ONLY when the strict pass finds nothing on the line, so no existing
+  // match can change meaning. The separator class deliberately drops "," here:
+  // "Suite 200, 50 Main St" would otherwise read as $200.50, and a comma is
+  // followed by a space in ordinary text constantly. A period is not.
+  var MONEY_SPACED = /\$?\s*((?:[0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]+)[.{}\[\]|] [0-9]{2})(?!\d)/;
+  var MONEY_SPACED_G = new RegExp(MONEY_SPACED.source, 'g');
+
+  // Every non-rate amount on the line, left to right. Callers that want just
+  // one take the first; extractTotal's fallback needs them all, because a
+  // two-column line prints two prices and the larger is the one that counts.
+  function scanMoney(line) {
+    if (!line) return [];
+    var out = [];
+    var re, m;
+    for (var pass = 0; pass < 2; pass++) {
+      re = pass === 0 ? MONEY_G : MONEY_SPACED_G;
+      re.lastIndex = 0;
+      while ((m = re.exec(line)) !== null) {
+        if (!/^\s*%/.test(line.slice(m.index + m[0].length))) out.push(m);
+      }
+      if (out.length) break;
     }
-    return null;
+    return out;
+  }
+
+  function matchMoney(line) {
+    var all = scanMoney(line);
+    return all.length ? all[0] : null;
   }
 
   function normalizeAmount(s) {
@@ -247,12 +274,12 @@
     var candidates = [];
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
-      var m = line.match(MONEY);
+      var m = matchMoney(line);
       for (var h = 0; h < TOTAL_HINTS.length; h++) {
         if (TOTAL_HINTS[h].test(line) && !NOT_TOTAL.test(line)) {
           // amount may be on this line or the next
           var amtLine = m ? line : (lines[i + 1] || '');
-          var m2 = amtLine.match(MONEY);
+          var m2 = matchMoney(amtLine);
           // Ignore credits/discounts printed as "6.30-" or "6.30-A"
           var isCredit = m2 && /-/.test(amtLine.slice(m2.index + m2[0].length, m2.index + m2[0].length + 2));
           if (m2 && !isCredit) {
@@ -274,12 +301,11 @@
     // Fallback: largest money amount on the receipt (skipping credit/discount lines)
     var max = null;
     lines.forEach(function (line) {
-      var re = new RegExp(MONEY.source, 'g'); var m;
-      while ((m = re.exec(line)) !== null) {
-        if (/-/.test(line.slice(m.index + m[0].length, m.index + m[0].length + 2))) continue;
+      scanMoney(line).forEach(function (m) {
+        if (/-/.test(line.slice(m.index + m[0].length, m.index + m[0].length + 2))) return;
         var v = normalizeAmount(m[1]);
         if (v !== null && v > 0 && v < 1000000 && (max === null || v > max)) max = v;
-      }
+      });
     });
     return max;
   }
@@ -622,13 +648,20 @@
     'Meals & Entertainment': 294,
     'Utilities & Phone': 318,
     'Wages & Payroll': 297,
-    // The rest of the business categories flow to "Other business expense"
+    // Postage is line 18, not "other". The Line 18 instruction is one sentence:
+    // "Include on this line your expenses for office supplies and postage."
+    'Shipping & Postage': 313,
+    // 308 is Schedule C line 14, which is what this category's own scheduleC
+    // string already told the user. Sending it to 302 meant the TXF file
+    // contradicted the app's own display of where the money would land.
+    'Employee Benefits': 308,
+    // The rest have no dedicated refnum and genuinely belong in Part V, which
+    // is what "Other business expense" is. Each keeps its own record so the
+    // itemization survives — see buildTXF and D-046.
     'Software & Subscriptions': 302,
-    'Shipping & Postage': 302,
     'Bank & Merchant Fees': 302,
     'Education & Training': 302,
     'Dues & Memberships': 302,
-    'Employee Benefits': 302,
     'General Merchandise': 302,
     'Home Office': null,             // Form 8829 — not a plain Sch C expense code
     'Depreciation / Equipment': null, // Form 4562 — needs asset entry, not a TXF expense

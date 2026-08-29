@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { T } from '../lib/theme';
 import type { Receipt } from '../lib/db';
 import { exportRows, isBusiness, allocationsOf } from '../lib/rows';
+const P = require('../lib/prorate.js');
 import { exportCSV, exportTXF, exportQBO, exportXLSX, exportBackup, exportArchive, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
 import { isPro, presentPaywall } from '../lib/purchases';
 import { versionStamp } from '../lib/version';
@@ -56,17 +57,27 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
     for (const r of receipts) {
       const allocs = allocationsOf(r);
       const tot = r.total || allocs.reduce((s, a) => s + a.amount, 0) || 1;
-      for (const a of allocs) {
+      // Same split the exports use, so summing the CSV's "Sales Tax Portion"
+      // column gives exactly the figure shown here. Accumulating unrounded
+      // shares would be defensible on its own, but it would disagree with the
+      // file by a cent — and the CPA reconciling the two has no way to tell
+      // which is right.
+      const taxParts: (number | null)[] = P.splitSalesTax(
+        r.salesTax,
+        allocs.map((a) => Math.round((a.amount || 0) * 100)),
+        Math.round(tot * 100)
+      );
+      allocs.forEach((a, ai) => {
         const form = C.taxFormOf(a.category);
         if (!byForm.has(form)) byForm.set(form, new Map());
         const m = byForm.get(form)!;
         m.set(a.category, (m.get(a.category) || 0) + a.amount);
         if (isBusiness(a.category)) bizTotal += a.amount; else personalTotal += a.amount;
-        if (r.salesTax && r.salesTax > 0) {
-          const portion = r.salesTax * (a.amount / tot);
+        const portion = taxParts[ai];
+        if (portion != null) {
           if (isBusiness(a.category)) taxBiz += portion; else taxPersonal += portion;
         }
-      }
+      });
     }
     const formOrder = ['Schedule C', 'Schedule C Part III (COGS)', 'Form 8829 (Home Office)', 'Form 4562 (Depreciation)', 'Schedule A (Itemized)', 'Review needed', 'None (personal)'];
     const forms = [...byForm.entries()].sort((a, b) => {
@@ -169,7 +180,7 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
           ['csv', 'CPA CSV (organized by IRS form)', false, () => exportCSV(receipts)],
           ['xlsx', 'Excel workbook (.xlsx)' + (pro ? '' : '  ·  PRO'), true, () => exportXLSX(receipts)],
           ['txf', 'TXF for tax software' + (pro ? '' : '  ·  PRO'), true, () => exportTXF(receipts)],
-          ['qbo', 'QuickBooks 3-column CSV' + (pro ? '' : '  ·  PRO'), true, () => exportQBO(receipts)],
+          ['qbo', 'QuickBooks Online (3-column CSV)' + (pro ? '' : '  ·  PRO'), true, () => exportQBO(receipts)],
           ['archive', 'Receipt archive (.zip — images + data)', false, () => exportArchive(receipts)],
           ['backup', 'Full JSON backup (data only)', false, () => exportBackup(receipts)],
           ['diag', 'Parser diagnostics (raw OCR text)', false, () => exportDiagnostics(receipts)],
@@ -181,6 +192,19 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
               : <Text style={{ color: T.text, fontSize: 14 }}>{label}</Text>}
           </Pressable>
         ))}
+        {/*
+          QuickBooks accepts MM/DD/YYYY but does not default to it — Intuit's
+          own guidance recommends dd/mm/yyyy. For any day from 1 to 12 both
+          readings are valid, so the import succeeds and files the transaction
+          in the wrong month with no error. That silence is why this warning
+          sits next to the button rather than in a help page nobody opens.
+        */}
+        <Text style={s.restoreNote}>
+          Importing to QuickBooks Online: at the column-mapping step, set the
+          date format to MM/DD/YYYY. It defaults to day-first, which files
+          anything before the 13th of a month under the wrong month without
+          reporting an error.
+        </Text>
       </View>
 
       {canRestore && (

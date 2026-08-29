@@ -11,5 +11,5 @@ export interface ExportRow {
   taxPortion: number | null;
 }
 export function buildCpaCSV(rows: ExportRow[]): string;
-export function buildTXF(rows: ExportRow[], now?: Date): { content: string; skipped: number };
+export function buildTXF(rows: ExportRow[], now?: Date, appVersion?: string): { content: string; codes: number; skipped: number };
 export function buildQBO(rows: ExportRow[]): string;

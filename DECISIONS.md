@@ -1597,6 +1597,57 @@ while failing closed locks someone out of the app they just installed.
 
 ---
 
+## D-044
+
+**The `NSLocalNetworkUsageDescription` in the generated Info.plist does NOT
+ship. Settled — do not re-raise.**
+
+Date: 2026-08-29 · Status: accepted
+
+`npx expo prebuild` produces an `Info.plist` with **five** usage descriptions,
+one of which reads:
+
+> Expo Dev Launcher uses the local network to discover and connect to
+> development servers running on your computer.
+
+On an app whose differentiator is "Data Not Collected" that looks alarming — a
+shipping binary asking for local network access to reach dev servers is exactly
+the unexplained permission D-007 warns about. It is also **not what ships.**
+
+`expo-dev-launcher`'s config plugin adds a `PBXShellScriptBuildPhase` whose
+script begins:
+
+```sh
+if [ "$CONFIGURATION" != "Debug" ]; then
+  ...
+  # Only delete the description if it matches the dev-launcher default text
+  if echo "$DESC" | grep -q "Expo Dev Launcher"; then
+    /usr/libexec/PlistBuddy -c "Delete :NSLocalNetworkUsageDescription" ...
+```
+
+It strips both that key and the `_expo._tcp` Bonjour service from every
+non-Debug build. Production builds are Release, so the shipped binary carries
+**four** permissions — camera, photo library, Face ID, location — which is
+exactly what the App Review notes in `docs/APP_STORE_LISTING.md` claim.
+
+**Two things to remember from this:**
+
+- **A prebuild `Info.plist` is the source, not the artifact.** The runbook's
+  "inspect the generated Info.plist" step is still right, but it sees the input
+  to the build, not its output. A key present there may still be stripped.
+- **The strip is conditional on the default text.** If anyone ever overrides
+  `NSLocalNetworkUsageDescription` with custom wording, the `grep -q "Expo Dev
+  Launcher"` no longer matches and the key **will** ship. So do not "fix" this
+  by writing a nicer description — that is the one change that would actually
+  break it.
+
+Investigated because the review notes list four permissions and prebuild showed
+five. The discrepancy was real; the conclusion is that the notes are correct and
+the plist is not the last word.
+
+
+---
+
 ## Note on D-035
 
 `D-035` was never issued — it does not appear anywhere in this repo's history.
@@ -1604,3 +1655,238 @@ The gap is real, not a missing file. `D-037` was briefly used twice (the
 distribution-certificate correction and the app-icon change); the icon entry was
 renumbered to **D-038** and its references in `STATUS.md` and
 `mobile/scripts/make-icons.py` updated.
+
+## D-045
+
+**A relaxed money pattern, but only where the strict one found nothing**
+(2026-08-29)
+
+Apple Vision routinely puts a space where a decimal point belongs. `costco-1.txt`
+contains `POWER VEG      1. 49 A` and `AMOUNT: $140. 35`. The `MONEY` regex does
+not match across that space, so those lines contributed **no amount at all** —
+not a wrong amount, an absent one, which then fell through to the largest-number
+fallback and picked up whatever else was on the receipt.
+
+Measured before fixing: on the synthetic corpus the total was recovered on
+**12.6%** of receipts carrying the artifact. After: 100%.
+
+Three ways to fix it were available, and the choice matters:
+
+1. Widen `MONEY` itself to allow the space. **Rejected** — `MONEY` is used in
+   six places and its `.source` is reused to build global variants, so widening
+   it changes the meaning of lines that already parse correctly today.
+2. Pre-process the OCR text to close up `\d\. \d\d`. **Rejected** — it edits the
+   evidence. The diagnostics dump would no longer be what the scanner produced,
+   which is the one thing that dump is for.
+3. **Chosen:** a second pattern, `MONEY_SPACED`, tried only when the strict pass
+   returns nothing for that line. Strictly additive: no line that parses today
+   can change meaning, because the loose pass never runs on it.
+
+The separator class in the spaced form deliberately **excludes the comma**.
+`[0-9]+[.,] [0-9]{2}` would read "Suite 200, 50 Main St" as $200.50 — a comma
+followed by a space is ordinary English, a period followed by a space and
+exactly two digits is not. Pinned by two tests.
+
+`extractTotal` was also still calling the raw `MONEY` regex directly while every
+other call site had moved to `matchMoney`, so it never got the percent-sign
+guard from D-041 either. It now goes through the shared `scanMoney`, which is
+where both behaviours live.
+
+### The general point, which is the reason this is written down
+
+The synthetic corpus was passing **100% on every axis** when this was found. A
+generator the parser aces has stopped doing its job — it is measuring the
+generator, not the parser. Both new axes (`spacedCents`, `glyphLabel`) were
+copied from artifacts visible in the real corpus rather than invented, and one
+of the two turned out to be a real defect while the other was already handled.
+That ratio is the point: **when the corpus goes quiet, take the next hard case
+from real data, not from imagination.**
+
+## D-046
+
+**Export-format audit: what was wrong, and the one thing that was already
+right** (2026-08-29)
+
+Tyler's call to audit every package-specific export before shipping was correct.
+A file that fails to import is a support email; a file that imports cleanly with
+wrong numbers is a wrong tax return. Findings, each checked against a primary
+source rather than recalled:
+
+### TXF sign convention — ALREADY CORRECT, no change
+
+This was the open question with the most at stake, and the answer is that
+`buildTXF` was right all along. The v042 spec's definition of the `$` field:
+"Income, gains, and money received are positive numbers. Expenses, losses, and
+money spent (including tax payments) are negative numbers." The refnum table
+carries a per-code `Sgn` column, and every Schedule C expense code TaxTrail uses
+is `E`. The spec's own Schedule C example ends `TS / N304 / C1 / L1 / $-668.00`.
+Verified against four independent copies of the spec, including a Wayback
+capture of Intuit's own first-party page. **Do not "fix" this later.**
+
+### Record format 3 — was wrong, now fixed
+
+Refnum 302 "Other business expense" is Record Format 3, not 1. The changelog
+says so in as many words: "RNum 302 changed to Record Format 3". Format 3 is
+`$ amount` + **`P description`**, and the spec's example emits one record per
+description with an incrementing `L` (N287 on L1, then L2).
+
+TaxTrail merged five categories into a single N302 record and listed their names
+in an `X` line. `X` is a *detail-record* field — it appears only on `TD` records
+in every example and in GnuCash, and its layout is columnar, beginning with a
+space and a date. A bare category name there sits exactly where an importer
+parsing columns expects a date. Schedule C line 27 is itemized in Part V, so the
+old output also threw away the itemization the format exists to carry.
+
+### Two categories were mapped to the wrong refnum
+
+- **Shipping & Postage → 302** should be **313** (Office expense). The Line 18
+  instruction is one sentence: "Include on this line your expenses for office
+  supplies and postage."
+- **Employee Benefits → 302** should be **308** (line 14). Refnum 308 exists and
+  is exactly this. Worse, the app's own category label already said "Line 14 —
+  Employee benefit programs", so the exported file contradicted the screen the
+  user had just read.
+
+### Schedule C line 27a became 27b for tax year 2025
+
+The IRS swapped the sub-lines: 27a is now the energy-efficient-buildings
+deduction (Form 7205) and "Other expenses (from line 48)" moved to 27b. Four
+category labels said 27a — correct for TY2024, wrong for the returns being filed
+now. The 2026 draft keeps the 2025 ordering, so this is not a one-year blip.
+
+### QuickBooks: the BOM comes off, the date format gets a warning
+
+Column order, negative-for-money-out and the header names are all correct
+against Intuit's documented 3-column layout. Two changes:
+
+- **BOM removed from the QuickBooks file only.** It exists on the CPA CSV
+  because a human opens that one in Excel, which otherwise sniffs Windows-1252.
+  Nobody opens the QuickBooks file — it goes into QBO's parser, where a leading
+  BOM can only be read as part of the first header name. Intuit's docs never
+  mention BOMs either way, so this is judgement, but it is asymmetric: the BOM
+  buys nothing in this file and can only cost.
+- **The date format now carries a warning in the UI.** MM/DD/YYYY is accepted
+  but Intuit's own guidance recommends dd/mm/yyyy, and QuickBooks asks the user
+  to pick at the mapping step. For any day from 1 to 12 both readings are valid,
+  so a wrong choice imports **silently** into the wrong month. This is the
+  highest-consequence finding in the whole audit precisely because nothing
+  fails: a wrong BOM is a greyed-out button, a wrong date format is a clean
+  import of wrong data.
+
+Also renamed the export to "QuickBooks Online" (file
+`taxtrail-quickbooks-online-<year>.csv`). QuickBooks **Desktop** cannot import
+bank transactions from CSV at all — it needs Web Connect `.qbo` — so the old
+generic name pointed Desktop users at a file that could never work.
+
+### Deliberately NOT done
+
+Intuit's docs say "Remove numbers from cells in the Description column".
+Stripping digits would mangle "7-Eleven" and "Store #1234" into nonsense, which
+trades a documented-but-unconfirmed import risk for guaranteed data loss. Left
+alone, noted here so the next person does not have to re-reason it.
+
+### Corroborated against a real production file
+
+Beyond the spec, a shipping commercial product's April-2025 TXF export was
+retrieved and read (CharityRecord, which documents importing into TurboTax
+Desktop and H&R Block Desktop). Its records are literally `TD: N,C,L,$,X` and
+`TS: N,C,L,$` — summary records carry no `X` — and its header date is
+`D04/15/2025`, zero-padded with no space after the `D`. That is exactly the
+shape TaxTrail now emits.
+
+One caveat recorded honestly: the header-date padding is a conformance defect,
+not a wrong-return risk. It is the export date, not a tax figure, and the spec's
+own later examples use unpadded dates elsewhere, so producers have shipped both.
+
+### Still unverified, and it is the part that matters most
+
+Nobody has imported any of these files into TurboTax, H&R Block, TaxAct or
+QuickBooks. Everything above is spec-reading. The byte-exact fixtures in
+`__tests__/classifier.test.js` pin the output so it cannot drift, but a fixture
+proves the file matches the spec as I read it — not that the importer agrees.
+That test needs Tyler or a trial licence and stays open on the roadmap.
+
+## D-047
+
+**Android is parked for launch — but not for the reason anyone assumed**
+(2026-08-29)
+
+Android had never been audited. The assumption in the room was that OCR would be
+the blocker, since the app is built on Apple Vision. **That assumption is
+wrong**, and it is worth writing down so nobody re-derives it:
+
+- `expo-text-extractor` ships an Android implementation. It is not iOS-only.
+- Every other dependency has an Android build too, including
+  `react-native-document-scanner-plugin`.
+- `app.json` already carries an Android package name and an adaptive icon.
+- The only `Platform.OS` branches in the whole app are cosmetic — a keyboard
+  behaviour and a monospace font name.
+
+So Android is technically plausible today. It is parked anyway, for four
+reasons that have nothing to do with feasibility:
+
+1. **The parser is tuned on Apple Vision output, and Android is not Vision.**
+   `expo-text-extractor`'s Android build depends on
+   `com.google.android.gms:play-services-mlkit-text-recognition`. ML Kit is a
+   different engine with different line ordering and different error modes.
+   Every fixture in `__tests__/corpus/` is Vision output, and the synthetic
+   generator's noise model is built from those same artifacts. **The measured
+   accuracy on Android is not "probably similar" — it is unknown**, and the
+   corpus that would tell us does not exist.
+
+2. **It is the *unbundled* ML Kit variant**, so the model is delivered through
+   Google Play Services rather than shipped in the binary. That means a Play
+   Services dependency (no AOSP or Amazon devices) and a first-use network
+   fetch. For an app whose entire differentiator is the "Data Not Collected"
+   label, that needs a careful answer before it needs a build — not after.
+
+3. **A second store is a second everything**: Play Console account, a separate
+   Data Safety declaration, separate RevenueCat products and Play Billing
+   configuration, separate screenshots and review process.
+
+4. **Tax season governs.** Installs run ~5x in late January and collapse after
+   April 15. iOS has not shipped yet. Splitting attention across a second
+   platform before the first one is in the store spends the only window that
+   matters.
+
+**Revisit after the iOS launch, and start by collecting an ML Kit corpus** —
+the same "Parser diagnostics" export, from an Android device. Nothing else
+about Android should be estimated until that number exists.
+
+## D-048
+
+**Sales tax is split by largest remainder, not by rounding each part**
+(2026-08-29)
+
+Splitting a receipt across categories splits its sales tax too. The old code
+rounded each part independently, which does not add up:
+
+| Tax | Split | Old result | Sum |
+|---|---|---|---|
+| $1.00 | 3 equal parts | 0.33 · 0.33 · 0.33 | **$0.99** — a cent lost |
+| $0.01 | 2 equal parts | 0.01 · 0.01 | **$0.02** — a cent invented |
+| $5.00 | 7 equal parts | 0.71 × 7 | **$4.97** — three cents lost |
+
+Losing a cent understates a deduction, which is merely wrong. **Inventing one is
+worse**: sales tax flows to Schedule A line 5a, so an over-reported figure is an
+over-claim on a filed return. Both accumulate across a year of split receipts,
+and neither announces itself — the exported column simply does not sum to the
+tax the receipt shows.
+
+Replaced with the largest-remainder method in whole cents (`src/lib/prorate.js`):
+floor every part, then hand the leftover cents to the parts with the largest
+discarded fractions. The parts always sum to exactly the amount divided, and no
+part is more than a cent from its exact share. Ties break by index, so an export
+re-run produces the same file — a CPA diffing two exports should see no churn.
+
+Kept as plain CommonJS in `src/lib/` for the same reason as `gates.js` and
+`restorePlan.js` (D-043): the Node test harness can require it, so "does $0.01
+across two categories stay $0.01" is a unit test rather than an experiment on a
+phone. Thirteen tests, including a sweep asserting the parts sum to the whole
+across every shape from 1 to 40 cents over 1 to 7 parts.
+
+**The Summary screen now uses the same split.** It was accumulating unrounded
+shares and rounding once at the end, which is defensible in isolation and gives
+a mathematically exact total — but it would then disagree with the CSV by a
+cent, and the CPA reconciling the two has no way to tell which is right. One
+number, computed one way.

@@ -41,6 +41,12 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      # Ratchets against a committed baseline (D-041): a parser that gets worse
+      # on the synthetic corpus fails, one that is merely imperfect does not.
+      # Half a second, so there is no reason to leave it out.
+      - name: Synthetic corpus (no regressions)
+        run: npm run test:synth
+
       - name: TypeScript
         run: npx tsc --noEmit
 

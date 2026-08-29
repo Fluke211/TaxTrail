@@ -49,7 +49,7 @@ math. There is no account to create, no cloud to sync with, and no server that
 receives your receipts. Your financial records stay yours.
 
 SORTED FOR YOUR TAX RETURN
-Every receipt is filed to one of 29 categories mapped to real IRS lines —
+Every receipt is filed to one of 28 categories mapped to real IRS lines —
 Schedule C, plus Schedule A, Form 8829, Form 4562, and cost of goods sold.
 When a purchase is partly personal, split it: the sales tax splits with it.
 
@@ -59,9 +59,10 @@ the print before anything is read — so faded thermal paper and crumpled corner
 still work. Long receipts are captured across multiple pages and read as one.
 
 EXPORTS YOUR ACCOUNTANT WILL ACCEPT
-CSV organized by IRS form. Excel workbooks. TXF for tax software. QuickBooks
-three-column CSV. Plus a full archive containing every receipt image alongside
-the data, so you have the copies the IRS expects you to be able to produce.
+CSV organized by IRS form. Excel workbooks. TXF for tax software. A
+three-column CSV for QuickBooks Online. Plus a full archive containing every
+receipt image alongside the data, so you have the copies the IRS expects you
+to be able to produce.
 
 SALES TAX, TRACKED PROPERLY
 TaxTrail reads the printed tax rate when there is one, remembers rates by
@@ -99,9 +100,21 @@ your accountant — all on your device.
 
 | Field | Value |
 |---|---|
-| Support URL | `https://taxtrail.app/support.html` |
-| Privacy Policy URL | `https://taxtrail.app/privacy.html` |
+| Support URL | `https://taxtrail.app/support` |
+| Privacy Policy URL | `https://taxtrail.app/privacy` |
 | Marketing URL | optional — leave blank until there's a real site |
+
+**Use the extensionless forms above.** Verified 2026-08-29: the `.html` URLs
+return a 308 to these, which Apple follows fine, but there is no reason to
+hand a reviewer a redirect. Both final URLs return 200 with real content, and
+both pages carry `support@taxtrail.app` as the contact (it is behind
+Cloudflare's email obfuscation in the HTML, so a naive grep shows
+`[email protected]` — the address is really there).
+
+`taxtrail.app` has Cloudflare Email Routing MX records, so the domain accepts
+mail. **What is NOT verified is that a routing rule exists for `support@`
+specifically** — send one test message before submitting. Apple emails this
+address, and so will every user.
 
 ---
 
@@ -122,6 +135,8 @@ TaxTrail performs all receipt processing on-device.
   destination. The app has no network destination of its own.
 - The only network activity is subscription validation via RevenueCat, and
   over-the-air JS updates via Expo. Neither receives receipt data.
+- The paywall links to Apple's standard EULA and to the privacy policy. Those
+  open in Safari when tapped; the app itself issues no HTTP requests.
 
 Permissions:
 - Camera — photographing receipts.
@@ -129,6 +144,13 @@ Permissions:
 - Face ID — optional app lock. No biometric data is accessed.
 - Location (when in use) — optional mileage logging. Declining leaves all other
   functionality intact.
+
+These four are the complete set. Verified 2026-08-29 against the plugin
+configuration in `app.json`: `expo-image-picker` and `expo-camera` both set
+`microphonePermission: false`, and `expo-location` sets both always-on variants
+to `false`, so none of those keys is generated (D-007). The local-network key
+`expo-dev-launcher` adds in development is stripped by a build phase in any
+non-Debug configuration, so it does not ship either (D-044).
 
 To test Pro without purchasing, use the sandbox account provided, or note that
 the free tier permits 10 scans per month with full parsing and CSV export.
@@ -168,16 +190,51 @@ older-device coverage. The order matters more than the polish:
    Wave. This is the pitch; put it where people actually still swipe.
 3. **Category list**, showing real IRS line numbers. Proves depth.
 4. **Summary by Schedule C line**, with a year total.
-5. **Export sheet** — CSV, Excel, TXF, QuickBooks, archive.
+5. **Export sheet** — CSV, Excel, TXF, QuickBooks Online, archive.
 6. **Receipt split**, showing tax-aware division.
 
 Caption every one. Screenshots are read as a slideshow, not studied.
 
+## Copy accuracy — checked against the code 2026-08-29
+
+Tyler's standing rule is to verify claims rather than inherit them. Every
+number in the copy above was checked against what the app actually does:
+
+| Claim | Reality | Verdict |
+|---|---|---|
+| "28 categories" | 28 selectable, plus "Uncategorized" which is the absence of one | **Was "29"** — counting Uncategorized as a category is a stretch a reviewer could call. Corrected |
+| "10 scans a month" | `FREE_SCANS_PER_MONTH = 10` in `src/lib/config.ts`, and the boundary is unit-tested (D-043) | Accurate |
+| "mapped to real IRS lines" | Schedule C, Schedule A, Form 8829, Form 4562, Part III COGS — all present | Accurate |
+| "your receipts never leave your phone" | No analytics or ad dependency; the only URLs in `src/` are two `Linking.openURL` targets on the paywall | Accurate |
+| "QuickBooks three-column CSV" | The format is QuickBooks **Online** only; Desktop cannot import bank CSV | **Corrected** — the old wording promised Desktop users something that cannot work |
+| "Apple's document scanner ... multiple pages" | `react-native-document-scanner-plugin`, multi-page capture shipped in js r3 | Accurate |
+
+### Left for Tyler — a naming call, not a bug
+
+The category **"Meals & Entertainment"** is a misnomer. Entertainment has been
+nondeductible since the TCJA, and the Schedule C instructions say twice "Do not
+include entertainment expenses on this line". The label invites a user to file
+an entertainment receipt into a 50%-deductible bucket. "Business Meals" would
+be accurate.
+
+Not changed unilaterally because the category name is stored as a string on
+every saved receipt and inside every allocation, so a rename needs a data
+migration — not a one-line edit, and not something to do unattended.
+
 ## Pre-submission checklist
 
-- [ ] D-022 resolved; App Privacy answers match reality
-- [ ] Contact email filled into `privacy.html` and `support.html`
-- [ ] Both URLs load
+- [x] D-022 resolved; App Privacy answers match reality — **re-verified
+      2026-08-29 against the code**: no analytics or advertising dependency in
+      `package.json`, and the only URLs anywhere in `src/` are the two
+      `Linking.openURL` targets on the paywall. The app makes no HTTP request
+      of its own, so "nothing about receipts is collected" is defensible as
+      written
+- [x] Contact email filled into `privacy.html` and `support.html` —
+      `support@taxtrail.app` on both, and the domain has MX records. Still
+      send one test message; a routing rule for `support@` specifically was
+      not verifiable from here
+- [x] Both URLs load — 200 after a 308 to the extensionless form. Use the
+      extensionless URLs in App Store Connect
 - [ ] Production build (`channel: production`) — the dev-only update button
       disappears automatically (D-019)
 - [ ] Screenshots at required sizes
