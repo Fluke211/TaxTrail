@@ -237,7 +237,10 @@ migration — not a one-line edit, and not something to do unattended.
       disappears automatically (D-019)
 - [ ] Screenshots at required sizes
 - [ ] App Review notes pasted
-- [ ] Age rating completed
+- [ ] **Age rating completed** — the TestFlight purchase sheet renders the app
+      as "UNRATED" until this is done, and Apple will not accept a submission
+      without it. App Store → the app → Age Rating → Edit; every answer is
+      "None" for this app
 - [ ] Export compliance — `ITSAppUsesNonExemptEncryption: false` is already set
 - [ ] **App Store Small Business Program enrolled** — 15% instead of 30%, and it
       is not retroactive, so this must happen before the first sale

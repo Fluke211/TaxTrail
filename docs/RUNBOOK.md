@@ -363,6 +363,46 @@ Everything created is stored on Expo's servers, not in the Codespace.
 
 ---
 
+## Test a purchase
+
+**TestFlight builds do not need a sandbox account.** This is the thing that
+gets re-derived every time, because Apple's own help page describes signing
+into a Sandbox Apple Account and that is about a *different* build type.
+
+- **TestFlight build** — runs against the sandbox backend using the tester's
+  **real** Apple Account. The purchase sheet is headed "TestFlight" and says
+  "For testing purposes only. You will not be charged for confirming this
+  purchase." Seeing your own Apple ID on that sheet is the CORRECT outcome,
+  not a misconfiguration. Do not sign out of Media & Purchases.
+- **Development build** (the EAS dev client) — this is what consumes
+  `Settings → Developer → Sandbox Apple Account`. Sign in there with a
+  sandbox tester.
+
+Either way, **never sign into iCloud with a sandbox account.** The three
+logins are separate: iCloud (Settings → your name), Media & Purchases
+(Settings → your name → Media & Purchases), and the Sandbox slot above.
+
+### Renewal speed differs between the two, and it looks like a bug
+
+| Environment | Renewal | Stops after |
+|---|---|---|
+| TestFlight | 1 per **day**, whatever the real duration | 6 renewals |
+| Sandbox (dev build) | minutes — 1 month ≈ 5 min, 1 year ≈ 1 hour | 6 renewals |
+
+So on TestFlight nothing renews for a day. That is expected; do not go looking
+for a broken subscription.
+
+### What still needs a sandbox tester
+
+Clearing purchase history (only possible on a sandbox account, so it is the
+only way back to a never-purchased state), billing-failure and
+renewal-failure scenarios, and non-US storefronts.
+
+Sandbox testers are scoped to the whole App Store Connect **team**, not to an
+app, so the same accounts serve every app on the account. Their name, email
+and password **can never be edited after creation** — only the region — so
+make two or three at once and save the passwords immediately.
+
 ## Register a new device
 
 Do it in a browser, not the CLI (`eas device:create` accepts no flags at all
