@@ -23,6 +23,13 @@ visible version, and it gets recorded here.
   at `expo/node_modules/@expo/vector-icons`, so importing it directly would
   have failed to resolve at runtime, not just in `tsc`
 
+### Repository — 2026-08-27
+
+- `step: asc-iap` in the EAS workflow — reports the App Store Connect state of
+  every in-app purchase product. StoreKit only hands a product to the app once
+  App Store Connect considers it complete, so an empty paywall is usually a
+  product-state problem wearing the costume of a code problem. Read-only, free
+
 ### Repository — 2026-08-26
 
 - **CI on pull requests** (`.github/workflows/ci.yml`) — unit tests, `tsc`, and
