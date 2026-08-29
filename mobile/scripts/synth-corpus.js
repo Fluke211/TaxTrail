@@ -68,7 +68,7 @@ const MERCHANTS = [
   { name: 'CHEVRON', city: 'HONOLULU HI', cat: 'Car & Truck Expenses' },
   { name: 'COSTCO WHOLESALE', city: 'HONOLULU HI', cat: null },
   { name: 'SAFEWAY', city: 'HONOLULU HI', cat: null },
-  { name: 'THE RUSTY GRILL', city: 'HONOLULU HI', cat: 'Meals & Entertainment' },
+  { name: 'THE RUSTY GRILL', city: 'HONOLULU HI', cat: 'Business Meals' },
   { name: 'MARRIOTT WAIKIKI', city: 'HONOLULU HI', cat: 'Travel' },
   { name: 'DELTA AIR LINES', city: '', cat: 'Travel' },
   { name: 'VERIZON WIRELESS', city: 'HONOLULU HI', cat: 'Utilities' },

@@ -1941,3 +1941,92 @@ amount fields use `keyboardType="decimal-pad"`, which has no minus key. That was
 true and irrelevant — the negative was produced by *subtraction*, not typed. When
 a report says a bad value is unreachable, check every arithmetic path that
 constructs one, not just the inputs that accept one.
+
+## D-050
+
+**"Meals & Entertainment" is now "Business Meals", and line 20a exists**
+(2026-08-29)
+
+Tyler's call, made after the export audit flagged the name as a misnomer.
+
+### The rename
+
+Entertainment has been nondeductible since the TCJA. The 2025 Schedule C
+instructions say so twice — "Do not include entertainment expenses on this
+line" — and the line is now headed **"Deductible meals"**, not "Meals and
+entertainment". A category called "Meals & Entertainment" invites a user to
+scan a ballgame ticket into a 50%-deductible bucket, which is the single most
+audit-attractive mistake this app could encourage.
+
+The stored `scheduleC` label moved to the form's own wording:
+`Line 24b — Deductible meals (50%)`.
+
+Worth knowing, because it is the one case where an entertainment receipt IS
+partly deductible: food and beverages bought at an entertainment event count
+if they "were purchased separately from the entertainment, or the cost of the
+food and beverages was stated separately ... on one or more bills, invoices, or
+receipts." That is a receipt-level distinction, so it is a plausible future
+feature — but it is a *separately stated line*, not a whole receipt, and the
+instructions add "You cannot avoid the entertainment disallowance rule by
+inflating the amount charged for food and beverages."
+
+### A rename is a data migration, and it never ends
+
+The category name is a string on every receipt row, inside every allocation,
+and inside every exported archive. Three things follow, and all three are
+implemented:
+
+1. **Stored rows** — there was no migration mechanism at all, just
+   `CREATE TABLE IF NOT EXISTS`. Added a `PRAGMA user_version` runner in
+   `db.ts`; each migration is idempotent and runs in a transaction, so a crash
+   halfway leaves the version unbumped and the next launch retries.
+2. **Archives** — an export made before today keeps the old name forever, and
+   people keep backups for years. `restorePlan.normalizeRow` now maps the
+   category (and each allocation's category) through `canonicalCategory`, so an
+   old archive lands under the new name instead of resurrecting a category that
+   no longer exists and would export with **no TXF code at all**.
+3. **One source of truth** — `CATEGORY_ALIASES` in `classifier.js`. Both the
+   migration and restore read from it, so the next rename is a one-line change
+   rather than three.
+
+The migration was run against a real SQLite database (Node 22's `node:sqlite`)
+rather than reasoned about: the category is rewritten, the allocations JSON is
+rewritten and still parses, the `scheduleC` label refreshes, notes are
+untouched, and zero occurrences of the old name survive.
+
+The allocations rewrite is a plain `REPLACE` on the **quoted** JSON form
+(`"Meals & Entertainment"`). That is safe because the category is the only
+place the old name appears inside an allocation and it is always a quoted JSON
+string value — a Schedule C label mentioning the same words is not touched.
+Pinned by a test.
+
+### The coverage audit: one real gap, four deliberate ones
+
+Tyler asked whether every IRS line is covered. Checked category-by-category
+against the 2025 form. Five Part II lines had no category. Four stay uncovered
+**on purpose**, because they are not receipt-shaped:
+
+| Line | Why it stays uncovered |
+|---|---|
+| 12 Depletion | Mining, timber, oil. No receipt, and not this audience |
+| 16a Mortgage interest | Arrives on a Form 1098, not a receipt |
+| 19 Pension and profit-sharing | Arrives from a plan administrator |
+| 27a Energy efficient bldgs | Needs Form 7205 and a licensed engineer's certification |
+
+**20a was the real gap**, and it is squarely receipt-shaped: renting a lift, a
+trencher or a generator produces a receipt you photograph. Added
+**Equipment Rental → line 20a**, TXF refnum **299** ("Rent on vehicles, mach,
+eq" → `2011:C:20a`, verified in the v042 table).
+
+The instructions split line 20 cleanly, so this is an addition rather than a
+re-split: 20a is "vehicles, machinery, or equipment"; 20b is "other property,
+such as office space in a building." Every existing `Rent & Lease` keyword is
+space (storage unit, coworking, office rent), so that category stays on 20b
+untouched — pinned by a test.
+
+**Deliberately not claimed: rental cars.** A car rented while away from home on
+business is a travel expense (24a), and Hertz/Avis/Enterprise stay in Travel &
+Lodging. Moving trucks (U-Haul, Penske, Ryder) are the genuinely ambiguous case
+— a vehicle rental by the letter of 20a, a travel cost in practice — and are
+left where they land today rather than moved on a coin flip. **If Tyler wants
+them on 20a, that is a keyword addition, not a redesign.**

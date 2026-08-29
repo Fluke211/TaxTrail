@@ -9,6 +9,8 @@
  */
 'use strict';
 
+const C = require('./classifier.js');
+
 // What a user would call "the same receipt". Deliberately NOT the id: SQLite
 // reassigns ids on insert, so ids say nothing about identity across devices.
 // Merchant is compared case- and whitespace-insensitively because it is OCR
@@ -28,12 +30,23 @@ function normalizeRow(r, nowIso) {
     merchant: (r && r.merchant) || '',
     date: String((r && r.date) || '').slice(0, 10),
     total: Number(r && r.total) || 0,
-    category: (r && r.category) || '',
+    // An archive exported before a category was renamed still carries the old
+    // name, and it will keep arriving forever — archives are files people
+    // keep. Mapping on the way in means an old backup lands under the current
+    // name instead of quietly resurrecting a category that no longer exists
+    // and would export with no TXF code at all.
+    category: C.canonicalCategory((r && r.category) || ''),
     scheduleC: (r && r.scheduleC) || '',
     notes: (r && r.notes) || '',
     salesTax: r && r.salesTax != null ? r.salesTax : null,
     taxRate: r && r.taxRate != null ? r.taxRate : null,
-    allocations: r && Array.isArray(r.allocations) ? r.allocations : [],
+    allocations: r && Array.isArray(r.allocations)
+      ? r.allocations.map(function (a) {
+        return a && a.category
+          ? Object.assign({}, a, { category: C.canonicalCategory(a.category) })
+          : a;
+      })
+      : [],
     confidence: (r && r.confidence) || '',
     ocrText: (r && r.ocrText) || '',
     imageFile: (r && r.imageFile) || null,

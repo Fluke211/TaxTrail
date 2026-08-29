@@ -111,10 +111,9 @@ both pages carry `support@taxtrail.app` as the contact (it is behind
 Cloudflare's email obfuscation in the HTML, so a naive grep shows
 `[email protected]` — the address is really there).
 
-`taxtrail.app` has Cloudflare Email Routing MX records, so the domain accepts
-mail. **What is NOT verified is that a routing rule exists for `support@`
-specifically** — send one test message before submitting. Apple emails this
-address, and so will every user.
+`support@taxtrail.app` is **confirmed working end to end** (2026-08-29): Tyler
+sent a test message and it arrived in his Gmail via the Cloudflare Email
+Routing forward. Nothing further to check here.
 
 ---
 
@@ -230,9 +229,8 @@ migration — not a one-line edit, and not something to do unattended.
       of its own, so "nothing about receipts is collected" is defensible as
       written
 - [x] Contact email filled into `privacy.html` and `support.html` —
-      `support@taxtrail.app` on both, and the domain has MX records. Still
-      send one test message; a routing rule for `support@` specifically was
-      not verifiable from here
+      `support@taxtrail.app` on both, and **delivery confirmed end to end**
+      (test message arrived in Gmail via the Cloudflare forward, 2026-08-29)
 - [x] Both URLs load — 200 after a 308 to the extensionless form. Use the
       extensionless URLs in App Store Connect
 - [ ] Production build (`channel: production`) — the dev-only update button
