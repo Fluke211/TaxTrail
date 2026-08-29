@@ -7,7 +7,7 @@ import type { Receipt } from '../lib/db';
 import { exportRows, isBusiness, allocationsOf } from '../lib/rows';
 const P = require('../lib/prorate.js');
 import { exportCSV, exportTXF, exportQBO, exportXLSX, exportBackup, exportArchive, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
-import { isPro, presentPaywall } from '../lib/purchases';
+import { isPro, manageSubscription, presentPaywall } from '../lib/purchases';
 import { versionStamp } from '../lib/version';
 import * as Updates from 'expo-updates';
 const C = require('../lib/classifier.js');
@@ -192,6 +192,18 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
               : <Text style={{ color: T.text, fontSize: 14 }}>{label}</Text>}
           </Pressable>
         ))}
+        {/*
+          Only shown to subscribers, because tapping it with nothing to manage
+          presents an empty sheet. Apple offers no other exit from a
+          TestFlight subscription bought with a real Apple Account, and a
+          shipping subscriber who cannot find the cancel button asks for a
+          refund instead of finding it.
+        */}
+        {pro && (
+          <Pressable style={s.exportBtn} onPress={() => { void manageSubscription(); }}>
+            <Text style={{ color: T.accent, fontSize: 14 }}>Manage subscription</Text>
+          </Pressable>
+        )}
         {/*
           QuickBooks accepts MM/DD/YYYY but does not default to it — Intuit's
           own guidance recommends dd/mm/yyyy. For any day from 1 to 12 both

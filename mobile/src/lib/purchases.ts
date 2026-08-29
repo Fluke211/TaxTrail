@@ -58,6 +58,36 @@ export async function isPro(): Promise<boolean> {
   }
 }
 
+/**
+ * Open the App Store's own manage-subscriptions sheet.
+ *
+ * Apple gives no other way to cancel a subscription bought through TestFlight
+ * with a real Apple Account: Settings -> Subscriptions does not list it, and
+ * App Store Connect's "Clear Purchase History" only works on sandbox testers.
+ * Without this the only exit is waiting out the six accelerated renewals.
+ *
+ * It is also the right thing for shipping. A subscriber who cannot find how to
+ * cancel does not decide to keep paying; they ask for a refund and leave a
+ * one-star review on the way out.
+ */
+export async function manageSubscription(): Promise<void> {
+  if (!configured) {
+    Alert.alert('Purchases not configured', 'TaxTrail Pro is unavailable in this build.');
+    return;
+  }
+  try {
+    await Purchases.showManageSubscriptions();
+  } catch (e) {
+    // iOS < 13 throws, and the sheet can fail to present if the account has
+    // nothing to manage. Neither is worth a crash or a silent no-op.
+    Alert.alert(
+      'Could not open subscription settings',
+      'Manage your subscription in Settings > Apple Account > Subscriptions.'
+    );
+    console.warn('showManageSubscriptions failed', e);
+  }
+}
+
 // Show the RevenueCat remote-configured paywall; falls back to a plain package
 // chooser if no paywall template is configured in the dashboard yet.
 export async function presentPaywall(): Promise<boolean> {
