@@ -1655,3 +1655,49 @@ The gap is real, not a missing file. `D-037` was briefly used twice (the
 distribution-certificate correction and the app-icon change); the icon entry was
 renumbered to **D-038** and its references in `STATUS.md` and
 `mobile/scripts/make-icons.py` updated.
+
+## D-045
+
+**A relaxed money pattern, but only where the strict one found nothing**
+(2026-08-29)
+
+Apple Vision routinely puts a space where a decimal point belongs. `costco-1.txt`
+contains `POWER VEG      1. 49 A` and `AMOUNT: $140. 35`. The `MONEY` regex does
+not match across that space, so those lines contributed **no amount at all** —
+not a wrong amount, an absent one, which then fell through to the largest-number
+fallback and picked up whatever else was on the receipt.
+
+Measured before fixing: on the synthetic corpus the total was recovered on
+**12.6%** of receipts carrying the artifact. After: 100%.
+
+Three ways to fix it were available, and the choice matters:
+
+1. Widen `MONEY` itself to allow the space. **Rejected** — `MONEY` is used in
+   six places and its `.source` is reused to build global variants, so widening
+   it changes the meaning of lines that already parse correctly today.
+2. Pre-process the OCR text to close up `\d\. \d\d`. **Rejected** — it edits the
+   evidence. The diagnostics dump would no longer be what the scanner produced,
+   which is the one thing that dump is for.
+3. **Chosen:** a second pattern, `MONEY_SPACED`, tried only when the strict pass
+   returns nothing for that line. Strictly additive: no line that parses today
+   can change meaning, because the loose pass never runs on it.
+
+The separator class in the spaced form deliberately **excludes the comma**.
+`[0-9]+[.,] [0-9]{2}` would read "Suite 200, 50 Main St" as $200.50 — a comma
+followed by a space is ordinary English, a period followed by a space and
+exactly two digits is not. Pinned by two tests.
+
+`extractTotal` was also still calling the raw `MONEY` regex directly while every
+other call site had moved to `matchMoney`, so it never got the percent-sign
+guard from D-041 either. It now goes through the shared `scanMoney`, which is
+where both behaviours live.
+
+### The general point, which is the reason this is written down
+
+The synthetic corpus was passing **100% on every axis** when this was found. A
+generator the parser aces has stopped doing its job — it is measuring the
+generator, not the parser. Both new axes (`spacedCents`, `glyphLabel`) were
+copied from artifacts visible in the real corpus rather than invented, and one
+of the two turned out to be a real defect while the other was already handled.
+That ratio is the point: **when the corpus goes quiet, take the next hard case
+from real data, not from imagination.**

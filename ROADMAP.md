@@ -62,7 +62,19 @@ what blocks what, not by size.
       *Parser diagnostics*, and the dump lands in `mobile/__tests__/corpus/`.
       Still the only on-distribution data — synthetic supplements it, never
       replaces it.
+- [x] **Made the synthetic corpus adversarial again** (D-045). It had reached
+      100% on every axis, which measures the generator rather than the parser.
+      Two new axes taken from artifacts in the real corpus: a decimal point
+      scanned as a space (`1. 49`) and a smudge fused to the label
+      (`wx TOTAL`). The first was a real defect — the total was recovered on
+      only 12.6% of receipts carrying it — and is fixed; the second was
+      already handled and is now pinned
 - [ ] Fix whatever the score run flags, with a fixture per bug
+- [ ] **Costco receipts land Uncategorized / low-confidence** — both real
+      Costco dumps get the *amounts* right but the merchant line is OCR
+      garbage (`Bw  Yai Grup`), so no category matches. Arguably correct
+      behaviour rather than a bug — the app asks the user to pick — but worth
+      a look at whether store-number or item lines could carry the merchant
 
 ### Polish
 

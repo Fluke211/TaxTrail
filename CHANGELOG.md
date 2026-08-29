@@ -11,6 +11,23 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### Parser — 2026-08-29
+
+- **Amounts whose decimal point Vision read as a space are recovered.**
+  `1. 49` and `$140. 35` (both verbatim from the Costco dump in the corpus)
+  matched nothing at all before, so the receipt fell through to a
+  largest-number guess. On the synthetic corpus the total was recovered on
+  12.6% of receipts carrying this artifact; now 100%. Added as a fallback that
+  runs only when the strict pattern finds nothing, so no line that already
+  parsed can change meaning (D-045)
+- `extractTotal` now shares the money scanner with everything else. It was
+  still calling the raw regex, which meant it never picked up the
+  "a printed rate is not an amount" guard added in r16
+- Synthetic corpus grew two axes taken from the real corpus — the spaced
+  decimal above, and a smudge fused onto the label (`wx TOTAL`). The second
+  was already handled correctly; it is pinned so it stays that way
+- CI now runs `test:synth` on every PR
+
 ### Repository — 2026-08-29
 
 - **Workflow inputs no longer reach the shell.** `${{ inputs.* }}` was written

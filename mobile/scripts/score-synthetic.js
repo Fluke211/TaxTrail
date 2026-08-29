@@ -81,6 +81,8 @@ for (const rec of receipts) {
   bump(axisStats, `noise=${rec.axes.noise}`, totalOk);
   bump(axisStats, `taxLabel=${rec.axes.taxLabel}`, totalOk);
   bump(axisStats, `dateStyle=${rec.axes.dateStyle}`, dateOk);
+  if (rec.axes.spacedCents) bump(axisStats, 'spacedCents=yes', totalOk);
+  if (rec.axes.glyphLabel) bump(axisStats, 'glyphLabel=yes', totalOk);
   if (rec.axes.coupon) bump(axisStats, 'coupon=yes', totalOk);
   if (rec.axes.subtotalTrap) bump(axisStats, 'subtotalTrap=yes', totalOk);
   if (rec.axes.distractors) bump(axisStats, 'distractors=yes', totalOk);

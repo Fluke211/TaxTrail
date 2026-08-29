@@ -203,5 +203,47 @@ check('restore: a sparse row is filled in, not dropped',
   Array.isArray(row.allocations) && row.salesTax === null && row.createdAt === NOW);
 check('restore: non-array payload yields nothing', RP.planRestore(null, new Set(), NOW).toImport.length === 0);
 
+// ---------------------------------------------------------------------------
+// The decimal point Vision turns into a space.
+//
+// Every string below is verbatim from __tests__/corpus/costco-1.txt. Before the
+// MONEY_SPACED fallback, none of these lines yielded an amount at all — the
+// synthetic corpus recovered the total on 12.6% of receipts carrying this
+// artifact. Fixtures, not paraphrases, because the whole point is that the real
+// scanner produces exactly this.
+check('spaced decimal: total on its own line',
+  C.parseReceipt('COSTCO WHOLESALE\nwx TOTAL\n140. 35').total === 140.35);
+check('spaced decimal: labelled amount',
+  C.parseReceipt('COSTCO WHOLESALE\nAMOUNT: $140. 35').total === 140.35);
+check('spaced decimal: item price',
+  C.parseReceipt('COSTCO\nE 1955255 POWER VEG      1. 49 A\nTOTAL      1. 49').total === 1.49);
+check('spaced decimal: thousands separator survives it',
+  C.parseReceipt('LOWES\nTOTAL      1,234. 56').total === 1234.56);
+check('spaced decimal: tax line too',
+  C.parseReceipt('SAFEWAY\nSUBTOTAL   10. 00\nSALES TAX   0. 47\nTOTAL   10. 47').taxTotal === 0.47);
+
+// A smudge fused onto the label — "wx TOTAL" in costco-1.txt. This already
+// worked; pinned so a future tightening of TOTAL_HINTS cannot quietly undo it.
+check('glyph-prefixed label still reads as a total',
+  C.parseReceipt('HOME DEPOT\nwx TOTAL      52.10').total === 52.10);
+
+// The guard on the loose pass. A comma before a space is ordinary prose, and
+// reading it as money would invent an amount out of an address line, so the
+// spaced form accepts a period and the OCR bracket glyphs only.
+check('comma-space is not an amount',
+  C.parseReceipt('CORNER STORE\nSuite 200, 50 Main St\nTOTAL 7.25').total === 7.25);
+check('comma-space alone yields no total',
+  C.parseReceipt('CORNER STORE\nSuite 200, 50 Main St').total === null);
+
+// The loose pass runs ONLY when the strict pass came up empty, so a line that
+// already parses cannot change meaning. Here "12.99" must win over any reading
+// of "3. 50" on the same line.
+check('strict match wins; loose never overrides it',
+  C.parseReceipt('STAPLES\nTOTAL 12.99 qty 3. 50').total === 12.99);
+
+// A printed rate is still not an amount, on either pass.
+check('spaced rate is not mistaken for tax',
+  C.parseReceipt('SAFEWAY\nSUBTOTAL 100. 00\nTAX 8. 25%   8. 25\nTOTAL 108. 25').total === 108.25);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
