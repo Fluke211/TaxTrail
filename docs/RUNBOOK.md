@@ -177,6 +177,28 @@ to set.
 
 ---
 
+## An OTA can only use native modules the BINARY already has
+
+`eas update` ships JavaScript. It cannot add a native module. So the moment
+`main` imports one that the installed binary lacks, publishing breaks the app
+on launch — and because `runtimeVersion` is `1.0.0` for every build so far,
+**an update meant for the new build reaches the old one too.**
+
+Before publishing, if the diff since the last build added a native dependency:
+
+```bash
+git diff <last-build-commit>..HEAD -- mobile/package.json | grep '^+.*"react-native-\|^+.*"expo-'
+```
+
+Anything there means the update is only safe for a binary built after that
+commit. Either wait for the build, or publish from the last commit that
+predates the native import.
+
+The alternative is to give each build its own `runtimeVersion`, which stops
+updates crossing between them — at the cost that an old build then receives no
+updates at all. Not done yet; worth considering before the App Store release,
+when real users will be on several builds at once.
+
 ## Which build am I updating? Read this before every `eas update`
 
 **The channel is baked into the binary at build time; how the app got onto the

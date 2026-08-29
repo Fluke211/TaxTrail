@@ -44,6 +44,28 @@ no native build was needed. The Summary footer should read
 
 ---
 
+## ⚠ DO NOT PUBLISH AN OTA UNTIL BUILD 4 IS INSTALLED
+
+`main` now imports `GestureHandlerRootView` in `App.tsx`, and
+`react-native-gesture-handler` is **not** in the build 3 binary. Both builds
+share `runtimeVersion` **1.0.0**, so an `eas update` published from `main`
+reaches build 3 as well — where that import resolves to a missing native module
+and **the app fails on launch**.
+
+So, in order:
+
+1. Cut and install **build 4** (it embeds js r22 already).
+2. Confirm the footer reads `v1.0.0 (build 4) · js r22` on device.
+3. Only then resume `step: update` publishes.
+
+Build 3 is safe on **js r21**, which is what is live now. If someone needs to
+ship a JS fix before build 4 lands, publish from the `0b00b937` commit (r21),
+not from `main`.
+
+This note comes out once build 4 is confirmed on the device.
+
+---
+
 ## Current state
 
 **The development client is installed and working.** Tyler scanned a real
