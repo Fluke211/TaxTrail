@@ -2101,3 +2101,51 @@ The diagnostics export records the stored category but not whether the **user**
 changed it, so it cannot distinguish a parser result from a correction. Three of
 these six read "Personal (non-deductible)" and there was no way to tell which.
 An `edited` flag is agreed and comes next.
+
+## D-052
+
+**A money field bound to a number cannot be typed into** (2026-08-29)
+
+Tyler tried to correct a sales tax to $0.40 and reported that the field "backs
+out the 0". It was worse than that.
+
+The receipt edit fields were controlled inputs bound directly to a number:
+
+```jsx
+value={selected.salesTax != null ? String(selected.salesTax) : ''}
+onChangeText={(v) => setSelected({ ...selected, salesTax: parseFloat(v) > 0 ? parseFloat(v) : null })}
+```
+
+Every keystroke went **text → number → text**, and anything not yet a finished
+number was erased on the way back. Simulated against the real binding:
+
+```
+press 0  -> field held "0"  -> re-rendered as ""
+press .  -> field held "."  -> re-rendered as ""
+press 4  -> field held "4"  -> re-rendered as "4"
+press 0  -> field held "40" -> re-rendered as "40"
+final: "40"
+```
+
+**Typing $0.40 recorded $40.00 — a factor of 100, silently.** The decimal point
+could never be entered at all, on either the total or the sales-tax field, so
+every edit of an existing receipt was integer-only. `1.` parses to `1` and
+renders as `"1"`, which eats the dot before a user can reach the cents.
+
+Fixed with `MoneyInput`, which keeps the user's raw text while the field is
+focused and only falls back to the canonical number on blur. The rules live in
+`src/lib/moneyInput.js` as pure functions so "does typing 0.40 give forty cents"
+is a unit test rather than something checked by hand on a phone — the same
+reasoning as `gates.js` and `prorate.js` (D-043).
+
+Two decisions inside the sanitizer worth stating:
+
+- **`""`, `"."` and `"0."` are legitimately null**, not zero. A receipt with no
+  recorded tax is a different claim from one with zero tax, and the difference
+  matters on a Schedule A line.
+- **Cents truncate rather than round.** Rounding mid-keystroke would change
+  digits the user had already typed while they were still typing more.
+
+The capture screen was never affected — it holds its fields as strings. Only
+editing an existing receipt was broken, which is exactly where a user goes to
+*correct* a number.

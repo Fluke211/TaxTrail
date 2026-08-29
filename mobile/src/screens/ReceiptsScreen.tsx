@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { T } from '../lib/theme';
+import MoneyInput from '../components/MoneyInput';
 import { ZoomableImage } from '../components/ZoomableImage';
 import { CategoryPicker } from '../components/CategoryPicker';
 import { deleteReceipt, updateReceipt, type Receipt } from '../lib/db';
@@ -92,13 +93,13 @@ export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Rece
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>TOTAL ($)</Text>
-                <TextInput style={s.input} keyboardType="decimal-pad" value={String(selected.total)}
-                  onChangeText={(v) => setSelected({ ...selected, total: parseFloat(v) || 0 })} />
+                <MoneyInput style={s.input} value={selected.total}
+                  onChangeValue={(v) => setSelected({ ...selected, total: v ?? 0 })} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>SALES TAX ($)</Text>
-                <TextInput style={s.input} keyboardType="decimal-pad" value={selected.salesTax != null ? String(selected.salesTax) : ''}
-                  onChangeText={(v) => setSelected({ ...selected, salesTax: parseFloat(v) > 0 ? parseFloat(v) : null })} />
+                <MoneyInput style={s.input} value={selected.salesTax}
+                  onChangeValue={(v) => setSelected({ ...selected, salesTax: v })} />
               </View>
             </View>
             <Text style={s.label}>MAIN TAX CATEGORY</Text>
