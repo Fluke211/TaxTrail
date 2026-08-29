@@ -241,28 +241,33 @@ waiting costs nothing, but do not gate launch on it.
 
 ## Open items and known issues
 
-- **The two subscriptions are blocked by ONE empty field, one level up
-  (2026-08-29).** `receiptsnap_pro_monthly` and `receiptsnap_pro_annual` both
-  sit in `MISSING_METADATA`; `receiptsnap_pro_lifetime` is `READY_TO_SUBMIT`.
-  So the paywall would offer one of three products.
+- **RESOLVED (2026-08-29) — all three products are fetchable.** Both
+  subscriptions were stuck in `MISSING_METADATA` while the lifetime unlock was
+  fine, so the paywall would have offered one product of three.
 
-  Both subscriptions are individually **complete** — localizations, prices,
-  review screenshot and territory availability all present, confirmed by API.
-  The blocker is that **subscription group `22281099` ("ReceiptSnap Pro") has
-  no localization at all**, and a group without a display name holds every
-  subscription under it in `MISSING_METADATA`.
+  The cause was one empty field, one level up: subscription group `22281099`
+  had **no localization**, and a group without a display name holds every
+  subscription under it in `MISSING_METADATA`. Both subscriptions were
+  themselves complete the whole time — localizations, prices, review screenshot
+  and territory availability all present — which is why three passes of
+  per-product checks came back clean before the probe looked at the parent.
 
-  **Fix:** App Store Connect -> Subscriptions -> the group -> Localizations ->
-  add English (U.S.) with a display name. Suggested: **TaxTrail Pro**. This
-  string is user-visible: it is the heading iOS shows in Settings ->
-  Subscriptions.
+  Tyler set the group display name to **TaxTrail Pro**, and `asc-iap` now
+  reports:
 
-  The group's *reference name* also still reads "ReceiptSnap Pro", but that one
-  is internal-only and costs nothing to leave.
+  ```
+  group name [en-US] = 'TaxTrail Pro'
+  ok receiptsnap_pro_annual   state=READY_TO_SUBMIT
+  ok receiptsnap_pro_monthly  state=READY_TO_SUBMIT
+  ok receiptsnap_pro_lifetime state=READY_TO_SUBMIT
+  ```
 
-  Found with `step: asc-iap`, which took three passes precisely because the
-  per-product checks kept coming back clean — the empty field was on the parent.
+  **The lesson worth keeping:** check the object that owns the object. Every
+  per-product field was populated, so a check that only looked at products
+  could never have found this. `step: asc-iap` now looks at both levels.
 
+  The group's *reference name* still reads "ReceiptSnap Pro" — internal only,
+  never shown to users, and left alone deliberately.
 
 - **RESOLVED — the app is now TaxTrail (D-026).** App Store Connect record is
   **`TaxTrail: Receipt Scanner`**, subtitle *"Categorization for Schedule C"*.

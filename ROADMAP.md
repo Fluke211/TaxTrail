@@ -18,11 +18,10 @@ what blocks what, not by size.
 - [x] **Paid Applications agreement — ACTIVE** (confirmed 2026-08-27). This was
       the gate on the whole purchase flow; testing the paywall is now possible
       for the first time.
-- [ ] **Verify the three products actually fetch.** The agreement being active
-      is necessary, not sufficient: a product sitting in `MISSING_METADATA`
-      still returns nothing to StoreKit, and from inside the app that is
-      indistinguishable from a code bug. `step: asc-iap` reports each product's
-      state.
+- [x] **All three products verified fetchable** (2026-08-29). The blocker was
+      the subscription group having no localization, not anything on the
+      products; fixed by setting the group display name to "TaxTrail Pro".
+      `step: asc-iap` re-run confirms `READY_TO_SUBMIT` across the board.
 - [ ] **Test a sandbox purchase end to end** — monthly, annual and the lifetime
       unlock, plus Restore Purchases
 - [ ] Confirm **App Store Small Business Program** acceptance (applied; Apple
