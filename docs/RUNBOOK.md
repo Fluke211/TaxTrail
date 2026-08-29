@@ -425,6 +425,27 @@ app, so the same accounts serve every app on the account. Their name, email
 and password **can never be edited after creation** — only the region — so
 make two or three at once and save the passwords immediately.
 
+## Make App Store screenshots and the preview video
+
+Full procedure in [`MAC_SETUP.md`](MAC_SETUP.md). The constraints that decide
+the shape of it, so nobody re-derives them:
+
+- **Apple requires iPhone screenshots taken on iOS**, and a **6.9-inch** set is
+  mandatory for an iPhone app (1260×2736, 1290×2796 or 1320×2868 portrait).
+  Android captures are not accepted, so Tyler's redroid/Maestro rig cannot
+  produce store assets no matter how good it is.
+- **Maestro drives simulators only** — physical iPhones are not officially
+  supported — and simulators only run on macOS. A Mac is the whole path, not a
+  convenience.
+- **The iOS Simulator has no camera.** The capture flow cannot be exercised
+  there. Screenshots go through the photo-library import path, with receipt
+  images dragged onto the simulator window first. Simulator runs prove the UI
+  and never the scanner, which is why the real corpus still has to come from a
+  physical phone.
+
+Cost: about 25 GB of disk on the borrowed machine (fully reclaimable), an
+overnight Xcode download, and roughly an hour of setup. No money.
+
 ## Register a new device
 
 Do it in a browser, not the CLI (`eas device:create` accepts no flags at all
