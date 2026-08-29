@@ -211,6 +211,14 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
     // export — the TXF file got a malformed "$--10.00" record — and the
     // remainder hint clamped itself to $0.00, so the screen said the split
     // balanced when it did not.
+    // A blank or unparsed total is a different problem from an over-split one,
+    // and saying "the whole receipt is already split" when no total was read
+    // sends the user looking for splits that are not there.
+    if (totalNum <= 0) {
+      Alert.alert('Set the receipt total first',
+        'Splits are measured against the total, so enter it above before splitting.');
+      return;
+    }
     const left = Math.round((totalNum - allocated) * 100) / 100;
     if (amount > left) {
       Alert.alert(
