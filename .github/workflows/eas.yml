@@ -481,6 +481,20 @@ jobs:
               for g in groups:
                   gid = g["id"]
                   print(f"  group '{g.get('attributes', {}).get('referenceName')}' ({gid})")
+                  cg, dg = get(f"/v1/subscriptionGroups/{gid}/subscriptionGroupLocalizations?limit=50")
+                  if cg == 200:
+                      glocs = dg.get("data", [])
+                      if not glocs:
+                          problems.append(f"subscription group {gid} has no localization")
+                          print("    !! group has no localization (needs a display name)")
+                      for gl in glocs:
+                          ga = gl.get("attributes", {})
+                          note = ""
+                          if "receiptsnap" in str(ga.get("name", "")).lower():
+                              note = "  <- still says ReceiptSnap, users see this"
+                          print(f"    group name [{ga.get('locale')}] = {ga.get('name')!r}{note}")
+                  else:
+                      print(f"    could not read group localizations (HTTP {cg})")
                   c2, d2 = get(f"/v1/subscriptionGroups/{gid}/subscriptions?limit=200")
                   print(f"    HTTP {c2}")
                   if c2 == 200:
@@ -521,6 +535,41 @@ jobs:
                                   missing.append("price (no price set in any territory)")
                           else:
                               missing.append(f"could not read prices (HTTP {c4})")
+
+                          # A subscription also needs a review screenshot and a
+                          # territory availability record, and its GROUP needs
+                          # its own localization. Any of those missing shows up
+                          # only as MISSING_METADATA on the subscription.
+                          c5, d5 = get(f"/v1/subscriptions/{sub['id']}/appStoreReviewScreenshot")
+                          if c5 == 200:
+                              if not d5.get("data"):
+                                  missing.append("App Store review screenshot")
+                              else:
+                                  sa = d5["data"].get("attributes", {})
+                                  if sa.get("assetDeliveryState", {}).get("state") != "COMPLETE":
+                                      missing.append(f"review screenshot upload incomplete "
+                                                     f"({sa.get('assetDeliveryState', {}).get('state')})")
+                          elif c5 == 404:
+                              missing.append("App Store review screenshot (none attached)")
+                          else:
+                              missing.append(f"could not read review screenshot (HTTP {c5})")
+
+                          c6, d6 = get(f"/v1/subscriptions/{sub['id']}/subscriptionAvailability")
+                          if c6 == 200:
+                              if not d6.get("data"):
+                                  missing.append("territory availability")
+                          elif c6 == 404:
+                              missing.append("territory availability (not configured)")
+                          else:
+                              missing.append(f"could not read availability (HTTP {c6})")
+
+                          if not missing:
+                              # Everything checked came back populated, so dump
+                              # what Apple actually holds rather than guess again.
+                              c7, d7 = get(f"/v1/subscriptions/{sub['id']}")
+                              print(f"         nothing obvious missing — raw attributes:")
+                              for k, v in sorted((d7.get("data", {}).get("attributes") or {}).items()):
+                                  print(f"           {k} = {v!r}")
 
                           for m in missing:
                               print(f"         needs: {m}")
