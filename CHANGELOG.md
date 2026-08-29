@@ -11,6 +11,22 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### OTA — v1.0.0 (build 3) · js r20 — 2026-08-29
+
+Three parser bugs from the first real diagnostics export. All three were
+invisible to the synthetic corpus, which sat at 100% throughout (D-051).
+
+- **A receipt that stacks labels then values had its total read as the
+  subtotal.** A real Target receipt exported $1.50 light, silently. Repaired
+  only when subtotal + tax appears verbatim on the receipt, so a genuinely
+  tax-inclusive receipt is untouched
+- **A restaurant coupon in the footer filed a fishing-bait receipt as a
+  50%-deductible business meal.** A category whose entire case rests on the
+  promotional footer no longer qualifies
+- **A Home Depot receipt that never prints "Home Depot"** — only the slogan
+  "How doers get more done." — is now recognized from the slogan
+- Four real receipts added to `__tests__/corpus/`
+
 ### OTA — v1.0.0 (build 3) · js r19 — 2026-08-29
 
 - **"Manage subscription" in the Summary export card**, shown only to

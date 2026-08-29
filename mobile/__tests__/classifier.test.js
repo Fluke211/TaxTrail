@@ -498,5 +498,72 @@ check('24a: a rental car on a trip still lands in Travel',
   C.parseReceipt('HERTZ\nRENTAL CAR\nTOTAL 310.00').category === 'Travel & Lodging',
   C.parseReceipt('HERTZ\nRENTAL CAR\nTOTAL 310.00').category);
 
+// ---------------------------------------------------------------------------
+// Three bugs from Tyler's first real diagnostics export (6 receipts, r19).
+// Full receipts live in __tests__/corpus/; these pin the specific behaviours.
+
+// 1. STACKED COLUMNS — the total was read as the subtotal.
+//
+// A real Target receipt prints every label, then every value, so the amounts
+// line up by position rather than adjacency. "amount on this line or the next"
+// handed TOTAL the subtotal and the receipt exported $1.50 light — silently,
+// because $25.00 is a real number printed on the receipt.
+const column = C.parseReceipt(
+  'Glen Allen Broad St\nFURNITURE\n074110260 Room Esntls\nT\n$25.00\n' +
+  'SUBTOTAL\nT = VA TAX 6.00000 on $25.00\nTOTAL\n$25.00\n$1.50\n$26.50\n' +
+  '*2697 VISA CHARGE\n$26.50');
+check('stacked columns: total is the total, not the subtotal', column.total === 26.50, column.total);
+check('stacked columns: tax still reads correctly', column.taxTotal === 1.50, column.taxTotal);
+
+// The repair must NOT fire on a tax-inclusive receipt where the total really
+// does equal the subtotal. The guard is that subtotal + tax has to appear
+// verbatim somewhere; here it does not, so the total stands.
+const inclusive = C.parseReceipt(
+  'CORNER STORE\nSUBTOTAL   10.00\nTAX INCLUDED   0.60\nTOTAL   10.00');
+check('tax-inclusive receipt is left alone', inclusive.total === 10.00, inclusive.total);
+
+// 2. PROMOTIONAL FOOTER — a coupon must not decide the category.
+//
+// A real Bass Pro receipt for fishing bait ends with a coupon for the
+// Islamorada Fish Company RESTAURANT. That single word filed a bait purchase
+// as a 50%-deductible business meal.
+const promo = C.parseReceipt(
+  'Bass Pro Shops\nYellow Replacement Ba\n$6.99\nTOTAL\n$14.82\n' +
+  'Keep In Touch!\nFacebook.com/BassProShops\n' +
+  'Bring your Bass Pro Shops receipt to our Islamorada Fish Company\n' +
+  'Restaurant and receive $5 off your food purchase of $20.');
+check('promo footer does not create a business meal', promo.category !== 'Business Meals', promo.category);
+
+// A tail hit is not thrown away — it just cannot win alone. With a real body
+// signal present, the category is still decided by the body.
+const bodyWins = C.parseReceipt(
+  'HOME DEPOT\nLUMBER  20.00\nTOTAL  20.00\nKeep In Touch!\nVisit our Restaurant');
+check('body signal still wins over a tail hit',
+  bodyWins.category === 'Supplies & Materials', bodyWins.category);
+
+// The marker is only searched in the BACK HALF, because these phrases appear
+// legitimately near the top: a real Cabelas receipt has "NOW HIRING" on line 3,
+// and cutting there would discard the entire purchase.
+const earlyMarker = C.parseReceipt(
+  'NOW HIRING\nAPPLY ONLINE\nHOME DEPOT\nLUMBER 30.00\nDRYWALL 10.00\nTOTAL 40.00');
+check('an early promo phrase does not truncate the receipt',
+  earlyMarker.total === 40.00 && earlyMarker.category === 'Supplies & Materials',
+  earlyMarker.category + '/' + earlyMarker.total);
+
+// 3. SLOGAN — some receipts never print the store's name.
+//
+// A real Home Depot receipt opens "How doers get more done." across two lines.
+// The merchant parsed as "How doers" and nothing matched, so a hardware
+// purchase landed Uncategorized.
+const slogan = C.parseReceipt(
+  'How doers\nget more done.\n421 ALAKAWA STREET, HONOLULU,\n, HI 96817\n' +
+  'SUBTOTAL\n71.90\nSALES TAX\n3.39\nTOTAL\n$75.29');
+check('slogan names the merchant', slogan.merchant === 'Home Depot', slogan.merchant);
+check('slogan reaches the right category',
+  slogan.category === 'Supplies & Materials', slogan.category);
+// Matching is whitespace-flattened because OCR wraps the slogan mid-phrase.
+check('slogan matches across a line break',
+  C.parseReceipt('How doers\nget more done.\nTOTAL 5.00').merchant === 'Home Depot');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

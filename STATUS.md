@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 3) · js r19** | On TestFlight. r18 adds the Business Meals rename + migration and Schedule C line 20a (D-050) |
+| iOS app (`mobile/`) | **v1.0.0 (build 3) · js r20** | On TestFlight. r18 adds the Business Meals rename + migration and Schedule C line 20a (D-050) |
 
 ---
 

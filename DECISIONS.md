@@ -2030,3 +2030,74 @@ Lodging. Moving trucks (U-Haul, Penske, Ryder) are the genuinely ambiguous case
 — a vehicle rental by the letter of 20a, a travel cost in practice — and are
 left where they land today rather than moved on a coin flip. **If Tyler wants
 them on 20a, that is a keyword addition, not a redesign.**
+
+## D-051
+
+**Three bugs from the first real diagnostics export** (2026-08-29)
+
+Six real receipts, and every one of the three defects was invisible to the
+synthetic corpus — which was sitting at 100% throughout. That is the argument
+for real data in one line.
+
+### 1. The total was read as the subtotal (the serious one)
+
+A Target receipt prints every label first and every value after, so amounts
+line up by **position**, not adjacency:
+
+```
+SUBTOTAL
+T = VA TAX 6.00000 on $25.00
+TOTAL
+$25.00      <- belongs to SUBTOTAL
+$1.50       <- belongs to the tax line
+$26.50      <- belongs to TOTAL
+```
+
+"The amount is on this line or the next" handed `TOTAL` the subtotal, and the
+receipt exported **$1.50 light** — silently, because $25.00 is a real number
+printed on the receipt. A wrong number on a tax record with nothing to notice.
+
+`repairColumnTotal` fires only when a subtotal and tax were both found, the
+chosen total equals the subtotal to the cent, **and subtotal + tax appears
+verbatim as an amount somewhere on the receipt.** That last condition is what
+makes it safe: a genuinely tax-inclusive receipt does not print the sum, so
+there is nothing to match and the repair stands down. Pinned both ways.
+
+### 2. A coupon decided the category
+
+The Bass Pro receipt for fishing bait ends with a coupon for the *Islamorada
+Fish Company **Restaurant***. That one word filed a bait purchase as a
+50%-deductible business meal.
+
+Keywords found only after a promotional marker now score at a quarter weight,
+and — the part that actually fixes it — **a category whose entire case rests on
+the footer does not qualify at all.** Marketing copy is not evidence of what was
+bought. Bass Pro now lands Uncategorized, which asks the user rather than
+quietly claiming a meal deduction.
+
+The marker is searched **only in the back half** of the receipt. A real Cabelas
+receipt has "NOW HIRING" on line 3; cutting there would discard the purchase.
+
+### 3. The store's name was nowhere on the receipt
+
+The Home Depot receipt opens *"How doers get more done."* — the name never
+appears. Merchant parsed as "How doers", nothing matched, Uncategorized.
+
+`sloganBrand()` matches against whitespace-flattened text, because OCR wrapped
+the slogan across two lines, and it **overrides** an extracted merchant rather
+than merely filling in for a missing one — "How doers" is not a shop. Kept
+separate from the `BRANDS` fallback deliberately: brand names get mentioned
+incidentally (one corpus receipt has an entire second receipt appended to it),
+whereas a slogan at the top is the shop identifying itself.
+
+### Not fixed, because it is a product call
+
+Bass Pro and Cabelas now land Uncategorized. Whether a sporting-goods store
+should map to a category by default is Tyler's decision, not a parser bug.
+
+### Also worth recording
+
+The diagnostics export records the stored category but not whether the **user**
+changed it, so it cannot distinguish a parser result from a correction. Three of
+these six read "Personal (non-deductible)" and there was no way to tell which.
+An `edited` flag is agreed and comes next.
