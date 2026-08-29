@@ -11,6 +11,14 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### OTA — v1.0.0 (build 3) · js r21 — 2026-08-29
+
+- **Editing a receipt's total or sales tax could not accept a decimal point.**
+  The fields were bound straight to a number, so each keystroke round-tripped
+  through `parseFloat` and erased anything not yet a finished number — typing
+  `0.40` recorded **$40.00**, a factor of 100, silently. Both fields now keep
+  the raw text while focused (D-052)
+
 ### OTA — v1.0.0 (build 3) · js r20 — 2026-08-29
 
 Three parser bugs from the first real diagnostics export. All three were

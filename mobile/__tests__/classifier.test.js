@@ -565,5 +565,49 @@ check('slogan reaches the right category',
 check('slogan matches across a line break',
   C.parseReceipt('How doers\nget more done.\nTOTAL 5.00').merchant === 'Home Depot');
 
+// ---------------------------------------------------------------------------
+// Money fields have to let you finish typing.
+//
+// The receipt edit fields were controlled inputs bound to a NUMBER, so every
+// keystroke went text -> number -> text and anything not yet a finished number
+// was erased on the way back. The decimal point could never be entered AT ALL:
+// "1." parsed to 1 and rendered as "1". Every edit was silently integer-only.
+// Tyler hit it correcting a sales tax to $0.40.
+const MI = require('../src/lib/moneyInput.js');
+const keystrokes = (s) => MI.sanitizeMoneyText(s);
+
+// The exact sequence that failed. Each of these is a legal STATE on the way to
+// a number, and a field that erases them is unusable.
+check('money: a lone zero survives', keystrokes('0') === '0');
+check('money: a lone dot survives', keystrokes('.') === '.');
+check('money: "0." survives', keystrokes('0.') === '0.');
+check('money: "0.4" survives', keystrokes('0.4') === '0.4');
+check('money: "0.40" is reached', keystrokes('0.40') === '0.40');
+check('money: a trailing dot is not eaten', keystrokes('1.') === '1.');
+
+// ...and the values those states represent. "" and "." are not yet numbers,
+// and null means "no value", not "zero" — a receipt with no recorded tax is a
+// different claim from one with zero tax.
+check('money: an unfinished entry has no value',
+  MI.moneyValue('') === null && MI.moneyValue('.') === null);
+check('money: "0." has no value yet', MI.moneyValue('0.') === null || MI.moneyValue('0.') === 0);
+check('money: "0.40" is forty cents', MI.moneyValue('0.40') === 0.4);
+check('money: ".4" is forty cents', MI.moneyValue('.4') === 0.4);
+check('money: a real amount parses', MI.moneyValue('26.50') === 26.5);
+
+// Cleaning, without destroying an in-progress entry.
+check('money: letters are dropped', keystrokes('12a.3b4') === '12.34');
+check('money: a comma becomes a decimal point', keystrokes('1,50') === '1.50');
+check('money: only the first separator survives', keystrokes('1.2.3') === '1.23');
+check('money: cents are capped at two places', keystrokes('1.2345') === '1.23');
+check('money: leading zeros collapse but 0. is kept',
+  keystrokes('007') === '7' && keystrokes('0.5') === '0.5');
+check('money: empty stays empty', keystrokes('') === '');
+check('money: null and undefined do not throw',
+  keystrokes(null) === '' && keystrokes(undefined) === '');
+// Truncating rather than rounding matters mid-keystroke: rounding would change
+// digits the user already typed while they are still typing more.
+check('money: cents truncate, never round', keystrokes('1.999') === '1.99');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
