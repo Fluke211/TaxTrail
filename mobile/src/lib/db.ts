@@ -99,6 +99,14 @@ export async function allReceipts(): Promise<Receipt[]> {
   return rows.map(rowToReceipt);
 }
 
+// Lifetime scans — the review prompt keys off this, not the monthly count,
+// so it cannot re-fire every month (see gates.js / shouldAskForReview).
+export async function countAll(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM receipts');
+  return row?.n ?? 0;
+}
+
 // Scans this calendar month — the free-tier gate.
 export async function countThisMonth(): Promise<number> {
   const db = await getDb();
