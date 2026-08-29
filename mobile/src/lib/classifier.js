@@ -284,6 +284,43 @@
     return max;
   }
 
+  // A tip is part of what the meal cost, so it belongs in the deductible total.
+  // Card slips print the pre-tip figure as "TOTAL" (or "AMOUNT CHARGED", which
+  // wins on hint priority) and the real amount lower down, so extractTotal lands
+  // on the smaller number and the meal is under-deducted every time.
+  //
+  // The rule is deliberately conservative: add the tip ONLY when the receipt
+  // itself prints the post-tip figure on a total-ish line. Without that
+  // confirmation there is no way to tell a pre-tip total from one that already
+  // includes the tip, and guessing wrong inflates a tax deduction — a worse
+  // failure than the one being fixed. A handwritten tip prints no number at all,
+  // so it is correctly out of scope.
+  function applyTip(lines, base) {
+    if (base === null) return base;
+
+    var tip = null;
+    for (var i = 0; i < lines.length; i++) {
+      if (!/\b(tip|gratuity)\b/i.test(lines[i])) continue;
+      // "SUGGESTED TIP 18%" and friends are a guide, not a charge.
+      if (/%/.test(lines[i]) || /suggest|guide/i.test(lines[i])) continue;
+      var m = matchMoney(lines[i]) || matchMoney(lines[i + 1] || '');
+      if (!m) continue;
+      var v = normalizeAmount(m[1]);
+      if (v !== null && v > 0) tip = tip === null ? v : Math.max(tip, v);
+    }
+    if (tip === null) return base;
+
+    var target = Math.round((base + tip) * 100) / 100;
+    for (var j = 0; j < lines.length; j++) {
+      if (!/(total|paid|amount|balance|charge)/i.test(lines[j])) continue;
+      var mm = matchMoney(lines[j]);
+      if (!mm) continue;
+      var mv = normalizeAmount(mm[1]);
+      if (mv !== null && Math.abs(mv - target) < 0.005) return target;
+    }
+    return base;
+  }
+
   var MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
 
   function extractDate(text) {
@@ -632,7 +669,7 @@
     var lines = text.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
     var merchant = extractMerchant(lines);
     if (!merchant) merchant = brandFromText(text);   // fallback: recognized brand anywhere
-    var total = extractTotal(lines);
+    var total = applyTip(lines, extractTotal(lines));
     var date = extractDate(text);
     var category = classify(text, merchant);
     var items = extractLineItems(lines);

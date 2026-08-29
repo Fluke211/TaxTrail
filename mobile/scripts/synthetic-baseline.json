@@ -2,11 +2,9 @@
   "seed": 42,
   "count": 2000,
   "fields": {
+    "total": 100,
     "taxTotal": 100,
     "subtotal": 100,
-    "total (tip: amount paid)": 0,
-    "total (tip: printed total)": 100,
-    "date(any)": 100,
-    "total": 100
+    "date(any)": 100
   }
 }
