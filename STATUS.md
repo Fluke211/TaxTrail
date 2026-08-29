@@ -241,6 +241,29 @@ waiting costs nothing, but do not gate launch on it.
 
 ## Open items and known issues
 
+- **The two subscriptions are blocked by ONE empty field, one level up
+  (2026-08-29).** `receiptsnap_pro_monthly` and `receiptsnap_pro_annual` both
+  sit in `MISSING_METADATA`; `receiptsnap_pro_lifetime` is `READY_TO_SUBMIT`.
+  So the paywall would offer one of three products.
+
+  Both subscriptions are individually **complete** — localizations, prices,
+  review screenshot and territory availability all present, confirmed by API.
+  The blocker is that **subscription group `22281099` ("ReceiptSnap Pro") has
+  no localization at all**, and a group without a display name holds every
+  subscription under it in `MISSING_METADATA`.
+
+  **Fix:** App Store Connect -> Subscriptions -> the group -> Localizations ->
+  add English (U.S.) with a display name. Suggested: **TaxTrail Pro**. This
+  string is user-visible: it is the heading iOS shows in Settings ->
+  Subscriptions.
+
+  The group's *reference name* also still reads "ReceiptSnap Pro", but that one
+  is internal-only and costs nothing to leave.
+
+  Found with `step: asc-iap`, which took three passes precisely because the
+  per-product checks kept coming back clean — the empty field was on the parent.
+
+
 - **RESOLVED — the app is now TaxTrail (D-026).** App Store Connect record is
   **`TaxTrail: Receipt Scanner`**, subtitle *"Categorization for Schedule C"*.
   USPTO returns **zero hits** for TAXTRAIL; Google Play is clear; the only
