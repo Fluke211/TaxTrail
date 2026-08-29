@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { T } from './src/lib/theme';
@@ -109,10 +110,16 @@ function Root() {
 }
 
 export default function App() {
+  // GestureHandlerRootView has to be the OUTERMOST view or gesture-handler's
+  // recognizers never receive touches — the failure is silent, a swipe simply
+  // does nothing. Added with the module rather than with the feature that uses
+  // it, so build 4 carries it and swipe-to-delete can then ship over the air.
   return (
-    <SafeAreaProvider>
-      <Root />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <Root />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
