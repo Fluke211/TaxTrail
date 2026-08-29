@@ -3,6 +3,7 @@
 import type { Receipt, Allocation } from './db';
 import type { ExportRow } from './exporters';
 const C = require('./classifier.js');
+const P = require('./prorate.js');
 
 const SC_BY_NAME: Record<string, string> = {};
 const GROUP_BY_NAME: Record<string, string> = {};
@@ -29,6 +30,16 @@ export function exportRows(filtered: Receipt[]): ExportRow[] {
     .forEach((r) => {
       const allocs = allocationsOf(r);
       const tot = r.total || allocs.reduce((s, a) => s + (a.amount || 0), 0) || 1;
+      // Sales tax is split with the receipt, in whole cents, by the
+      // largest-remainder method — so the parts sum to exactly the tax that was
+      // paid. Rounding each part on its own lost a cent on some receipts and
+      // INVENTED one on others, and sales tax feeds Schedule A line 5a, so an
+      // over-reported figure is an over-claim on a filed return. See prorate.js.
+      const taxParts: (number | null)[] = P.splitSalesTax(
+        r.salesTax,
+        allocs.map((a) => Math.round((a.amount || 0) * 100)),
+        Math.round(tot * 100)
+      );
       allocs.forEach((a, i) => {
         rows.push({
           date: r.date || '',
@@ -40,9 +51,7 @@ export function exportRows(filtered: Receipt[]): ExportRow[] {
           notes: r.notes || '',
           rid: 'R' + r.id,
           split: allocs.length > 1 ? `${i + 1} of ${allocs.length}` : '',
-          taxPortion: r.salesTax && r.salesTax > 0
-            ? Math.round(r.salesTax * ((a.amount || 0) / tot) * 100) / 100
-            : null,
+          taxPortion: taxParts[i],
         });
       });
     });

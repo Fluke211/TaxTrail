@@ -56,7 +56,13 @@ what blocks what, not by size.
             screen now warns to set the date format at the mapping step —
             day-first silently files anything before the 13th in the wrong
             month
-      - [ ] CPA CSV and XLSX: column headers, form grouping, sales-tax split
+      - [x] **Sales-tax split was losing and inventing cents** (D-048).
+            Each part was rounded independently, so $1.00 across three
+            categories exported as $0.99 and $0.01 across two exported as
+            $0.02. Now largest-remainder in whole cents, and the Summary
+            screen uses the same split so the app and the file agree
+      - [ ] CPA CSV and XLSX: column headers and form grouping (the sales-tax
+            split above is done)
       - [ ] End-to-end import into at least one real package. **This is the
             part no amount of spec-reading substitutes for** — it needs Tyler
             or a trial licence.

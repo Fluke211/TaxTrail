@@ -56,6 +56,16 @@ defects; the one with the most at stake turned out to be already correct.
   was already handled correctly; it is pinned so it stays that way
 - CI now runs `test:synth` on every PR
 
+### Exports — sales tax (2026-08-29)
+
+- **Splitting a receipt no longer loses or invents cents of sales tax.** Each
+  part was rounded on its own, so $1.00 of tax across three categories
+  exported as $0.99 and $0.01 across two exported as $0.02. Sales tax feeds
+  Schedule A line 5a, so the invented cent was an over-claim. Now
+  largest-remainder in whole cents (D-048)
+- The Summary screen uses the same split, so summing the CSV's "Sales Tax
+  Portion" column gives exactly the figure the app displays
+
 ### Repository — 2026-08-29
 
 - **Workflow inputs no longer reach the shell.** `${{ inputs.* }}` was written

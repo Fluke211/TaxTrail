@@ -1852,3 +1852,41 @@ reasons that have nothing to do with feasibility:
 **Revisit after the iOS launch, and start by collecting an ML Kit corpus** —
 the same "Parser diagnostics" export, from an Android device. Nothing else
 about Android should be estimated until that number exists.
+
+## D-048
+
+**Sales tax is split by largest remainder, not by rounding each part**
+(2026-08-29)
+
+Splitting a receipt across categories splits its sales tax too. The old code
+rounded each part independently, which does not add up:
+
+| Tax | Split | Old result | Sum |
+|---|---|---|---|
+| $1.00 | 3 equal parts | 0.33 · 0.33 · 0.33 | **$0.99** — a cent lost |
+| $0.01 | 2 equal parts | 0.01 · 0.01 | **$0.02** — a cent invented |
+| $5.00 | 7 equal parts | 0.71 × 7 | **$4.97** — three cents lost |
+
+Losing a cent understates a deduction, which is merely wrong. **Inventing one is
+worse**: sales tax flows to Schedule A line 5a, so an over-reported figure is an
+over-claim on a filed return. Both accumulate across a year of split receipts,
+and neither announces itself — the exported column simply does not sum to the
+tax the receipt shows.
+
+Replaced with the largest-remainder method in whole cents (`src/lib/prorate.js`):
+floor every part, then hand the leftover cents to the parts with the largest
+discarded fractions. The parts always sum to exactly the amount divided, and no
+part is more than a cent from its exact share. Ties break by index, so an export
+re-run produces the same file — a CPA diffing two exports should see no churn.
+
+Kept as plain CommonJS in `src/lib/` for the same reason as `gates.js` and
+`restorePlan.js` (D-043): the Node test harness can require it, so "does $0.01
+across two categories stay $0.01" is a unit test rather than an experiment on a
+phone. Thirteen tests, including a sweep asserting the parts sum to the whole
+across every shape from 1 to 40 cents over 1 to 7 parts.
+
+**The Summary screen now uses the same split.** It was accumulating unrounded
+shares and rounding once at the end, which is defensible in isolation and gives
+a mathematically exact total — but it would then disagree with the CSV by a
+cent, and the CPA reconciling the two has no way to tell which is right. One
+number, computed one way.

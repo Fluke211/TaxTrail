@@ -331,5 +331,66 @@ check('strict match wins; loose never overrides it',
 check('spaced rate is not mistaken for tax',
   C.parseReceipt('SAFEWAY\nSUBTOTAL 100. 00\nTAX 8. 25%   8. 25\nTOTAL 108. 25').total === 108.25);
 
+// ---------------------------------------------------------------------------
+// Splitting sales tax across a split receipt.
+//
+// The old code rounded each part on its own, which both LOST and INVENTED
+// cents. Sales tax flows to Schedule A line 5a, so an over-reported figure is
+// an over-claim on a filed return — the invented cent is the worse of the two.
+const PR = require('../src/lib/prorate.js');
+const sum = (a) => Math.round(a.reduce((s, v) => s + (v || 0), 0) * 100) / 100;
+
+// The three cases that drifted, verbatim. Each previously summed to the wrong
+// number; each must now sum to exactly the tax paid.
+check('tax split: $1.00 three ways sums to $1.00',
+  sum(PR.splitSalesTax(1.00, [1000, 1000, 1000], 3000)) === 1.00);
+check('tax split: $0.01 two ways does not become $0.02',
+  sum(PR.splitSalesTax(0.01, [5000, 5000], 10000)) === 0.01);
+check('tax split: $5.00 seven ways sums to $5.00',
+  sum(PR.splitSalesTax(5.00, [1000, 1000, 1000, 1000, 1000, 1000, 1000], 7000)) === 5.00);
+
+// The odd cent goes to exactly one part, not to all of them and not to none.
+const three = PR.splitSalesTax(1.00, [1000, 1000, 1000], 3000);
+check('tax split: the odd cent lands on one part only',
+  JSON.stringify(three) === JSON.stringify([0.34, 0.33, 0.33]), JSON.stringify(three));
+check('tax split: $0.01 goes to one part and zero to the other',
+  JSON.stringify(PR.splitSalesTax(0.01, [5000, 5000], 10000)) === JSON.stringify([0.01, 0]));
+
+// Unsplit receipts — the overwhelming majority — must be untouched by all this.
+check('tax split: a single allocation gets the whole tax',
+  JSON.stringify(PR.splitSalesTax(8.25, [10000], 10000)) === JSON.stringify([8.25]));
+
+// Proportional, not merely equal: a 90/10 split gets a 90/10 share of the tax.
+check('tax split: follows the allocation weights',
+  JSON.stringify(PR.splitSalesTax(10.00, [9000, 1000], 10000)) === JSON.stringify([9, 1]));
+
+// No sales tax recorded means no column value, not a zero — a CPA reading
+// "0.00" would conclude the receipt had no tax, which is a different claim
+// from "we do not know".
+check('tax split: absent tax yields nulls, not zeros',
+  JSON.stringify(PR.splitSalesTax(null, [100, 100], 200)) === JSON.stringify([null, null]));
+check('tax split: zero tax yields nulls', PR.splitSalesTax(0, [100], 100)[0] === null);
+
+// Allocations covering only part of the receipt carry only that part of the
+// tax, rather than silently absorbing all of it.
+check('tax split: partial allocations carry a partial share',
+  sum(PR.splitSalesTax(10.00, [5000], 10000)) === 5.00);
+
+// Degenerate input must not produce NaN in a tax export.
+check('tax split: zero weights do not divide by zero',
+  JSON.stringify(PR.splitSalesTax(5.00, [0, 0], 0)) === JSON.stringify([0, 0]));
+check('prorate: no weights, no parts', JSON.stringify(PR.prorateCents(100, [])) === JSON.stringify([]));
+check('prorate: parts always sum to the whole, over many shapes', (function () {
+  for (let total = 1; total <= 40; total++) {
+    for (let n = 1; n <= 7; n++) {
+      const w = []; for (let i = 0; i < n; i++) w.push(1 + ((total * 7 + i * 13) % 11));
+      const parts = PR.prorateCents(total, w);
+      if (parts.reduce((s, v) => s + v, 0) !== total) return false;
+      if (parts.some((v) => v < 0)) return false;
+    }
+  }
+  return true;
+})());
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

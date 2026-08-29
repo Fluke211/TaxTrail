@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { T } from '../lib/theme';
 import type { Receipt } from '../lib/db';
 import { exportRows, isBusiness, allocationsOf } from '../lib/rows';
+const P = require('../lib/prorate.js');
 import { exportCSV, exportTXF, exportQBO, exportXLSX, exportBackup, exportArchive, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
 import { isPro, presentPaywall } from '../lib/purchases';
 import { versionStamp } from '../lib/version';
@@ -56,17 +57,27 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
     for (const r of receipts) {
       const allocs = allocationsOf(r);
       const tot = r.total || allocs.reduce((s, a) => s + a.amount, 0) || 1;
-      for (const a of allocs) {
+      // Same split the exports use, so summing the CSV's "Sales Tax Portion"
+      // column gives exactly the figure shown here. Accumulating unrounded
+      // shares would be defensible on its own, but it would disagree with the
+      // file by a cent — and the CPA reconciling the two has no way to tell
+      // which is right.
+      const taxParts: (number | null)[] = P.splitSalesTax(
+        r.salesTax,
+        allocs.map((a) => Math.round((a.amount || 0) * 100)),
+        Math.round(tot * 100)
+      );
+      allocs.forEach((a, ai) => {
         const form = C.taxFormOf(a.category);
         if (!byForm.has(form)) byForm.set(form, new Map());
         const m = byForm.get(form)!;
         m.set(a.category, (m.get(a.category) || 0) + a.amount);
         if (isBusiness(a.category)) bizTotal += a.amount; else personalTotal += a.amount;
-        if (r.salesTax && r.salesTax > 0) {
-          const portion = r.salesTax * (a.amount / tot);
+        const portion = taxParts[ai];
+        if (portion != null) {
           if (isBusiness(a.category)) taxBiz += portion; else taxPersonal += portion;
         }
-      }
+      });
     }
     const formOrder = ['Schedule C', 'Schedule C Part III (COGS)', 'Form 8829 (Home Office)', 'Form 4562 (Depreciation)', 'Schedule A (Itemized)', 'Review needed', 'None (personal)'];
     const forms = [...byForm.entries()].sort((a, b) => {
