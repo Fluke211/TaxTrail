@@ -45,8 +45,9 @@ what blocks what, not by size.
       - [ ] End-to-end import into at least one real package. **This is the
             part no amount of spec-reading substitutes for** — it needs Tyler
             or a trial licence.
-      - [ ] Remove the dead ExcelJS `buildWorkbook` path in `exporters.js` —
-            the app uses SheetJS (`xlsxExport.ts`); exceljs does not work in RN
+      - [x] Removed the dead ExcelJS `buildWorkbook` path in `exporters.js`
+            (144 lines) — never reachable from the app; the real .xlsx is built
+            by `xlsxExport.ts` with SheetJS
 
 ### Parser quality
 
@@ -67,8 +68,13 @@ what blocks what, not by size.
 
 - [x] **Tab bar icons: Ionicons, outline/filled by state** (js r13) — the emoji
       set read as placeholder art
-- [ ] `SKStoreReviewController` prompt after the 3rd successful scan
-- [ ] Test the free-tier gate by actually crossing 10 scans in a month
+- [x] `SKStoreReviewController` prompt — was already implemented, but keyed on
+      `countThisMonth() === 3`, so it re-fired on the third scan of every month
+      and could be skipped entirely. Now a lifetime count with a persisted
+      "asked" flag (D-043)
+- [x] Free-tier gate covered by tests at the boundary — the decision moved to
+      `src/lib/gates.js`, where "what happens on the 11th scan" is a unit test
+      rather than eleven scans on a phone
 
 ### Store submission
 

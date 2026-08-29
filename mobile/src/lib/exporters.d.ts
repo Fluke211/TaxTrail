@@ -13,4 +13,3 @@ export interface ExportRow {
 export function buildCpaCSV(rows: ExportRow[]): string;
 export function buildTXF(rows: ExportRow[], now?: Date): { content: string; skipped: number };
 export function buildQBO(rows: ExportRow[]): string;
-export function buildWorkbook(ExcelJS: unknown, rows: ExportRow[], year: string): unknown;

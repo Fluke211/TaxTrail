@@ -9,12 +9,17 @@ import * as ImagePicker from 'expo-image-picker';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
 import * as Clipboard from 'expo-clipboard';
 import * as StoreReview from 'expo-store-review';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { T } from '../lib/theme';
-import { addReceipt, countThisMonth, type Allocation } from '../lib/db';
+import { addReceipt, countAll, countThisMonth, type Allocation } from '../lib/db';
 import { processReceiptPages } from '../lib/ocr';
 import { memLookup, memLearn, taxMemLookup, taxMemLearn } from '../lib/memory';
 import { isPro, presentPaywall } from '../lib/purchases';
-import { FREE_SCANS_PER_MONTH } from '../lib/config';
+import { FREE_SCANS_PER_MONTH, ASK_REVIEW_AFTER_SCANS } from '../lib/config';
+const G = require('../lib/gates.js');
+
+// Namespaced like the other stored keys (see memory.ts).
+const REVIEW_ASKED_KEY = 'rs.reviewAsked.v1';
 import { SC_BY_NAME } from '../lib/rows';
 import { ZoomableImage } from '../components/ZoomableImage';
 import { CategoryPicker } from '../components/CategoryPicker';
@@ -52,13 +57,13 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
   const [showSplitCats, setShowSplitCats] = useState(false);
 
   const startScan = useCallback(async (fromLibrary: boolean) => {
-    // Free-tier gate before the camera opens
-    if (!(await isPro())) {
-      const n = await countThisMonth();
-      if (n >= FREE_SCANS_PER_MONTH) {
-        const unlocked = await presentPaywall();
-        if (!unlocked) return;
-      }
+    // Free-tier gate before the camera opens. The decision itself lives in
+    // gates.js so the boundary is unit-tested rather than only reachable by
+    // scanning eleven receipts on a phone.
+    const pro = await isPro();
+    if (G.isOverFreeLimit({ isPro: pro, scansThisMonth: await countThisMonth(), limit: FREE_SCANS_PER_MONTH })) {
+      const unlocked = await presentPaywall();
+      if (!unlocked) return;
     }
     const perm = fromLibrary
       ? await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -167,10 +172,21 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
     setPending(null);
     onSaved();
     Alert.alert('Saved ✓', learned ? `I'll remember this store as "${merchant}"` : `${merchant} — $${total.toFixed(2)}`);
-    // Ratings flywheel: ask after the 3rd successful scan (iOS throttles to 3/yr)
+    // Ratings flywheel: ask once, ever, after the Nth successful scan. Keyed on
+    // the LIFETIME count with a persisted flag — the old `countThisMonth() === 3`
+    // re-fired every month and could be skipped entirely (see gates.js).
     try {
-      const n = await countThisMonth();
-      if (n === 3 && (await StoreReview.hasAction())) StoreReview.requestReview();
+      const asked = await AsyncStorage.getItem(REVIEW_ASKED_KEY);
+      if (G.shouldAskForReview({
+        lifetimeScans: await countAll(),
+        alreadyAsked: asked === '1',
+        askAfter: ASK_REVIEW_AFTER_SCANS,
+      }) && (await StoreReview.hasAction())) {
+        // Record BEFORE asking: if the dialog throws or iOS silently declines
+        // to show it, we still do not pester on every subsequent save.
+        await AsyncStorage.setItem(REVIEW_ASKED_KEY, '1');
+        StoreReview.requestReview();
+      }
     } catch {}
     // id used only to keep TS satisfied about the awaited insert
     void id;

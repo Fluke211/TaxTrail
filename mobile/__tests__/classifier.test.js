@@ -129,6 +129,36 @@ const grat = C.parseReceipt(
   'CAFE\nLUNCH  50.00\nTOTAL  50.00\nGRATUITY  9.00\nTOTAL PAID  59.00');
 check('gratuity counts too', grat.total === 59.00, grat.total);
 
+// ---- Gating decisions (src/lib/gates.js) ----
+// These were inline in CaptureScreen, where the only way to exercise "what
+// happens on the 11th scan" was to scan eleven receipts on a phone.
+const G = require('../src/lib/gates.js');
+
+// The free-tier boundary. Off by one in either direction is a real cost: one
+// way gives away a scan, the other blocks a user who was promised ten.
+check('free tier: 9 used, not gated', G.isOverFreeLimit({ scansThisMonth: 9, limit: 10 }) === false);
+check('free tier: 10 used, gated (the 11th scan)', G.isOverFreeLimit({ scansThisMonth: 10, limit: 10 }) === true);
+check('free tier: 11 used, still gated', G.isOverFreeLimit({ scansThisMonth: 11, limit: 10 }) === true);
+check('free tier: 0 used, not gated', G.isOverFreeLimit({ scansThisMonth: 0, limit: 10 }) === false);
+check('free tier: pro is never gated', G.isOverFreeLimit({ isPro: true, scansThisMonth: 9999, limit: 10 }) === false);
+// A missing or broken count must not lock a paying-nothing user out of the app.
+check('free tier: undefined count treated as 0', G.isOverFreeLimit({ limit: 10 }) === false);
+check('free tier: NaN count treated as 0', G.isOverFreeLimit({ scansThisMonth: NaN, limit: 10 }) === false);
+
+// The review prompt. iOS allows three dialogs a YEAR, so spending one on the
+// wrong moment is not recoverable for months.
+check('review: not before the 3rd scan', G.shouldAskForReview({ lifetimeScans: 2, askAfter: 3 }) === false);
+check('review: on the 3rd scan', G.shouldAskForReview({ lifetimeScans: 3, askAfter: 3 }) === true);
+// The old code used `=== 3`, so saving two receipts before the check ran skipped
+// the prompt forever. >= cannot be skipped.
+check('review: still asks if the count jumped past 3',
+  G.shouldAskForReview({ lifetimeScans: 7, askAfter: 3 }) === true);
+// ...and once asked, never again. The old monthly count re-fired every month.
+check('review: never asked twice',
+  G.shouldAskForReview({ lifetimeScans: 500, alreadyAsked: true, askAfter: 3 }) === false);
+check('review: garbage count does not trigger',
+  G.shouldAskForReview({ lifetimeScans: NaN, askAfter: 3 }) === false);
+
 // Restore-from-archive planning (pure half of exportShare.restoreArchive)
 const RP = require('../src/lib/restorePlan.js');
 const NOW = '2026-08-22T00:00:00.000Z';

@@ -13,6 +13,12 @@ export const ENTITLEMENT_PRO = 'pro';
 // Free-tier limit: scans per calendar month.
 export const FREE_SCANS_PER_MONTH = 10;
 
+// Ask for an App Store review once, after this many successful scans (lifetime).
+// iOS throttles the dialog to three a year, so the moment it is spent matters:
+// asking a user who has scanned three receipts is a far better bet than asking
+// one who has scanned their first.
+export const ASK_REVIEW_AFTER_SCANS = 3;
+
 // Display-only fallback pricing (real prices always come from StoreKit at runtime).
 export const DISPLAY_PRICES = {
   monthly: '$6.99/mo',

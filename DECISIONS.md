@@ -1562,6 +1562,41 @@ assumed away.
 
 ---
 
+## D-043
+
+**Gating decisions are pure functions, because both were quietly wrong and
+neither was testable.**
+
+Date: 2026-08-29 · Status: accepted
+
+The free-tier limit and the review prompt both lived inline in `CaptureScreen`.
+Neither is complicated; both are the kind of rule that stays wrong for months,
+because the only way to exercise "what happens on the 11th scan" was to scan
+eleven receipts on a phone. They now live in `src/lib/gates.js` as pure
+functions with unit tests at the boundaries.
+
+**The review prompt was actually broken.** It read
+`countThisMonth() === 3`, which has two defects:
+
+1. **It re-fired every month.** iOS throttles the review dialog to three a year,
+   so nothing visibly failed — the app just spent that quota asking users it had
+   already asked, instead of asking new ones.
+2. **Exact equality against a live count is fragile.** Delete a receipt and the
+   count revisits 3. Save two receipts before the check runs and it skips 3
+   entirely and never asks at all.
+
+Now: a **lifetime** count (`countAll()`), `>=` rather than `===`, and a
+persisted `rs.reviewAsked.v1` flag written *before* the dialog is requested — so
+a throw or a silent iOS decline still does not produce nagging on every save.
+
+**The free-tier boundary is now pinned by tests** in both directions. Off by one
+either gives away a scan or blocks a user who was promised ten; a malformed or
+missing count resolves to "not gated", because failing open costs one free scan
+while failing closed locks someone out of the app they just installed.
+
+
+---
+
 ## Note on D-035
 
 `D-035` was never issued — it does not appear anywhere in this repo's history.
