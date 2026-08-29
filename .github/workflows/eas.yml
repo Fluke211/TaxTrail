@@ -26,6 +26,7 @@ on:
           - update
           - asc-check
           - asc-bundle-id
+          - asc-iap
           - submit
       update_message:
         description: 'Message for the EAS Update (used by step: update)'
@@ -401,6 +402,110 @@ jobs:
           npx expo prebuild --platform ios --no-install
           rm -rf ios
           echo "Preflight complete."
+
+      # Reports the state of the three in-app purchase products. StoreKit only
+      # returns a product to the app once App Store Connect considers it
+      # complete, so "the paywall shows nothing" is usually a product-state
+      # problem rather than a code problem — and the two look identical from
+      # inside the app. Read-only and free.
+      - name: Apple API — in-app purchase state
+        if: inputs.step == 'asc-iap'
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_ASC_API_KEY_PATH:-}" ]; then
+            echo "::error::No Apple API key. Needs ASC_API_KEY_P8, ASC_KEY_ID and ASC_ISSUER_ID."
+            exit 1
+          fi
+          pip install --quiet "pyjwt[crypto]" >/dev/null
+
+          cat > /tmp/asc_iap.py <<'PYEOF'
+          import json, os, time, urllib.request, urllib.error, jwt
+
+          KEY  = open(os.environ["EXPO_ASC_API_KEY_PATH"]).read()
+          KID  = os.environ["EXPO_ASC_KEY_ID"]
+          ISS  = os.environ["EXPO_ASC_ISSUER_ID"]
+          BASE = "https://api.appstoreconnect.apple.com"
+          APP  = json.load(open("mobile/eas.json"))["submit"]["production"]["ios"]["ascAppId"]
+
+          now = int(time.time())
+          token = jwt.encode(
+              {"iss": ISS, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+              KEY, algorithm="ES256", headers={"kid": KID, "typ": "JWT"})
+
+          def get(path):
+              req = urllib.request.Request(
+                  BASE + path,
+                  headers={"Authorization": f"Bearer {token}",
+                           "Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as r:
+                      return r.status, json.loads(r.read() or b"{}")
+              except urllib.error.HTTPError as e:
+                  raw = e.read()
+                  try: return e.code, json.loads(raw or b"{}")
+                  except Exception: return e.code, {"raw": raw[:300].decode("utf-8", "replace")}
+              except Exception as e:
+                  return 0, {"raw": str(e)}
+
+          # A product only reaches the app from these states. Anything else and
+          # the paywall will look broken for reasons no amount of JS will fix.
+          FETCHABLE = {"READY_TO_SUBMIT", "APPROVED", "WAITING_FOR_REVIEW",
+                       "IN_REVIEW", "DEVELOPER_REMOVED_FROM_SALE",
+                       "PENDING_BINARY_APPROVAL"}
+
+          print(f"=== app {APP} ===\n")
+          problems = []
+
+          print("--- one-time purchases (the lifetime unlock) ---")
+          code, data = get(f"/v1/apps/{APP}/inAppPurchasesV2?limit=200")
+          print(f"  HTTP {code}")
+          if code == 200:
+              rows = data.get("data", [])
+              if not rows:
+                  problems.append("no one-time in-app purchase products exist")
+              for p in rows:
+                  a = p.get("attributes", {})
+                  state = a.get("state")
+                  flag = "ok " if state in FETCHABLE else "!! "
+                  print(f"  {flag}{a.get('productId')}  type={a.get('inAppPurchaseType')}  state={state}")
+                  if state not in FETCHABLE:
+                      problems.append(f"{a.get('productId')} is {state}")
+
+          print("\n--- subscriptions (monthly / annual) ---")
+          code, data = get(f"/v1/apps/{APP}/subscriptionGroups?limit=50")
+          print(f"  groups HTTP {code}")
+          if code == 200:
+              groups = data.get("data", [])
+              if not groups:
+                  problems.append("no subscription groups exist")
+              for g in groups:
+                  gid = g["id"]
+                  print(f"  group '{g.get('attributes', {}).get('referenceName')}' ({gid})")
+                  c2, d2 = get(f"/v1/subscriptionGroups/{gid}/subscriptions?limit=200")
+                  print(f"    HTTP {c2}")
+                  if c2 == 200:
+                      subs = d2.get("data", [])
+                      if not subs:
+                          problems.append(f"subscription group {gid} has no products")
+                      for sub in subs:
+                          a = sub.get("attributes", {})
+                          state = a.get("state")
+                          flag = "ok " if state in FETCHABLE else "!! "
+                          print(f"    {flag}{a.get('productId')}  period={a.get('subscriptionPeriod')}  state={state}")
+                          if state not in FETCHABLE:
+                              problems.append(f"{a.get('productId')} is {state}")
+
+          print("\n=== verdict ===")
+          if problems:
+              for p in problems:
+                  print(f"  BLOCKED: {p}")
+              print("\n  A product in MISSING_METADATA needs its localization, price or review "
+                    "screenshot filled in before StoreKit will hand it to the app. The paywall "
+                    "cannot be tested until every product is fetchable.")
+          else:
+              print("  All products are in a fetchable state. The paywall should load them.")
+          PYEOF
+          python3 /tmp/asc_iap.py
 
       # A production build that reuses a build number already on App Store
       # Connect is dead on arrival: Apple rejects the upload, so the build is

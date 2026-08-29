@@ -15,10 +15,16 @@ what blocks what, not by size.
 
 ### Blocked on Apple (start these first — they are pure waiting)
 
-- [ ] **Sign the Paid Applications agreement.** Until this is active, *every*
-      RevenueCat product fetch returns nothing and the paywall degrades to
-      "Store unavailable" — so the purchase flow cannot be tested at all. This
-      gates monetization end to end.
+- [x] **Paid Applications agreement — ACTIVE** (confirmed 2026-08-27). This was
+      the gate on the whole purchase flow; testing the paywall is now possible
+      for the first time.
+- [ ] **Verify the three products actually fetch.** The agreement being active
+      is necessary, not sufficient: a product sitting in `MISSING_METADATA`
+      still returns nothing to StoreKit, and from inside the app that is
+      indistinguishable from a code bug. `step: asc-iap` reports each product's
+      state.
+- [ ] **Test a sandbox purchase end to end** — monthly, annual and the lifetime
+      unlock, plus Restore Purchases
 - [ ] Confirm **App Store Small Business Program** acceptance (applied; Apple
       quotes "over a month", and the 15% rate applies 15 days after the end of
       the fiscal month of approval)
