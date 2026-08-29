@@ -1785,6 +1785,19 @@ Stripping digits would mangle "7-Eleven" and "Store #1234" into nonsense, which
 trades a documented-but-unconfirmed import risk for guaranteed data loss. Left
 alone, noted here so the next person does not have to re-reason it.
 
+### Corroborated against a real production file
+
+Beyond the spec, a shipping commercial product's April-2025 TXF export was
+retrieved and read (CharityRecord, which documents importing into TurboTax
+Desktop and H&R Block Desktop). Its records are literally `TD: N,C,L,$,X` and
+`TS: N,C,L,$` — summary records carry no `X` — and its header date is
+`D04/15/2025`, zero-padded with no space after the `D`. That is exactly the
+shape TaxTrail now emits.
+
+One caveat recorded honestly: the header-date padding is a conformance defect,
+not a wrong-return risk. It is the export date, not a tax figure, and the spec's
+own later examples use unpadded dates elsewhere, so producers have shipped both.
+
 ### Still unverified, and it is the part that matters most
 
 Nobody has imported any of these files into TurboTax, H&R Block, TaxAct or
