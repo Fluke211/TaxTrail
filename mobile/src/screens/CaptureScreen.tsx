@@ -147,9 +147,16 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
     const total = parseFloat(pending.total) || 0;
     const salesTax = parseFloat(pending.salesTax);
     const merchant = pending.merchant.trim() || 'Unknown merchant';
-    const remainder = total - allocs.reduce((s, a) => s + a.amount, 0);
+    // Splits are capped at the receipt total (D-049), so the leftover cannot be
+    // negative. It CAN be exactly zero when the splits account for the whole
+    // receipt — and a $0.00 allocation would then become a $0.00 line in the
+    // CPA export, which is clutter a human has to read past and decide is
+    // nothing. Nothing left over means nothing to file under the base category.
+    const remainder = Math.round((total - allocs.reduce((s, a) => s + a.amount, 0)) * 100) / 100;
     const fullAllocs: Allocation[] = allocs.length
-      ? [{ category: pending.category, scheduleC: SC_BY_NAME[pending.category] || '', amount: Math.round(remainder * 100) / 100 }, ...allocs]
+      ? (remainder > 0
+        ? [{ category: pending.category, scheduleC: SC_BY_NAME[pending.category] || '', amount: remainder }, ...allocs]
+        : [...allocs])
       : [];
     const id = await addReceipt({
       createdAt: new Date().toISOString(),
