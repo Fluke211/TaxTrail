@@ -291,6 +291,31 @@ to set.
 
 ---
 
+## Preflighting a build costs nothing, and answers most of the question
+
+`step: build` with **`confirm_build` left empty** runs everything a build needs
+and then refuses to start one — the step's first line is
+`if [ "$CONFIRM_BUILD" != "BUILD" ]; then exit 1`. The run ends red. That red is
+the guard working, not a failure, and **no credit is consumed** (D-015).
+
+What it tells you, for free:
+
+- `expo-doctor` and `prebuild` — whether the tree actually builds
+- the Apple API — that the key works and which build numbers App Store Connect
+  already holds
+
+Run it before asking Tyler for a build, every time. The 2026-08-30 preflight is
+the model: doctor and prebuild passed, and the build-number step refused with
+*"buildNumber 4 is not above what Apple already has for 1.0.0 (highest: 4)"* —
+which turned "can we build?" into a two-line change before a credit was at risk.
+
+**Bump `buildNumber` and `APP_BUILD` in the same commit that dispatches the
+build, never earlier.** Those two numbers are what the footer prints, so an OTA
+published from `main` in between would have every device on the *old* binary
+reporting the new build number — the D-039 drift, from the other direction.
+
+---
+
 ## A permission needs a feature behind it
 
 A config plugin writes a purpose string into the shipped `Info.plist` whether or

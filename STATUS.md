@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r25** | Crashed on its embedded r22 bundle; **fixed over the air** (D-062). Footer should read `(build 4) · js r25` after two launches |
+| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r25** | r25 is **live on `production`** (published 2026-08-30, verified at the head of the branch). That fixes the installs that already exist — **not the next one**: build 4 embeds js r22, which crashes, so a fresh install still crashes on first launch until build 5 (D-067). Footer should read `(build 4) · js r25` after two launches |
 
 ---
 
@@ -112,8 +112,22 @@ build 5 to `LIVE_BUILDS` in `mobile/scripts/check-ota-safety.js` **once it has
 been observed to launch** (D-062 rule 2), or the OTA check will keep holding
 gesture-handler back.
 
-It costs one EAS build credit and needs Tyler's explicit go (CLAUDE.md). The
-preflight is free and can be run first.
+It costs one EAS build credit and needs Tyler's explicit go (CLAUDE.md).
+
+**The free preflight has already been run** (2026-08-30, `step: build` with
+`confirm_build` empty, profile `production`, no credit consumed):
+
+- `expo-doctor` and `prebuild` both **pass** — the tree builds
+- Apple is reachable, app ID `6797163508`, and already holds builds **2, 3, 4**
+  for 1.0.0, so the guard correctly refuses: *"buildNumber 4 is not above what
+  Apple already has"*
+
+So build 5 is two numbers and a go. Nothing else stands in the way.
+
+**Do not bump those two numbers ahead of the build.** They are what the footer
+prints, and any OTA published from `main` in between would make every build-4
+device report "build 5" — the D-039 drift, arrived at from the other side. The
+bump belongs in the same commit that dispatches the build.
 
 ---
 

@@ -13,6 +13,11 @@ visible version, and it gets recorded here.
 
 ### js r25 — v1.0.0 (build 4) — 2026-08-30
 
+**Live on `production` since 2026-08-30**, verified at the head of the branch
+rather than assumed from a green workflow. It reaches installs that already
+exist; a *fresh* install still runs build 4's embedded r22 and crashes until
+build 5 (D-067).
+
 - **Costco receipts now name Costco** (D-065), which r24 recorded as
   deliberately unresolved. That call was right about the evidence available at
   the time and wrong about where to look: a Costco receipt prints the warehouse
