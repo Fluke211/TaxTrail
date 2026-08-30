@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { styled, useTheme } from './src/lib/theme';
@@ -119,16 +118,23 @@ function Root() {
 }
 
 export default function App() {
-  // GestureHandlerRootView has to be the OUTERMOST view or gesture-handler's
-  // recognizers never receive touches — the failure is silent, a swipe simply
-  // does nothing. Added with the module rather than with the feature that uses
-  // it, so build 4 carries it and swipe-to-delete can then ship over the air.
+  /*
+   * No GestureHandlerRootView here, deliberately.
+   *
+   * It was added in build 4 ahead of the feature that needed it, and importing
+   * `react-native-gesture-handler` at module scope drags Reanimated's entire
+   * runtime into the bundle. That is what crashed build 4 on launch, and the
+   * same import would crash build 3 — which has no gesture-handler at all — the
+   * moment an update reached it (D-062).
+   *
+   * It comes back with build 5, together with swipe-to-delete, once a binary
+   * has actually been observed to launch with it. `scripts/check-ota-safety.js`
+   * fails the build if it reappears before then.
+   */
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <Root />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <Root />
+    </SafeAreaProvider>
   );
 }
 

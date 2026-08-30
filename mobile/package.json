@@ -11,7 +11,8 @@
     "test:score": "node scripts/score-classifier.js",
     "test:pins": "node scripts/check-expo-pins.js",
     "test:synth": "node scripts/score-synthetic.js",
-    "test:contrast": "node scripts/check-contrast.js"
+    "test:contrast": "node scripts/check-contrast.js",
+    "test:ota": "node scripts/check-ota-safety.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

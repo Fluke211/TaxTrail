@@ -44,6 +44,15 @@ jobs:
       - name: Native dependency versions match the Expo SDK
         run: node scripts/check-expo-pins.js
 
+      # An `eas update` reaches every installed binary with a matching
+      # runtimeVersion, but a binary only contains the native modules it was
+      # compiled with. Statically importing one an older build lacks crashes
+      # that build on launch with no way back (D-062). This is the check that
+      # would have stopped build 4, and it would have stopped `main` taking
+      # build 3 down with it.
+      - name: OTA safety (no import a live binary cannot resolve)
+        run: npm run test:ota
+
       - name: Unit tests
         run: npm run test:unit
 

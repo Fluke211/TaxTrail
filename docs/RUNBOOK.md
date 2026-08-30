@@ -123,11 +123,75 @@ but refuses the actual build unless the `confirm_build` input is exactly
 Always preflight before building. It catches config-plugin and schema errors at
 zero cost. It cannot catch Swift compile errors — only a real build does.
 
+**And nothing in this pipeline tests whether the app launches.** Build 4 built,
+signed, uploaded and cleared Apple's processing, then crashed on every launch
+(D-062). Until a device has run it, say "built", not "shipped".
+
 ---
 
-## Add a native dependency
+## Add a native dependency ONLY with the feature that uses it
 
-This costs a build, so batch them.
+The rule that build 4 cost us (D-062). Read it before adding a module.
+
+A native build is the only moment native modules can be added, which makes it
+tempting to add whatever might be wanted later while the build is being spent
+anyway. **Do not.** An unused module is not free — it is untested weight in the
+startup path. `GestureHandlerRootView` was imported for a feature that had not
+shipped, that import drags Reanimated's entire runtime in, and the app died on
+launch with no way back.
+
+Three rules:
+
+1. **A module goes in the build that ships the feature using it.** Spare
+   capacity in a build is not a reason.
+2. **A binary is not shipped until it has been observed to launch.**
+3. **A module not present in EVERY live binary must never be statically
+   imported.** `runtimeVersion` policy is `appVersion`, so one `eas update`
+   reaches every v1.0.0 build — including older ones compiled without it. Reach
+   it through a guarded require inside a function and hide the control when it
+   is absent (`isRestoreAvailable()` in `exportShare.ts`).
+
+Rule 3 is enforced: `npm run test:ota` holds a committed record of what each
+live binary was compiled with and fails CI on any static import it cannot
+resolve. **When a new build ships, add it to `LIVE_BUILDS` in
+`mobile/scripts/check-ota-safety.js`.** Never weaken the rule to get a publish
+through.
+
+---
+
+## An OTA can rescue a binary that crashes on launch
+
+expo-updates runs a recovery pipeline on a startup crash: fetch a newer update →
+launch it → else fall back to an older working update → else crash. So a JS
+fatal error is recoverable **without a new build**, which matters enormously
+when the person who would have to reinstall is asleep.
+
+Publish a bundle known to run, from the last good commit:
+
+```
+step: update · update_branch: production · ref: <the good commit's branch>
+```
+
+`workflow_dispatch` needs a branch or tag, not a SHA — push a throwaway ref
+first (`git push origin <sha>:refs/heads/rescue/<name>`).
+
+It applies on the **second** launch: expo-updates runs the cached bundle and
+downloads in the background, so it is launch, force-quit, launch again.
+
+Two things to know:
+
+- **A fresh install has no fallback.** Its embedded bundle is the only one it
+  has ever had, so steps (b) and (c) have nothing to offer and the crash is
+  terminal until a newer update exists to fetch. Publishing one IS the fix.
+- **Airplane mode cannot tell you whether the fault is JS or native.** With no
+  network the recovery pipeline collapses to "crash" either way. This was
+  misread once and cost an hour (D-062).
+
+---
+
+## Add a native dependency — the procedure
+
+Read the section above first: **only add what the feature needs now** (D-062).
 
 1. Add to `mobile/package.json` with an SDK-55-compatible version
    (`npm view <pkg> versions --json` and look for `55.x`).
@@ -234,15 +298,27 @@ to set.
 on launch — and because `runtimeVersion` is `1.0.0` for every build so far,
 **an update meant for the new build reaches the old one too.**
 
-Before publishing, if the diff since the last build added a native dependency:
+**This is now checked mechanically. Do not rely on remembering it:**
 
 ```bash
-git diff <last-build-commit>..HEAD -- mobile/package.json | grep '^+.*"react-native-\|^+.*"expo-'
+npm run test:ota      # also runs in CI on every PR
 ```
 
-Anything there means the update is only safe for a binary built after that
-commit. Either wait for the build, or publish from the last commit that
-predates the native import.
+`scripts/check-ota-safety.js` holds a committed record of the native modules
+each **live** binary was compiled with, scans every static import the bundle can
+reach, and fails naming both the module and the files importing it.
+
+The rule was already written here, in this section, before build 4 — as a manual
+`git diff | grep` to run before publishing. Nobody ran it, `main` ended up
+statically importing two modules build 3 lacks, and one dispatch would have
+bricked the only working install (D-062). A procedure that depends on someone
+remembering it is not a guard. That is the whole reason this is a script now.
+
+When something does fail the check: either reach the module through a guarded
+require and hide the control when it is absent (`isRestoreAvailable()` in
+`exportShare.ts`), or hold the feature until every live binary carries it.
+**Add each newly shipped build to `LIVE_BUILDS` in that script** — that is the
+one maintenance step it needs.
 
 The alternative is to give each build its own `runtimeVersion`, which stops
 updates crossing between them — at the cost that an old build then receives no

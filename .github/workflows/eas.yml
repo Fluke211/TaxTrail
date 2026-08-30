@@ -23,6 +23,7 @@ on:
           - configure
           - build
           - usage
+          - channels
           - update
           - asc-check
           - asc-bundle-id
@@ -350,6 +351,51 @@ jobs:
           print("remaining quota at https://expo.dev/accounts/tylerthornbrue/settings/billing")
           PY
           rm -f builds.json
+
+      # What would a launching binary actually download?
+      #
+      # Build 4 crashed on launch, and an OTA is one of the few things that can
+      # break a binary that built and signed cleanly: the app checks its channel
+      # on startup and runs whatever it finds with a matching runtimeVersion. If
+      # a bad update is live, every install crashes and the binary is innocent.
+      #
+      # Read-only and free. It publishes nothing — deliberately separate from
+      # `update`, so diagnosing a crash can never cause one.
+      - name: Channels and live updates (read-only)
+        if: inputs.step == 'channels'
+        working-directory: ${{ github.workspace }}/mobile
+        run: |
+          set -euo pipefail
+          echo "=== runtimeVersion policy in app.json ==="
+          python3 -c "import json;a=json.load(open('app.json'))['expo'];print(' runtimeVersion:',a.get('runtimeVersion'));print(' version:',a.get('version'),' buildNumber:',a.get('ios',{}).get('buildNumber'))"
+          echo
+          echo "=== channels ==="
+          npx eas-cli@latest channel:list --non-interactive --json | python3 -c "
+          import json,sys
+          for c in json.load(sys.stdin):
+              print(f\"  {c.get('name')}\")
+              for b in (c.get('branchMapping') or {}).get('data') or []:
+                  print(f\"    -> branch {b.get('branchId')}\")
+          " || npx eas-cli@latest channel:list --non-interactive || true
+          echo
+          for BR in production development; do
+            echo "=== updates on branch: $BR ==="
+            npx eas-cli@latest update:list --branch "$BR" --limit 8 --non-interactive --json 2>/dev/null | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          groups=d if isinstance(d,list) else d.get('currentPage') or []
+          if not groups: print('  (none)')
+          for g in groups:
+              us=g.get('updates') or [g]
+              for u in us:
+                  print(f\"  {str(u.get('createdAt'))[:19]}  rt={u.get('runtimeVersion')}  {u.get('platform')}  {str(u.get('message'))[:52]}\")
+                  print(f\"      group={u.get('group')}\")
+          " || echo "  (could not read $BR)"
+            echo
+          done
+          echo "An update whose runtimeVersion matches the installed binary WILL be"
+          echo "downloaded and run on launch. That is the one way a clean build can"
+          echo "crash on a device."
 
       # Publishes the JS bundle over the air. The channel is baked into each
       # binary at build time, so publishing to the wrong branch is the classic

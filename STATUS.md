@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r22** | On TestFlight. r18 adds the Business Meals rename + migration and Schedule C line 20a (D-050) |
+| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r23** | Crashed on its embedded r22 bundle; **fixed over the air** (D-062). r21 rescue published 09:34, r23 with all features after it |
 
 ---
 
@@ -44,30 +44,57 @@ no native build was needed. The Summary footer should read
 
 ---
 
-## ⚠ DO NOT PUBLISH AN OTA UNTIL BUILD 4 IS INSTALLED
+## Build 4 crashed on launch — diagnosed, fixed over the air (D-062)
 
-`main` now imports `GestureHandlerRootView` in `App.tsx`, and
-`react-native-gesture-handler` is **not** in the build 3 binary. Both builds
-share `runtimeVersion` **1.0.0**, so an `eas update` published from `main`
-reaches build 3 as well — where that import resolves to a missing native module
-and **the app fails on launch**.
+Tyler installed build 4 on 2026-08-30 and it crashed every launch. **Resolved
+without a new build.** He was away and could not reinstall, so everything below
+was done over the air.
 
-So, in order:
+### What it was
 
-1. ~~Cut **build 4**~~ — **done**, and submitted to TestFlight (below).
-2. **Install it** from TestFlight, and confirm the footer reads
-   `v1.0.0 (build 4) · js r22` on device. ← this is the remaining step
-3. Only then resume `step: update` publishes.
+A **JavaScript fatal error** during bundle evaluation. The crash log is
+conclusive: `SIGABRT` on `expo.controller.errorRecoveryQueue`, with
+`-[NSException raise]` four frames into the app binary. That is
+`ErrorRecovery.crash()` in expo-updates, which builds its exception name from
+`RCTFatalExceptionName` and reads `RCTJSStackTraceKey`. The `JavaScript` and
+`hades` threads are both alive in the report, so Hermes started and evaluated
+the bundle before it threw.
 
-Phase 1 (Settings tab, export ranges, `edited` diagnostics) is merged and
-waiting on step 2. It is JS-only, so the moment build 4 is confirmed on the
-device it ships as **js r23** with one `step: update` run.
+`App.tsx` imported `GestureHandlerRootView` at module scope to pre-wire
+swipe-to-delete — a feature that had not shipped. That import drags Reanimated's
+whole runtime in: build 4's bundle held `NativeReanimated` 87 times with nothing
+importing Reanimated. Removing it took the bundle from 1178 modules to **752**.
 
-Build 3 is safe on **js r21**, which is what is live now. If someone needs to
-ship a JS fix before build 4 lands, publish from the `0b00b937` commit (r21),
-not from `main`.
+It was terminal rather than annoying because expo-updates' recovery pipeline
+needs somewhere to fall back TO, and a fresh install has only its embedded
+bundle.
 
-This note comes out once build 4 is confirmed on the device.
+### The near miss
+
+The same `main` would have destroyed **build 3**, the only working fallback.
+Build 3 has neither gesture-handler nor `expo-mail-composer`; `main` statically
+imported both, and every update reaches every v1.0.0 binary. One `eas update`
+would have left no working install anywhere. It was one dispatch away.
+
+### What was done
+
+| | |
+|---|---|
+| 09:34 | **r21 rescue published** to `production` — the last bundle proven to run on device. Group `c18b6543-2177-4025-bd72-8c36dabe1fd6` |
+| after | **r23 published** — everything from the overnight work, with gesture-handler removed and `expo-mail-composer` behind a guarded require |
+| CI | **`npm run test:ota`** now fails any static import of a module a live binary lacks (D-062) |
+
+Swipe-to-delete is the only feature held back. It needs build 5, and it does not
+go in until a binary has been *observed to launch* with it.
+
+### Traps recorded so they are not re-run
+
+- **The airplane-mode test cannot distinguish JS from native.** With no network,
+  recovery steps (a) and (b) are unavailable and a fresh install has nothing for
+  (c), so any startup fault ends identically. It was read as evidence of a
+  native cause and sent the diagnosis the wrong way for an hour.
+- **"It built" is not "it shipped."** Building, signing, uploading and clearing
+  Apple's processing test nothing about whether the app launches.
 
 ### Build 4 attempts
 
