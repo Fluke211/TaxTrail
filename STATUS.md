@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r22** | On TestFlight. r18 adds the Business Meals rename + migration and Schedule C line 20a (D-050) |
+| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r22** | 🔴 **CRASHES ON LAUNCH** — see the blocker below. Build 3 still works and is the fallback |
 
 ---
 
@@ -44,30 +44,64 @@ no native build was needed. The Summary footer should read
 
 ---
 
-## ⚠ DO NOT PUBLISH AN OTA UNTIL BUILD 4 IS INSTALLED
+## 🔴 BUILD 4 CRASHES ON LAUNCH. DO NOT PUBLISH ANYTHING FROM `main`.
 
-`main` now imports `GestureHandlerRootView` in `App.tsx`, and
-`react-native-gesture-handler` is **not** in the build 3 binary. Both builds
-share `runtimeVersion` **1.0.0**, so an `eas update` published from `main`
-reaches build 3 as well — where that import resolves to a missing native module
-and **the app fails on launch**.
+Tyler installed build 4 from TestFlight on 2026-08-30 and **it crashes on
+launch, every time.** This is the live blocker; everything else is parked.
 
-So, in order:
+**It is not a bad OTA.** Tyler launched it in airplane mode with wifi off and
+got the identical crash, so the fault is in the binary or the bundle embedded in
+it. The newest update on the `production` channel is r21 — the same one build 3
+runs happily — so there is nothing bad to download in any case.
 
-1. ~~Cut **build 4**~~ — **done**, and submitted to TestFlight (below).
-2. **Install it** from TestFlight, and confirm the footer reads
-   `v1.0.0 (build 4) · js r22` on device. ← this is the remaining step
-3. Only then resume `step: update` publishes.
+`main` is therefore **more** dangerous than before, not less: it still imports
+`GestureHandlerRootView`, which build 3 cannot resolve at all, and which is the
+prime suspect for build 4's crash. An `eas update` from `main` would take out
+both binaries at once. **Publish nothing until the cause is known.**
 
-Phase 1 (Settings tab, export ranges, `edited` diagnostics) is merged and
-waiting on step 2. It is JS-only, so the moment build 4 is confirmed on the
-device it ships as **js r23** with one `step: update` run.
+Build 3 is still installable from TestFlight and still works. That is the
+fallback while this is open.
 
-Build 3 is safe on **js r21**, which is what is live now. If someone needs to
-ship a JS fix before build 4 lands, publish from the `0b00b937` commit (r21),
-not from `main`.
+### What has been ruled out, with evidence
 
-This note comes out once build 4 is confirmed on the device.
+| Suspect | Verdict |
+|---|---|
+| Missing worklets Babel plugin | **Ruled out.** Ran Babel over a `'worklet'` function with the real preset; the transform fires. `babel-preset-expo` 55.0.24 adds `react-native-worklets/plugin` whenever `hasModule('react-native-worklets')` |
+| Wrong package versions | **Ruled out.** reanimated 4.2.1, worklets 0.7.4, gesture-handler 2.30.1 — all exactly what `bundledNativeModules.json` pins, and the lockfile at `fba11d5` froze those same three |
+| A missing config plugin | **Ruled out.** None of the three ships one |
+| New Architecture incompatibility | **Ruled out.** All three declare `codegenConfig` |
+| A bad OTA on `production` | **Ruled out** by the airplane-mode test |
+| Something else removed from the dep tree | **Ruled out.** The `package.json` diff between build 3 and build 4 adds four packages and removes nothing |
+
+### The narrowed cause
+
+The entire app-code difference between r21 (works on build 3) and r22 (embedded
+in build 4) is the `GestureHandlerRootView` import plus the wrapper. Building
+build 4's exact bundle from `fba11d5` shows **Reanimated and Worklets JS are in
+it** — 1162 modules, `NativeReanimated` appears 87 times — even though nothing in
+the app imports them. `GestureHandlerRootView` drags them in.
+
+That matters because `NativeReanimated.js` has a throw that is **not**
+`__DEV__`-gated:
+
+```js
+if (global.__reanimatedModuleProxy === undefined) {
+  throw new ReanimatedError("Native part of Reanimated doesn't seem to be initialized.")
+}
+```
+
+The version checks beside it (`checkCppVersion`, `assertWorkletsVersion`) *are*
+`__DEV__`-gated, so a release build gets no useful message — just the crash.
+That is consistent with everything observed.
+
+**Not yet confirmed.** The crash log is the missing evidence and Tyler is
+fetching it. Do not treat the above as the cause until the `.ips` names a frame.
+
+### Staged but NOT fired
+
+A rescue OTA of r21's proven JS to `production` would very likely revive build 4
+and would tell us JS-vs-native for free. **Tyler chose to wait for the crash log
+rather than publish on an inference.** Respect that: it is not authorized.
 
 ### Build 4 attempts
 
