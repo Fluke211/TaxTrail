@@ -1,6 +1,8 @@
 // SQLite persistence. All data stays on-device: receipts rows + JPEG files
 // under the app's documents directory.
 import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system/legacy';
+import { RECEIPTS_DIR } from './ocr';
 const C = require('./classifier.js');
 
 export interface Allocation {
@@ -27,6 +29,10 @@ export interface Receipt {
   ocrText: string;
   imagePath: string | null;
   thumbPath: string | null;
+  // The classifier's own output, frozen at scan time, as JSON. null on rows
+  // scanned before this existed — which means "unknown", not "unedited".
+  // See edited.js.
+  parsedSnapshot?: string | null;
 }
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -100,6 +106,20 @@ const MIGRATIONS: ((db: SQLite.SQLiteDatabase) => Promise<void>)[] = [
       );
     }
   },
+
+  // 2 — freeze what the classifier said, so a user correction becomes evidence.
+  //
+  // Nullable and unbackfillable on purpose: rows scanned before this column
+  // existed have no parser output to compare against, and NULL says exactly
+  // that. Writing a snapshot from the current values would assert the parser
+  // got them right, which is the one thing we do not know — and it would
+  // silently inflate every future accuracy measurement (D-056).
+  async (db) => {
+    const cols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(receipts)');
+    if (!cols.some((c) => c.name === 'parsedSnapshot')) {
+      await db.execAsync('ALTER TABLE receipts ADD COLUMN parsedSnapshot TEXT');
+    }
+  },
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -126,11 +146,11 @@ function rowToReceipt(r: any): Receipt {
 export async function addReceipt(r: Receipt): Promise<number> {
   const db = await getDb();
   const res = await db.runAsync(
-    `INSERT INTO receipts (createdAt, merchant, date, total, category, scheduleC, notes, salesTax, taxRate, allocations, confidence, ocrText, imagePath, thumbPath)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO receipts (createdAt, merchant, date, total, category, scheduleC, notes, salesTax, taxRate, allocations, confidence, ocrText, imagePath, thumbPath, parsedSnapshot)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     r.createdAt, r.merchant, r.date, r.total, r.category, r.scheduleC, r.notes,
     r.salesTax, r.taxRate, JSON.stringify(r.allocations || []), r.confidence,
-    r.ocrText, r.imagePath, r.thumbPath
+    r.ocrText, r.imagePath, r.thumbPath, r.parsedSnapshot ?? null
   );
   return res.lastInsertRowId;
 }
@@ -148,6 +168,38 @@ export async function updateReceipt(r: Receipt): Promise<void> {
 export async function deleteReceipt(id: number): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM receipts WHERE id=?', id);
+}
+
+/**
+ * Delete everything — every row and every receipt photograph.
+ *
+ * Returns what it removed so the confirmation can say so; a "Deleted." toast
+ * that names no number is indistinguishable from a no-op.
+ *
+ * The images matter as much as the rows. Deleting rows alone would leave every
+ * photograph sitting in the documents directory while the app told the user
+ * their data was gone — for an app whose entire claim is "it never leaves your
+ * phone", being wrong about deletion is the worst available failure.
+ *
+ * Rows go first. If the directory removal then fails, the user is left with
+ * orphaned image files and no rows, which is recoverable and invisible; the
+ * reverse — rows pointing at images that are gone — shows up as broken
+ * thumbnails in a tax record.
+ */
+export async function deleteAllData(): Promise<{ receipts: number; imagesRemoved: boolean }> {
+  const db = await getDb();
+  const before = await countAll();
+  await db.runAsync('DELETE FROM receipts');
+
+  let imagesRemoved = false;
+  try {
+    const info = await FileSystem.getInfoAsync(RECEIPTS_DIR);
+    if (info.exists) await FileSystem.deleteAsync(RECEIPTS_DIR, { idempotent: true });
+    imagesRemoved = true;
+  } catch (e) {
+    console.warn('deleteAllData: image directory not removed', e);
+  }
+  return { receipts: before, imagesRemoved };
 }
 
 export async function allReceipts(): Promise<Receipt[]> {

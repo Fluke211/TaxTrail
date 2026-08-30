@@ -10,10 +10,10 @@
 // different mechanism.
 import React, { useState } from 'react';
 import {
-  Image, Modal, Pressable, ScrollView, StyleSheet, Text, View,
+  Image, Modal, Pressable, ScrollView, Text, View,
   useWindowDimensions, type ImageStyle, type StyleProp,
 } from 'react-native';
-import { T } from '../lib/theme';
+import { styled, useTheme } from '../lib/theme';
 
 interface Props {
   uri: string;
@@ -23,6 +23,8 @@ interface Props {
 }
 
 export function ZoomableImage({ uri, style, hint = true }: Props) {
+  const T = useTheme();
+  const s = makeStyles(T);
   const [open, setOpen] = useState(false);
   const { width, height } = useWindowDimensions();
 
@@ -70,7 +72,7 @@ export function ZoomableImage({ uri, style, hint = true }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   hint: {
     position: 'absolute', right: 8, bottom: 8,
     backgroundColor: 'rgba(0,0,0,0.62)', borderRadius: 8,
@@ -89,4 +91,4 @@ const s = StyleSheet.create({
     position: 'absolute', bottom: 40, alignSelf: 'center',
     color: T.muted2, fontSize: 12,
   },
-});
+}));

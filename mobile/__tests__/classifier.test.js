@@ -609,5 +609,256 @@ check('money: null and undefined do not throw',
 // digits the user already typed while they are still typing more.
 check('money: cents truncate, never round', keystrokes('1.999') === '1.99');
 
+// ---------------------------------------------------------------------------
+// Export ranges and filenames (exportRange.js)
+//
+// Every export used to be labelled with the current year and contain ALL
+// receipts, so `taxtrail-2026.csv` could hold three years of data and last
+// year's return could not be exported at all.
+// ---------------------------------------------------------------------------
+const ER = require('../src/lib/exportRange.js');
+
+const RANGE_NOW = new Date(2026, 7, 30);            // 30 Aug 2026, local time
+const RCPTS = [
+  { id: 1, date: '2026-08-15', total: 10 },
+  { id: 2, date: '2026-01-01', total: 20 },   // the timezone trap, see below
+  { id: 3, date: '2025-12-31', total: 30 },
+  { id: 4, date: '2025-06-01', total: 40 },
+  { id: 5, date: '', total: 50 },             // undated
+];
+const ids = (rs) => rs.map((r) => r.id).join(',');
+
+check('range: ytd covers Jan 1 to today of the current year',
+  ids(ER.filterByRange(RCPTS, ER.makeRange('ytd', { now: RANGE_NOW })).receipts) === '1,2',
+  ids(ER.filterByRange(RCPTS, ER.makeRange('ytd', { now: RANGE_NOW })).receipts));
+check('range: a whole year excludes the year either side',
+  ids(ER.filterByRange(RCPTS, ER.makeRange('year', { year: 2025 })).receipts) === '3,4',
+  ids(ER.filterByRange(RCPTS, ER.makeRange('year', { year: 2025 })).receipts));
+check('range: all keeps everything, undated included',
+  ER.filterByRange(RCPTS, ER.makeRange('all')).receipts.length === 5);
+check('range: custom bounds are inclusive at both ends',
+  ids(ER.filterByRange(RCPTS, ER.makeRange('custom', { from: '2025-12-31', to: '2026-01-01' })).receipts) === '2,3',
+  ids(ER.filterByRange(RCPTS, ER.makeRange('custom', { from: '2025-12-31', to: '2026-01-01' })).receipts));
+check('range: a backwards custom range is swapped, not made empty',
+  ids(ER.filterByRange(RCPTS, ER.makeRange('custom', { from: '2026-01-01', to: '2025-12-31' })).receipts) === '2,3');
+
+// A dateless receipt is unplaceable, not "outside the range". Dropping it from
+// a tax export silently is how a deduction goes missing, so it is reported.
+const ytd = ER.filterByRange(RCPTS, ER.makeRange('ytd', { now: RANGE_NOW }));
+check('range: an undated receipt is reported, never silently dropped',
+  ytd.undated.length === 1 && ytd.undated[0].id === 5);
+check('range: undated receipts are not counted as in-range',
+  ytd.receipts.every((r) => r.id !== 5));
+
+// THE TIMEZONE TRAP. `new Date('2026-01-01')` is UTC midnight, which is
+// 2025-12-31 anywhere in the US — so a Date-based year filter drops New Year's
+// Day receipts for every American user. Comparing ISO strings has no timezone
+// to get wrong. This test is the reason exportRange.js never constructs a Date
+// from a receipt's date.
+check('range: Jan 1 belongs to its own year, not the previous one (TZ trap)',
+  ER.inRange('2026-01-01', ER.makeRange('year', { year: 2026 })) === true &&
+  ER.inRange('2026-01-01', ER.makeRange('year', { year: 2025 })) === false);
+check('range: Dec 31 belongs to its own year (TZ trap, other end)',
+  ER.inRange('2025-12-31', ER.makeRange('year', { year: 2025 })) === true &&
+  ER.inRange('2025-12-31', ER.makeRange('year', { year: 2026 })) === false);
+
+// Filenames say what the file holds and when it was made. Exporting twice used
+// to produce the same name twice, which iOS resolves by appending "(1)".
+check('filename: a whole year',
+  ER.exportFileName('taxtrail', 'csv', ER.makeRange('year', { year: 2025 }), RANGE_NOW)
+    === 'taxtrail-2025-exported-2026-08-30.csv',
+  ER.exportFileName('taxtrail', 'csv', ER.makeRange('year', { year: 2025 }), RANGE_NOW));
+check('filename: year to date',
+  ER.exportFileName('taxtrail', 'txf', ER.makeRange('ytd', { now: RANGE_NOW }), RANGE_NOW)
+    === 'taxtrail-2026-ytd-exported-2026-08-30.txf');
+check('filename: everything',
+  ER.exportFileName('taxtrail', 'xlsx', ER.makeRange('all'), RANGE_NOW)
+    === 'taxtrail-all-exported-2026-08-30.xlsx');
+check('filename: a custom range spells out both ends',
+  ER.exportFileName('taxtrail', 'csv', ER.makeRange('custom', { from: '2026-01-01', to: '2026-06-30' }), RANGE_NOW)
+    === 'taxtrail-2026-01-01-to-2026-06-30-exported-2026-08-30.csv',
+  ER.exportFileName('taxtrail', 'csv', ER.makeRange('custom', { from: '2026-01-01', to: '2026-06-30' }), RANGE_NOW));
+
+// isoDay must use the DEVICE's calendar day. toISOString() would report the UTC
+// day, which is tomorrow for anyone east of Greenwich late in the evening.
+check('filename: the stamp is the local calendar day, not the UTC one',
+  ER.isoDay(new Date(2026, 0, 1, 23, 30)) === '2026-01-01',
+  ER.isoDay(new Date(2026, 0, 1, 23, 30)));
+
+// The picker offers years that HAVE receipts. A fixed "this year / last year"
+// would show an empty January and hide a year the user has data for.
+check('range: years present, newest first',
+  ER.yearsPresent(RCPTS).join(',') === '2026,2025', ER.yearsPresent(RCPTS).join(','));
+check('range: no receipts means no years, not a crash',
+  ER.yearsPresent([]).length === 0 && ER.yearsPresent(null).length === 0);
+
+// ---------------------------------------------------------------------------
+// Did the user have to correct the parser? (edited.js)
+//
+// Tyler asked for `edited: true` in diagnostics. The flag is derived from a
+// snapshot of the classifier's own output rather than tracked, so there is no
+// bookkeeping to fall out of sync — and the snapshot turns every correction
+// into a labelled fixture.
+// ---------------------------------------------------------------------------
+const ED = require('../src/lib/edited.js');
+
+const SNAP = { merchant: 'Target', date: '2026-08-15', total: 25.00, salesTax: 1.5, category: 'Supplies & Materials', confidence: 'high' };
+const asStored = (over) => Object.assign({ merchant: 'Target', date: '2026-08-15', total: 25.00, salesTax: 1.5, category: 'Supplies & Materials' }, over || {});
+
+check('edited: an untouched receipt is not edited',
+  ED.wasEdited(SNAP, asStored()) === false);
+check('edited: a corrected total is edited, and says which field',
+  ED.wasEdited(SNAP, asStored({ total: 26.50 })) === true &&
+  ED.changedFields(SNAP, asStored({ total: 26.50 })).join(',') === 'total',
+  JSON.stringify(ED.changedFields(SNAP, asStored({ total: 26.50 }))));
+check('edited: several corrections are all reported',
+  ED.changedFields(SNAP, asStored({ total: 26.5, category: 'Business Meals' })).join(',') === 'total,category');
+
+// Tyler's two real corrections, which are what this exists to capture.
+check('edited: Safeway tax 3.49 -> 0.40 is a salesTax correction',
+  ED.changedFields({ salesTax: 3.49 }, { salesTax: 0.40 }).join(',') === 'salesTax');
+check('edited: Target total 25.00 -> 26.50 is a total correction',
+  ED.changedFields({ total: 25.00 }, { total: 26.50 }).join(',') === 'total');
+
+// NULL, not false. A row scanned before the snapshot column existed has no
+// evidence either way, and reporting it as "unedited" would credit the parser
+// with an answer nobody checked — inflating every future accuracy measurement.
+check('edited: no snapshot means unknown, never "not edited"',
+  ED.wasEdited(null, asStored()) === null &&
+  ED.changedFields(null, asStored()) === null);
+check('edited: a corrupt snapshot reads as unknown rather than throwing',
+  ED.readSnapshot('{not json') === null && ED.wasEdited(ED.readSnapshot('{not json'), asStored()) === null);
+check('edited: a JSON snapshot round-trips',
+  ED.readSnapshot(JSON.stringify(SNAP)).merchant === 'Target');
+
+// Money compares in whole cents: float arithmetic makes a sub-cent difference
+// a real possibility, and it is not a user correction.
+check('edited: a sub-cent float difference is not a correction',
+  ED.wasEdited({ total: 0.1 + 0.2 }, { total: 0.3 }) === false, String(0.1 + 0.2));
+check('edited: null tax and a typed tax are different',
+  ED.changedFields({ salesTax: null }, { salesTax: 1.5 }).join(',') === 'salesTax');
+check('edited: null tax left alone is not a correction',
+  ED.wasEdited({ salesTax: null, merchant: '', date: '', total: null, category: '' },
+               { salesTax: null, merchant: '', date: '', total: null, category: '' }) === false);
+
+// Merchant compares case- and whitespace-insensitively: "target" and "Target "
+// are the same answer, and flagging them would bury real corrections in noise.
+check('edited: merchant case and padding are not a correction',
+  ED.wasEdited({ merchant: 'target ' }, { merchant: 'Target' }) === false);
+
+// Notes and taxRate are deliberately NOT compared. Notes are never parsed, and
+// taxRate has four possible sources (printed, city memory, derived, last used),
+// so a difference there says nothing about the parser.
+check('edited: notes are not evidence about the parser',
+  ED.COMPARED.indexOf('notes') === -1 && ED.COMPARED.indexOf('taxRate') === -1);
+
+// snapshotOf freezes the CLASSIFIER's answer. taxTotal is the classifier's name
+// for sales tax, and a zero or absent one is null (no value), not 0.
+const snapped = ED.snapshotOf({ merchant: 'Costco', date: '2026-08-01', total: 140.35, taxTotal: 0, category: 'Uncategorized', confidence: 'low' });
+check('edited: snapshotOf maps taxTotal -> salesTax and 0 -> null',
+  snapped.salesTax === null && snapped.total === 140.35 && snapped.merchant === 'Costco',
+  JSON.stringify(snapped));
+check('edited: snapshotOf on an empty parse does not throw',
+  ED.snapshotOf({}).merchant === '' && ED.snapshotOf(null).total === null);
+
+// ---------------------------------------------------------------------------
+// The hidden developer switch (devMode.js)
+//
+// Seven taps on the version stamp. Pure so the rule is a test rather than
+// something verified by tapping a phone seven times.
+// ---------------------------------------------------------------------------
+const DM = require('../src/lib/devMode.js');
+
+// A deliberate run of taps unlocks; each is 200ms after the last.
+let st = { count: 0, lastAt: 0 };
+let unlockedAt = 0;
+for (let i = 1; i <= DM.TAPS_TO_UNLOCK; i++) {
+  st = DM.tap(st, i * 200);
+  if (st.unlocked) unlockedAt = i;
+}
+check(`devmode: ${DM.TAPS_TO_UNLOCK} quick taps unlock, and not fewer`,
+  unlockedAt === DM.TAPS_TO_UNLOCK, unlockedAt);
+
+// A slow tap restarts the count — otherwise seven presses spread over a minute
+// of idle scrolling would enable it by accident.
+let slow = { count: 0, lastAt: 0 };
+for (let i = 0; i < 6; i++) slow = DM.tap(slow, i * 200);
+const afterPause = DM.tap(slow, 6 * 200 + DM.TAP_GAP_MS + 1);
+check('devmode: a pause restarts the count',
+  afterPause.unlocked === false && afterPause.count === 1, JSON.stringify(afterPause));
+
+// Silent at first, then counts down out loud once the intent is obvious.
+let quiet = { count: 0, lastAt: 0 };
+quiet = DM.tap(quiet, 100);
+check('devmode: the first taps say nothing', quiet.message === null);
+let loud = { count: 0, lastAt: 0 };
+for (let i = 1; i <= DM.HINT_AFTER; i++) loud = DM.tap(loud, i * 100);
+check('devmode: it starts counting down once intent is obvious',
+  typeof loud.message === 'string' && loud.message.indexOf('more') !== -1, loud.message);
+
+check('devmode: a null starting state does not throw',
+  DM.tap(null, 0).count === 1);
+
+// ---------------------------------------------------------------------------
+// Feedback attachments (feedback.js)
+//
+// This is where the "Data Not Collected" label is kept or lost, so the rules
+// are tested rather than trusted. Apple's optional-disclosure criteria and the
+// reasoning are in feedback.js and D-059.
+// ---------------------------------------------------------------------------
+const FB = require('../src/lib/feedback.js');
+
+const MB = 1024 * 1024;
+const imgs = [
+  { id: 1, imagePath: '/a.jpg', size: 3 * MB },
+  { id: 2, imagePath: '/b.jpg', size: 3 * MB },
+  { id: 3, imagePath: '/c.jpg', size: 3 * MB },
+  { id: 4, imagePath: '/d.jpg', size: 3 * MB },
+];
+
+// A bounced support email is a SILENT failure — the user tapped Send, watched it
+// leave, and nothing arrived. So the cap is enforced, and what did not fit is
+// reported rather than dropped quietly.
+const picked = FB.selectImages(imgs, 8 * MB);
+check('feedback: images are capped at the size limit',
+  picked.chosen.length === 2 && picked.bytes === 6 * MB, JSON.stringify(picked.bytes));
+check('feedback: what did not fit is counted, not silently dropped',
+  picked.skipped === 2, picked.skipped);
+check('feedback: everything fits when it fits',
+  FB.selectImages(imgs, 100 * MB).skipped === 0);
+check('feedback: a receipt with no image is never attached',
+  FB.selectImages([{ id: 9, imagePath: null, size: 10 }], 8 * MB).chosen.length === 0);
+check('feedback: a zero-byte or unreadable image is skipped',
+  FB.selectImages([{ id: 9, imagePath: '/x.jpg', size: 0 }], 8 * MB).chosen.length === 0);
+check('feedback: no receipts does not throw',
+  FB.selectImages([], 8 * MB).chosen.length === 0 && FB.selectImages(null).chosen.length === 0);
+
+// The body restates what was attached, so a user reading the sent message later
+// can still see what they sent — "it is clear to the user what data is
+// collected" has to be true in the artifact, not only in a dismissed screen.
+const bodyNone = FB.buildBody({ message: 'hello', version: 'v1 r23', receiptCount: 4 });
+check('feedback: attaching nothing says so in the body',
+  bodyNone.indexOf('Attached: nothing') !== -1, bodyNone);
+check('feedback: the message and version survive into the body',
+  bodyNone.indexOf('hello') === 0 && bodyNone.indexOf('v1 r23') !== -1);
+
+const bodyBoth = FB.buildBody({
+  message: 'wrong total', version: 'v1 r23', receiptCount: 1,
+  includeDiagnostics: true, includeImages: true, imageCount: 1,
+});
+check('feedback: each attachment is named in the body',
+  bodyBoth.indexOf(FB.ATTACHMENT_LABELS.diagnostics) !== -1
+  && bodyBoth.indexOf(FB.ATTACHMENT_LABELS.images) !== -1, bodyBoth);
+
+// The label text is what the user reads on the checkbox AND in the sent mail.
+// "no photos" on the diagnostics option is load-bearing: it is the difference
+// between someone attaching receipt text and thinking they attached pictures.
+check('feedback: the diagnostics option states that it carries no photos',
+  /no photos/i.test(FB.ATTACHMENT_LABELS.diagnostics), FB.ATTACHMENT_LABELS.diagnostics);
+
+check('feedback: a scan report and general feedback have distinguishable subjects',
+  FB.buildSubject('scan', 'v1').indexOf('scanning problem') !== -1
+  && FB.buildSubject('general', 'v1').indexOf('scanning problem') === -1);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

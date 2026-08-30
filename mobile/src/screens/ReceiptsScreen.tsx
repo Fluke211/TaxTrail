@@ -1,13 +1,15 @@
 // Receipts list + detail modal (image, fields, edit, delete, raw-text copy).
 import React, { useCallback, useState } from 'react';
 import {
-  Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { T } from '../lib/theme';
+import { styled, useTheme } from '../lib/theme';
 import MoneyInput from '../components/MoneyInput';
 import { ZoomableImage } from '../components/ZoomableImage';
 import { CategoryPicker } from '../components/CategoryPicker';
+import SwipeableRow from '../components/SwipeableRow';
+import FeedbackComposer from '../components/FeedbackComposer';
 import { deleteReceipt, updateReceipt, type Receipt } from '../lib/db';
 import { deleteReceiptFiles } from '../lib/ocr';
 import { SC_BY_NAME, allocationsOf } from '../lib/rows';
@@ -15,12 +17,22 @@ import { SC_BY_NAME, allocationsOf } from '../lib/rows';
 const CATEGORY_NAMES: string[] = (require('../lib/classifier.js').CATEGORIES as { name: string }[]).map((c) => c.name);
 
 export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Receipt[]; onChanged: () => void }) {
+  const T = useTheme();
+  const s = makeStyles(T);
   const [selected, setSelected] = useState<Receipt | null>(null);
   const [showCats, setShowCats] = useState(false);
+  // The receipt being reported, or null. Held separately from `selected` so the
+  // detail modal stays open behind it and comes back if the user cancels.
+  const [reporting, setReporting] = useState<Receipt | null>(null);
 
-  const remove = useCallback((r: Receipt) => {
+  /**
+   * `onCancel` re-closes the swipeable when the user backs out. Without it the
+   * row stays open behind the dismissed alert, looking like the delete is still
+   * pending. The detail modal passes nothing, because it has no row to close.
+   */
+  const remove = useCallback((r: Receipt, onCancel?: () => void) => {
     Alert.alert('Delete receipt?', `${r.merchant} — $${r.total.toFixed(2)}`, [
-      { text: 'Cancel', style: 'cancel' },
+      { text: 'Cancel', style: 'cancel', onPress: onCancel },
       {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
@@ -54,18 +66,20 @@ export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Rece
         renderItem={({ item }) => {
           const allocs = allocationsOf(item);
           return (
-            <Pressable style={s.card} onPress={() => setSelected({ ...item })}>
-              {item.thumbPath
-                ? <Image source={{ uri: item.thumbPath }} style={s.thumb} />
-                : <View style={[s.thumb, { alignItems: 'center', justifyContent: 'center' }]}><Text>🧾</Text></View>}
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.cardM} numberOfLines={1}>{item.merchant}</Text>
-                <Text style={s.cardSub} numberOfLines={1}>
-                  {item.date} · {item.category}{allocs.length > 1 ? ` +${allocs.length - 1} splits` : ''}
-                </Text>
-              </View>
-              <Text style={s.cardAmt}>${item.total.toFixed(2)}</Text>
-            </Pressable>
+            <SwipeableRow onDelete={(close) => remove(item, close)}>
+              <Pressable style={s.card} onPress={() => setSelected({ ...item })}>
+                {item.thumbPath
+                  ? <Image source={{ uri: item.thumbPath }} style={s.thumb} />
+                  : <View style={[s.thumb, { alignItems: 'center', justifyContent: 'center' }]}><Text>🧾</Text></View>}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.cardM} numberOfLines={1}>{item.merchant}</Text>
+                  <Text style={s.cardSub} numberOfLines={1}>
+                    {item.date} · {item.category}{allocs.length > 1 ? ` +${allocs.length - 1} splits` : ''}
+                  </Text>
+                </View>
+                <Text style={s.cardAmt}>${item.total.toFixed(2)}</Text>
+              </Pressable>
+            </SwipeableRow>
           );
         }}
       />
@@ -135,6 +149,16 @@ export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Rece
               <Text style={{ color: T.accent, fontSize: 12, fontWeight: '600' }}>COPY RAW SCANNED TEXT</Text>
             </Pressable>
 
+            {/*
+              Reporting from HERE rather than from Settings is what makes the
+              report useful: it carries this one receipt's text and photo, which
+              is the pair that fixes a parser bug — instead of every receipt on
+              the device, most of which scanned fine.
+            */}
+            <Pressable style={{ marginTop: 12 }} onPress={() => setReporting(selected)}>
+              <Text style={{ color: T.accent, fontSize: 12, fontWeight: '600' }}>REPORT A SCANNING PROBLEM</Text>
+            </Pressable>
+
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
               <Pressable style={s.dangerBtn} onPress={() => remove(selected)}>
                 <Text style={{ color: T.danger, fontWeight: '600' }}>Delete</Text>
@@ -146,11 +170,18 @@ export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Rece
           </ScrollView>
         )}
       </Modal>
+
+      <FeedbackComposer
+        visible={reporting != null}
+        receipts={reporting ? [reporting] : []}
+        kind="scan"
+        onClose={() => setReporting(null)}
+      />
     </View>
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: T.radius,
@@ -170,8 +201,8 @@ const s = StyleSheet.create({
   },
   hint: { color: T.muted2, fontSize: 12, marginTop: 6 },
   dangerBtn: {
-    flex: 1, borderColor: 'rgba(255,107,107,0.45)', borderWidth: 1, borderRadius: 12,
+    flex: 1, borderColor: T.dangerLine, borderWidth: 1, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
   },
   primaryBtn: { flex: 1, backgroundColor: T.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-});
+}));

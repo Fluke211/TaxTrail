@@ -1,22 +1,25 @@
-// TaxTrail — root component. Custom three-tab shell (no navigation library:
-// fewer native deps = safer single EAS build), same layout as the PWA.
+// TaxTrail — root component. Custom four-tab shell (no navigation library:
+// fewer native deps = safer single EAS build).
 import React, { useCallback, useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { T } from './src/lib/theme';
+import { styled, useTheme } from './src/lib/theme';
 import { allReceipts, type Receipt } from './src/lib/db';
 import { initPurchases, isPro, registerFallbackPaywall } from './src/lib/purchases';
 import { FallbackPaywall, type PaywallPackage } from './src/components/FallbackPaywall';
 import CaptureScreen from './src/screens/CaptureScreen';
 import ReceiptsScreen from './src/screens/ReceiptsScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
-type Tab = 'capture' | 'receipts' | 'summary';
+type Tab = 'capture' | 'receipts' | 'summary' | 'settings';
 
 function Root() {
+  const T = useTheme();
+  const s = makeStyles(T);
   const insets = useSafeAreaInsets();
   // Compliant fallback paywall, shown only if RevenueCat's remote template fails
   // to load. Rendered here so it sits above the tab shell (see purchases.ts).
@@ -83,6 +86,7 @@ function Root() {
         {tab === 'capture' && <CaptureScreen onSaved={() => { refresh(); setTab('receipts'); }} />}
         {tab === 'receipts' && <ReceiptsScreen receipts={receipts} onChanged={refresh} />}
         {tab === 'summary' && <SummaryScreen receipts={receipts} pro={pro} onChanged={refresh} />}
+        {tab === 'settings' && <SettingsScreen receipts={receipts} pro={pro} onChanged={refresh} />}
       </View>
 
       <View style={[s.tabbar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -90,7 +94,8 @@ function Root() {
           ['capture', 'camera', 'Capture'],
           ['receipts', 'receipt', 'Receipts'],
           ['summary', 'stats-chart', 'Summary'],
-        ] as [Tab, 'camera' | 'receipt' | 'stats-chart', string][]).map(([key, icon, label]) => {
+          ['settings', 'settings', 'Settings'],
+        ] as [Tab, 'camera' | 'receipt' | 'stats-chart' | 'settings', string][]).map(([key, icon, label]) => {
           const active = tab === key;
           return (
             <Pressable key={key} style={s.tabBtn} onPress={() => { setTab(key); if (key !== 'capture') refresh(); }}>
@@ -104,7 +109,11 @@ function Root() {
           );
         })}
       </View>
-      <StatusBar style="light" />
+      {/* "light" means light CONTENT — white clock and battery — which is right
+          on the dark ground and unreadable on the light one. Driven off the
+          palette rather than hardcoded, or light mode ships with an invisible
+          status bar. */}
+      <StatusBar style={T.scheme === 'light' ? 'dark' : 'light'} />
     </View>
   );
 }
@@ -123,7 +132,7 @@ export default function App() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   app: { flex: 1, backgroundColor: T.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -143,4 +152,4 @@ const s = StyleSheet.create({
   },
   tabBtn: { flex: 1, alignItems: 'center', gap: 2 },
   tabLabel: { color: T.muted2, fontSize: 11, fontWeight: '600' },
-});
+}));

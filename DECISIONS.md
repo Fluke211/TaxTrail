@@ -2244,13 +2244,402 @@ A check that fails on a proven-good condition blocks every PR, so it carries an
 `ALLOWED` map — and the rule for that map is that each entry needs evidence it
 has shipped, not a hunch.
 
-### Still unconfirmed
+### Confirmed (2026-08-29, after the fact)
 
-The pod log was never read, so the worklets drift is a **strong hypothesis, not
-a confirmed cause**. It is a real divergence from the tested set and worth
-fixing regardless. If the retry fails the same way, the next move is for Tyler
-to open the build's expo.dev page and paste the `Install pods` error — that URL
-is reachable from his browser and not from here.
+This was written while the cause was still a hypothesis — the pod log was
+unreadable from here. Tyler then pasted it, and it names the cause exactly:
 
-Build failures are not charged against the EAS quota (D-015), so the retry is
-cheap.
+```
+[Reanimated] Your installed version of Worklets (0.8.3) is not compatible with
+installed version of Reanimated (4.2.1). Please install the latest supported
+version of Worklets 0.7.x or older.
+[!] Invalid `RNReanimated.podspec` file: [Reanimated] Failed to validate worklets version.
+```
+
+The fix had already been pushed by the time the log arrived. Reanimated
+validates the worklets version in its **podspec**, so the mismatch is fatal at
+pod resolution and never reaches a compile — which is why the failure was fast
+and why nothing in the JS could have revealed it.
+
+**Correction to the last line of this entry as first written:** it said build
+failures are not charged against the EAS quota. That is only half right. They
+draw on a *separate* pool of 10 failed builds a month rather than on the 10
+completed builds — cheap relative to a completed build, not free. See the cost
+model in `docs/RUNBOOK.md`, corrected 2026-08-30.
+
+---
+
+## D-055
+
+**Read a build's error code, not just its status** (2026-08-30)
+
+Build 4 took three submissions. Two failed, eleven minutes apart, and from a
+Claude Code session they looked identical — the CLI reported a failure, and the
+reason lived on expo.dev, which is blocked from here (CLAUDE.md).
+
+They were not the same failure at all:
+
+| Build | Code | Cause |
+|---|---|---|
+| `c5adc37f` | `UNKNOWN_ERROR` | `Install pods` — the worklets pin (D-054). **Our fault.** |
+| `167f871b` | `SERVER_ERROR` | "Failed to upload application archive" — Expo's own infrastructure. **Not our fault.** |
+
+The second one is the interesting case. The CLI surfaced only
+`Network error: Service Unavailable / Response status: 503`, which reads like
+the request never landed. It had: EAS recorded a build, marked it ERRORED, and
+charged it against the failed-build pool. Judging by the CLI output alone, the
+worklets fix looked like it had been tested and failed. It had never run.
+
+**`eas build:list --json` carries `error.errorCode` and `error.message`** for
+every build, and it is reachable from CI. It was already being called by the
+workflow's `usage` step, which printed status and threw the error away. It now
+prints it. Free, ~60 seconds, no approval needed.
+
+The rule that follows:
+
+- `SERVER_ERROR` → Expo's infrastructure. **Retry as-is.** Nothing in the diff
+  is implicated, and treating it as a code failure sends you debugging a change
+  that was never executed.
+- anything else → it happened on the worker. **The diff is at fault.**
+
+### What was tried and rejected
+
+The first version of this also printed whether the build had reached a worker,
+derived from `metrics.buildStartTimestamp`. `build:list --json` does not return
+`metrics`, so it printed "never started on a worker" for a build whose own error
+message said `See logs of the Install pods build phase` — confidently wrong
+about the exact question it existed to answer. Removed rather than repaired: the
+error code already separates the two cases, and a diagnostic that lies is worse
+than no diagnostic, because it is believed.
+
+---
+
+## D-056
+
+**Exports say what they cover, and are named for it** (2026-08-30)
+
+Every export took ALL receipts while being named for the CURRENT year:
+`taxtrail-2026.csv` could hold three years of data, and last year's return could
+not be exported at all. Exporting twice produced the same filename twice, which
+iOS resolves by appending "(1)".
+
+Tyler asked for "export all, or just year to date, or an entire year".
+
+`exportRange.js` holds the range logic, and the range decides **both** what goes
+in the file and what the file is called:
+
+```
+taxtrail-2025-exported-2026-08-30.csv
+taxtrail-2026-ytd-exported-2026-08-30.txf
+taxtrail-all-exported-2026-08-30.xlsx
+```
+
+Coverage first so a folder sorts by tax year; the export date spelled out with
+"exported" rather than merely appended, because `taxtrail-2025-2026-08-30` reads
+as two ranges and nobody can tell which is which.
+
+The export functions filter their own input rather than trusting the caller to.
+A caller that passed the range for the filename and forgot to filter would
+produce a file labelled "All of 2025" containing everything — the exact bug this
+feature exists to fix, one layer up.
+
+### ISO strings, never Date objects
+
+`new Date('2026-01-01')` parses as **UTC midnight**, which is 2025-12-31 in every
+US timezone. A Date-based year filter therefore drops New Year's Day receipts
+for every American user — the entire market. Comparing `yyyy-mm-dd` strings
+lexicographically has no timezone to get wrong. Demonstrated rather than
+asserted: the naive version puts 2026-01-01 in 2025 under `TZ=America/Los_Angeles`,
+and the suite is run under four timezones in CI.
+
+### Undated receipts are reported, not dropped
+
+A receipt with no date is not "outside 2025", it is unplaceable. Every bounded
+range returns it separately and the UI says so, because silently dropping a row
+from a tax export is how a deduction goes missing.
+
+### Two things this turned up
+
+- **A custom range would have crashed the XLSX export.** SheetJS *throws* on a
+  worksheet name over 31 characters (verified, not assumed), and
+  `Summary 2026-01-01 to 2026-06-30` is 32. Harmless while the label was always
+  a four-digit year. `safeSheetName` falls back to the bare prefix rather than
+  truncating to `Summary 2026-01-01 to 2026-0`, which reads as a corrupt file.
+- **A ranged archive is not a backup.** Its README used to end "Keep this file
+  somewhere durable"; for a partial range it now says, in as many words, that it
+  is not a full backup and how to get one.
+
+---
+
+## D-057
+
+**`edited` is derived from what the parser said, not tracked** (2026-08-30)
+
+Tyler asked for an `edited: true` flag in the diagnostics export. The flag alone
+answers "was this row touched". What the parser needs is "touched HOW", because
+a corrected receipt is a labelled training example and an uncorrected one is not.
+
+So a receipt stores `parsedSnapshot`: the classifier's own output, frozen at scan
+time, before the merchant-memory override and before any keystroke. The flag is
+then **derived** — no bookkeeping to fall out of sync — and diagnostics can emit
+the pair that actually fixes a parser bug:
+
+```
+"parserSaid": { "total": 25.00, ... },
+"stored":     { "total": 26.50, ... },
+"edited": true, "editedFields": ["total"]
+```
+
+That is Tyler's real Target correction. The OCR text plus the right answer is
+everything a regression fixture needs, so a scanning session now produces
+labelled data instead of anecdotes.
+
+### null, not false
+
+A row scanned before the snapshot column existed reports `edited: null`.
+Backfilling a snapshot from the current values would assert the parser got them
+right, which is the one thing there is no evidence for — and it would silently
+inflate every future accuracy measurement. The diagnostics summary counts
+`corrected` / `unedited` / `unknown` as three separate things for the same
+reason.
+
+### What is not compared
+
+Notes (never parsed) and `taxRate` (four possible sources: printed, city memory,
+derived, last used). A difference in either says nothing about the parser.
+Merchant compares case- and whitespace-insensitively, and money compares in whole
+cents — a sub-cent float difference is not a user correction, and flagging it
+would bury the real ones in noise.
+
+---
+
+## D-058
+
+**Settings is its own tab, and the destructive control lives there** (2026-08-30)
+
+Manage Subscription sat in the EXPORT card, between "Full JSON backup" and a note
+about QuickBooks date formats. Tyler said he could not find it. He was right:
+export is a workflow, and subscription, restore and deletion are settings.
+
+The fourth tab holds subscription, restore-from-archive, about, developer
+options and a danger zone.
+
+### Three things came out of building it
+
+- **There was no Restore Purchases control at all.** The only one lived inside
+  the fallback paywall, which is shown *only* when RevenueCat's remote template
+  fails to load — so in the normal case there was none. Apple requires one
+  (Guideline 3.1.1); this is a review rejection as much as a user problem.
+  `restorePurchases()` is now exported and on the Settings screen, and it says
+  what happened either way, because silence after tapping Restore is
+  indistinguishable from a broken button.
+- **Delete-all removes the images too.** Deleting rows alone would leave every
+  photograph in the documents directory while telling the user their data was
+  gone. For an app whose whole claim is "it never leaves your phone", being
+  wrong about deletion is the worst available failure. Rows go first: orphaned
+  images are invisible and recoverable, rows pointing at deleted images show up
+  as broken thumbnails in a tax record.
+- **Two confirmations, and the second one names the number.** The first alert is
+  the tap people make while reading. The copy points at the archive export,
+  because that is the difference between a user who meant it and a user about to
+  lose a year of records.
+
+### The developer gate
+
+The JSON backup and the diagnostics dump moved behind seven taps on the version
+stamp. Both are useful to Tyler and misleading to everyone else — the JSON backup
+records image *paths*, which go stale on reinstall, so it looks like a backup and
+is not one. Hidden rather than removed: they are how parser bugs get fixed at all.
+
+Taps were chosen because Tyler is usually phone-only and terminal paste does not
+work on his phone. The counting rules live in `devMode.js`, pure, so "seven taps
+unlocks it" is a unit test rather than something verified by tapping a phone
+seven times — including that a pause resets the count, so it cannot be triggered
+by idle scrolling.
+
+**The version stamp stays in the Summary footer.** It is one of Tyler's standing
+rules and it drifted silently once already (D-039), so it is not a thing to
+relocate on a tidiness argument. Settings carries a second copy for the tap
+gesture; both call `versionStamp()`, so they cannot disagree.
+
+---
+
+## D-059
+
+**Feedback goes through the system Mail composer, and that is what keeps the privacy label** (2026-08-30)
+
+Tyler wanted a feedback control with a checkbox for attaching receipt data, and
+asked whether we want the images: *"If we don't need their receipt images, it's
+fine to only get the raw OCR text and parsed fields, but I suspect we actually do
+want the images."*
+
+We do — a photo usually shows why a receipt read badly when the text alone does
+not. The question is whether receiving any of it costs the **Data Not Collected**
+label, which is the entire product pitch.
+
+### What Apple actually says
+
+Checked against `developer.apple.com/app-store/app-privacy-details` rather than
+recalled. Data is **optional to disclose** only if it meets **all four**:
+
+1. not used for tracking — not linked with third-party data for advertising or
+   measurement, not shared with a data broker;
+2. not used for third-party advertising, our advertising or marketing, or
+   "Other Purposes";
+3. *"Collection of the data occurs only in infrequent cases that are not part of
+   your app's primary functionality, and which are optional for the user"*;
+4. *"The data is provided by the user in your app's interface, it is clear to the
+   user what data is collected, the user's name or account name is prominently
+   displayed in the submission form alongside the other data elements being
+   submitted, and the user affirmatively chooses to provide the data for
+   collection each time."*
+
+Apple names this exact case: *"data collected in optional feedback forms or
+customer service requests that are unrelated to the primary purpose of the app
+and meet the other criteria above."*
+
+### Criterion 4 is why this is not an HTTP POST
+
+An in-app upload to a support endpoint would satisfy 1–3 and **fail 4**. There is
+no account name to display, and "affirmatively chooses each time" is weak when
+the app is the thing doing the sending.
+
+The system Mail composer satisfies it directly: *it is the submission form*. It
+shows the user's own address in the From field, the body, and every attachment by
+name, and nothing leaves until they tap Send. TaxTrail has no account and no
+name to display — the user's own email address in the composer is the closest
+true equivalent, and it is Apple's own UI presenting it.
+
+So the design follows from the criteria rather than from taste:
+
+- every attachment defaults to **off**, ticked individually, every time;
+- each is named in plain words on the checkbox — the diagnostics option says
+  "text only, no photos", which is the difference between someone attaching
+  receipt text and believing they attached pictures;
+- the body **restates what was attached**, so criterion 4's "clear to the user
+  what data is collected" holds in the sent artifact, not only in a screen they
+  have already dismissed;
+- the app never sends; it opens the composer and stops.
+
+### Report from the receipt, not from Settings
+
+A report opened on a specific receipt carries that one receipt's text and photo.
+That is the pair that fixes a parser bug. A general report from Settings would
+otherwise carry every receipt on the device, most of which scanned fine — worse
+for us to read and far worse for the person sending it.
+
+### The size cap
+
+8 MB, against a ~20–25 MB provider limit. A bounced support email is a **silent**
+failure: the user tapped Send, watched it leave, and nothing arrived. Images are
+attached newest-first until the budget is spent, and anything left out is
+reported in the confirmation rather than dropped quietly.
+
+---
+
+## D-060
+
+**Swipe-to-delete reveals, then confirms** (2026-08-30)
+
+Tyler: *"It's totally fine to add a dependency if that makes it look and feel the
+best."* It did not need one — `react-native-gesture-handler` and
+`react-native-reanimated` both went into build 4 for exactly this (D-053), so
+swipe-to-delete ships over the air with nothing new.
+
+Uses `ReanimatedSwipeable`, gesture-handler's own implementation, which tracks
+the finger on the UI thread through reanimated instead of crossing the JS bridge
+every frame. That is the difference between "native" and "a list that lags".
+
+**Import path:** `react-native-gesture-handler/ReanimatedSwipeable`. It is *not*
+re-exported from the package root — the root exports the older `Swipeable`. The
+subpath was verified to resolve (`require.resolve`, then a real Metro bundle)
+before the component was written, rather than assumed from the docs.
+
+### Reveal, tap, confirm — three steps on purpose
+
+iOS Mail deletes on swipe with an Undo, which is the nicer interaction. Undo is
+not available here: `deleteReceiptFiles` removes the JPEG, a receipt image is the
+substantiation for a deduction, and there is no server copy to restore from — by
+design. Photos confirms for the same reason, and this follows Photos, not Mail.
+
+The confirmation names the merchant and the amount, so it informs rather than
+merely obstructs. Cancelling re-closes the row: without that the row sits open
+behind the dismissed alert, looking like the delete is still pending.
+
+`overshootRight` is off. Rubber-banding past a destructive action suggests that
+swiping further will delete, and here it will not. `rightThreshold` is raised to
+40 from the default half-action-width, which on an 88pt action opens on almost
+any horizontal movement — including the diagonal drift of a vertical scroll.
+
+---
+
+## D-061
+
+**Light theme follows the system, and the palette's contrast is a test** (2026-08-30)
+
+Tyler approved this despite a recommendation to defer it — 178 `T.*` references
+across ten files.
+
+### The mechanical part
+
+`StyleSheet.create` runs once at module load, so a themed screen cannot keep its
+styles at module scope. Every file got the same three edits:
+
+```
+  import { T } from '../lib/theme'   ->  import { styled, useTheme }
+  const s = StyleSheet.create({…})   ->  const makeStyles = styled((T) => ({…}))
+  (inside the component)             ->  const T = useTheme(); const s = makeStyles(T);
+```
+
+Done with a script rather than by hand, because ten identical edits done by hand
+is ten chances to get one wrong, and `tsc` plus a real Metro bundle is the check
+that they landed. `styled()` memoises per palette, and there are exactly two, so
+a screen builds its styles at most twice for the life of the process.
+
+`T` is still exported as the dark palette, so anything not yet converted keeps
+working rather than failing at runtime.
+
+**No in-app toggle.** iOS already has that setting and it is where people look
+for it; an app-level override is one more thing to keep in sync for no benefit.
+`useColorScheme` returns null before the value is known, and dark is the default,
+because that is what the current binary and every screenshot look like.
+
+### The part that mattered
+
+The light palette is not the dark one inverted. `line` had to become a black
+alpha — a white hairline on a white card is invisible, which would have silently
+removed every border in the app — and `accent`, `danger`, `warn` and `good` all
+had to darken to stay readable on white.
+
+Getting that right by eye is not possible, so `scripts/check-contrast.js`
+computes WCAG 2.1 ratios from the palette itself, flattening alpha onto the
+background first (every `line` and `accentSoft` token has some). It found, on
+its first run:
+
+- **`#fff` title text on the fallback paywall.** On the light palette's near-white
+  background that is invisible — on the purchase screen. It was hardcoded, so
+  the theme conversion alone would not have caught it.
+- **The danger-zone border and the Delete button border** hardcoded as the *dark*
+  palette's red. Now a `dangerLine` token.
+- **`muted2` at 2.85:1** in light, under the 3:1 bar for secondary text.
+  Darkened to `#7f899c`.
+
+### The baseline, and why the dark theme is not "fixed"
+
+The check also found **five pairings in the DARK palette below the WCAG target**,
+shipped that way for months — including white-on-accent at 3.71:1 on the primary
+button, and white-on-danger at 2.78:1.
+
+Those are Tyler's brand colours and a real design decision. Quietly restyling the
+shipped app so a new script passes would be the wrong way round. So the check is a
+**ratchet against a committed baseline, exactly like the synthetic parser corpus
+(D-041)**: a palette that gets worse fails, one that is merely imperfect does not.
+The five are printed as warnings on every run so they stay visible.
+
+The LIGHT palette carries no baseline — it is new, so it meets the targets
+outright, and it does.
+
+**For Tyler:** those five dark-theme ratios are worth a decision, not a fix I
+should make alone. White on `#4f7cff` clears WCAG's 3:1 large-text bar but not
+the 4.5:1 body-text one, and the button label is 15–16px. Darkening the accent a
+little would fix it and change the app's signature colour.

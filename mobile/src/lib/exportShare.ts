@@ -8,8 +8,27 @@ import { exportRows } from './rows';
 import { buildXlsxBase64 } from './xlsxExport';
 import { saveRestoredImage } from './ocr';
 import { APP_VERSION, JS_REVISION } from './version';
+import { makeRange, filterByRange, exportFileName, type ExportRange } from './exportRange';
 const X = require('./exporters.js');
 const R = require('./restorePlan.js');
+const E = require('./edited.js');
+
+// Exports that predate range selection, and the ones where a range makes no
+// sense (a backup is a backup), use this.
+const ALL: ExportRange = makeRange('all');
+
+/**
+ * Every range-aware export narrows its own input.
+ *
+ * Deliberately not the caller's job: the range decides both which rows go in
+ * the file and what the file is called, and a caller that passed the range for
+ * the filename but forgot to filter would produce a file labelled "All of 2025"
+ * containing every receipt ever scanned — which is the exact bug this feature
+ * exists to fix, reintroduced one layer up.
+ */
+function scope(receipts: Receipt[], range: ExportRange): Receipt[] {
+  return filterByRange(receipts, range).receipts;
+}
 
 async function shareText(filename: string, content: string, mimeType: string): Promise<void> {
   const path = `${FileSystem.cacheDirectory}${filename}`;
@@ -23,31 +42,29 @@ async function shareBase64(filename: string, b64: string, mimeType: string): Pro
   await Sharing.shareAsync(path, { mimeType, dialogTitle: filename });
 }
 
-const year = () => String(new Date().getFullYear());
-
-export async function exportCSV(receipts: Receipt[]): Promise<void> {
-  const csv: string = X.buildCpaCSV(exportRows(receipts));
-  await shareText(`taxtrail-${year()}.csv`, csv, 'text/csv');
+export async function exportCSV(receipts: Receipt[], range: ExportRange = ALL): Promise<void> {
+  const csv: string = X.buildCpaCSV(exportRows(scope(receipts, range)));
+  await shareText(exportFileName('taxtrail', 'csv', range), csv, 'text/csv');
 }
 
-export async function exportTXF(receipts: Receipt[]): Promise<void> {
+export async function exportTXF(receipts: Receipt[], range: ExportRange = ALL): Promise<void> {
   // The TXF "A" record is defined as which program *including version*
   // wrote the file, so a CPA opening it can tell which build produced it.
-  const txf = X.buildTXF(exportRows(receipts), new Date(), `${APP_VERSION} r${JS_REVISION}`);
-  await shareText(`taxtrail-${year()}.txf`, txf.content, 'application/octet-stream');
+  const txf = X.buildTXF(exportRows(scope(receipts, range)), new Date(), `${APP_VERSION} r${JS_REVISION}`);
+  await shareText(exportFileName('taxtrail', 'txf', range), txf.content, 'application/octet-stream');
 }
 
-export async function exportQBO(receipts: Receipt[]): Promise<void> {
-  const qbo: string = X.buildQBO(exportRows(receipts));
+export async function exportQBO(receipts: Receipt[], range: ExportRange = ALL): Promise<void> {
+  const qbo: string = X.buildQBO(exportRows(scope(receipts, range)));
   // "-online-" is not cosmetic: QuickBooks Desktop cannot import bank
   // transactions from CSV, so a Desktop user downloading this would be stuck.
-  await shareText(`taxtrail-quickbooks-online-${year()}.csv`, qbo, 'text/csv');
+  await shareText(exportFileName('taxtrail-quickbooks-online', 'csv', range), qbo, 'text/csv');
 }
 
-export async function exportXLSX(receipts: Receipt[]): Promise<void> {
-  const b64 = buildXlsxBase64(exportRows(receipts), year());
+export async function exportXLSX(receipts: Receipt[], range: ExportRange = ALL): Promise<void> {
+  const b64 = buildXlsxBase64(exportRows(scope(receipts, range)), range.label);
   await shareBase64(
-    `taxtrail-${year()}.xlsx`, b64,
+    exportFileName('taxtrail', 'xlsx', range), b64,
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   );
 }
@@ -64,29 +81,77 @@ export async function exportXLSX(receipts: Receipt[]): Promise<void> {
  * Contains receipt text, so it goes through the share sheet like everything
  * else — the user chooses where it goes, and nothing is uploaded.
  */
-export async function exportDiagnostics(receipts: Receipt[]): Promise<void> {
-  const payload = {
-    app: 'TaxTrail',
-    kind: 'parser-diagnostics',
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    count: receipts.length,
-    receipts: receipts.map((r) => ({
+/** The diagnostics payload as JSON. Shared by the export and the feedback
+ *  composer so the two can never describe the same receipts differently. */
+function diagnosticsJson(receipts: Receipt[]): string {
+  const rows = receipts.map((r) => {
+    const snapshot = E.readSnapshot(r.parsedSnapshot ?? null);
+    const changed = E.changedFields(snapshot, r);
+    return {
       id: r.id,
-      parsed: {
+      // `stored` is the truth as the user left it; `parserSaid` is what the
+      // classifier produced. Where they differ, the pair IS the fixture — the
+      // OCR text plus the right answer, which is everything a regression test
+      // for a parser bug needs.
+      stored: {
         merchant: r.merchant, date: r.date, total: r.total,
         salesTax: r.salesTax, taxRate: r.taxRate,
         category: r.category, scheduleC: r.scheduleC,
         confidence: r.confidence,
       },
+      parserSaid: snapshot,
+      edited: E.wasEdited(snapshot, r),   // null = scanned before snapshots
+      editedFields: changed,
       ocrText: r.ocrText,
-    })),
+    };
+  });
+
+  const corrected = rows.filter((r) => r.edited === true).length;
+  const unknown = rows.filter((r) => r.edited === null).length;
+
+  const payload = {
+    app: 'TaxTrail',
+    kind: 'parser-diagnostics',
+    // v2 adds parserSaid / edited / editedFields. v1 called `stored` `parsed`,
+    // which was a misnomer even then: it was always the post-edit values.
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    count: rows.length,
+    summary: {
+      corrected,
+      unedited: rows.length - corrected - unknown,
+      // Rows from before the snapshot column existed. Counted separately
+      // rather than folded into "unedited", which would claim the parser got
+      // them right — the one thing there is no evidence for.
+      unknown,
+    },
+    receipts: rows,
   };
+  return JSON.stringify(payload, null, 1);
+}
+
+export async function exportDiagnostics(receipts: Receipt[]): Promise<void> {
   await shareText(
     `taxtrail-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
-    JSON.stringify(payload, null, 1),
+    diagnosticsJson(receipts),
     'application/json',
   );
+}
+
+/**
+ * Write the diagnostics JSON to a file and hand back the path, rather than
+ * opening the share sheet.
+ *
+ * The feedback composer needs it as an attachment, and the share-sheet version
+ * would make the user pick a destination and then pick Mail — two sheets to do
+ * one thing.
+ */
+export async function writeDiagnosticsFile(receipts: Receipt[]): Promise<string> {
+  const path = `${FileSystem.cacheDirectory}taxtrail-diagnostics-${new Date().toISOString().slice(0, 10)}.json`;
+  await FileSystem.writeAsStringAsync(path, diagnosticsJson(receipts), {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+  return path;
 }
 
 // Filename-safe, human-browsable name: 0007-costco-2026-08-02.jpg
@@ -109,13 +174,20 @@ function imageFileName(r: Receipt, i: number): string {
  * deflating them costs CPU and saves nothing. Note this holds the whole archive
  * in memory; very large libraries may need chunking.
  */
-export async function exportArchive(receipts: Receipt[]): Promise<void> {
+export async function exportArchive(receipts: Receipt[], range: ExportRange = ALL): Promise<void> {
   const JSZip = require('jszip');
   const zip = new JSZip();
   const images = zip.folder('images');
 
+  // A ranged archive is a legitimate thing to want — one year's substantiation
+  // for one year's return — but it is NOT a backup, and the README below says
+  // so in as many words. Handing someone a file that says "keep this somewhere
+  // durable" when it holds nine months of receipts would be the worst possible
+  // way to be helpful.
+  const scoped = scope(receipts, range);
+
   let withImages = 0;
-  const manifest = await Promise.all(receipts.map(async (r, i) => {
+  const manifest = await Promise.all(scoped.map(async (r, i) => {
     let imageFile: string | null = null;
     if (r.imagePath) {
       try {
@@ -131,23 +203,31 @@ export async function exportArchive(receipts: Receipt[]): Promise<void> {
   }));
 
   const stamp = new Date().toISOString().slice(0, 10);
+  const partial = range.kind !== 'all';
   zip.file('backup.json', JSON.stringify({
     app: 'TaxTrail', version: 3, exportedAt: new Date().toISOString(),
+    coverage: { kind: range.kind, from: range.from, to: range.to, label: range.label },
     receiptCount: manifest.length, imageCount: withImages,
     receipts: manifest,
   }, null, 1));
-  zip.file('receipts.csv', X.buildCpaCSV(exportRows(receipts)));
+  zip.file('receipts.csv', X.buildCpaCSV(exportRows(scoped)));
   zip.file('README.txt',
     `TaxTrail archive — ${stamp}\n\n` +
+    `Covers: ${range.label}\n` +
     `${manifest.length} receipts, ${withImages} images.\n\n` +
     `images/     the receipt photographs\n` +
     `receipts.csv  the same data as a spreadsheet, organized by IRS form\n` +
     `backup.json   full records; each entry's "imageFile" names its image\n\n` +
-    `Keep this file somewhere durable. Everything in it was produced on your\n` +
-    `device — TaxTrail has no servers and never uploaded any of it.\n`);
+    (partial
+      ? `THIS IS NOT A FULL BACKUP. It holds ${range.label.toLowerCase()} only.\n` +
+        `For everything on the device, export an archive with the range set to\n` +
+        `"All receipts".\n\n`
+      : ``) +
+    `Everything in it was produced on your device — TaxTrail has no servers\n` +
+    `and never uploaded any of it.\n`);
 
   const b64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
-  await shareBase64(`taxtrail-archive-${stamp}.zip`, b64, 'application/zip');
+  await shareBase64(exportFileName('taxtrail-archive', 'zip', range), b64, 'application/zip');
 }
 
 // Full JSON backup (same v2 schema family as the PWA backup).

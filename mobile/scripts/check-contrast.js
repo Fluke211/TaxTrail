@@ -1,0 +1,203 @@
+#!/usr/bin/env node
+/*
+ * Is every text colour in each palette actually readable on the ground it sits on?
+ *
+ * A light theme is where colour choices stop being taste and start being a bug:
+ * `#4f7cff` is fine on near-black and marginal on white, and `#fff` title text
+ * on a `#f6f7f9` background is simply invisible — which is exactly what the
+ * fallback paywall shipped with until this ran.
+ *
+ * WCAG 2.1 contrast ratios, computed from the palette itself, so a future
+ * colour tweak cannot quietly make something unreadable. Body text is held to
+ * AA (4.5:1); large/secondary text and non-text borders to 3:1, which is the
+ * standard's own threshold for those.
+ *
+ *   node scripts/check-contrast.js
+ */
+'use strict';
+
+const path = require('path');
+const fs = require('fs');
+
+/** Pull the two palette literals out of theme.ts without needing a TS runtime. */
+function readPalettes() {
+  const src = fs.readFileSync(path.join(__dirname, '../src/lib/theme.ts'), 'utf8');
+  const out = {};
+  for (const name of ['DARK', 'LIGHT']) {
+    const start = src.indexOf(`export const ${name}: Palette = {`);
+    if (start === -1) throw new Error(`${name} palette not found in theme.ts`);
+    const end = src.indexOf('};', start);
+    const body = src.slice(start, end);
+    const p = {};
+    for (const m of body.matchAll(/^\s*([a-zA-Z0-9]+):\s*'([^']+)'/gm)) p[m[1]] = m[2];
+    out[name] = p;
+  }
+  return out;
+}
+
+/** #rgb, #rrggbb, or rgba(r,g,b,a) -> {r,g,b,a} in 0-255 / 0-1. */
+function parseColor(c) {
+  let m = /^#([0-9a-f]{3})$/i.exec(c);
+  if (m) {
+    const [r, g, b] = m[1].split('').map((h) => parseInt(h + h, 16));
+    return { r, g, b, a: 1 };
+  }
+  m = /^#([0-9a-f]{6})$/i.exec(c);
+  if (m) {
+    const n = parseInt(m[1], 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: 1 };
+  }
+  m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(c);
+  if (m) {
+    return { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4] };
+  }
+  throw new Error(`cannot parse colour: ${c}`);
+}
+
+/** Flatten a translucent colour onto its background — alpha changes contrast,
+ *  and every `line`/`accentSoft` token in this palette has some. */
+function over(fg, bg) {
+  return {
+    r: fg.r * fg.a + bg.r * (1 - fg.a),
+    g: fg.g * fg.a + bg.g * (1 - fg.a),
+    b: fg.b * fg.a + bg.b * (1 - fg.a),
+    a: 1,
+  };
+}
+
+function luminance({ r, g, b }) {
+  const f = (v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+
+function ratio(fgRaw, bgRaw) {
+  const bg = parseColor(bgRaw);
+  const fg = over(parseColor(fgRaw), bg);
+  const a = luminance(fg);
+  const b = luminance(bg);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+/*
+ * Every pairing the app actually renders. Each row is
+ * [foreground token, background token, minimum ratio, what it is].
+ *
+ * 4.5 for anything a user reads as body text; 3.0 for large text, secondary
+ * labels and non-text boundaries, which is WCAG's own threshold for those.
+ */
+const PAIRS = [
+  ['text', 'bg', 4.5, 'body text on the app background'],
+  ['text', 'card', 4.5, 'body text on a card'],
+  ['text', 'card2', 4.5, 'body text on an inset control'],
+  ['text', 'bg2', 4.5, 'body text on the tab bar'],
+  ['muted', 'bg', 4.5, 'secondary text on the app background'],
+  ['muted', 'card', 4.5, 'secondary text on a card'],
+  ['accent', 'bg', 4.5, 'links and every tappable label'],
+  ['accent', 'card', 4.5, 'links on a card'],
+  ['accent', 'card2', 4.5, 'links on an inset control'],
+  ['danger', 'card', 4.5, 'the Delete label in the danger zone'],
+  ['good', 'card', 3.0, 'the business total'],
+  ['warn', 'card', 3.0, 'warnings'],
+  // Hint text and disabled labels — large-text/secondary threshold.
+  ['muted2', 'bg', 3.0, 'hint text'],
+  ['muted2', 'card', 3.0, 'hint text on a card'],
+  ['muted2', 'card2', 3.0, 'hint text on an inset control'],
+  // Non-text: borders have to be visible or every card loses its edge.
+  ['line', 'card', 1.2, 'card borders'],
+  ['line', 'bg', 1.2, 'borders on the background'],
+  ['dangerLine', 'card', 1.2, 'the danger-zone border'],
+];
+
+// White-on-accent is a fixed pairing: the primary button and the delete action
+// both put #fff on a solid colour.
+const ON_SOLID = [
+  ['#ffffff', 'accent', 4.5, 'button text on the accent colour'],
+  ['#ffffff', 'danger', 4.5, 'Delete text on the danger colour'],
+];
+
+/*
+ * Committed baseline — a ratchet, exactly like the synthetic parser corpus
+ * (D-041): a palette that gets WORSE fails, one that is merely imperfect does
+ * not.
+ *
+ * This exists because the check found four pairings in the DARK palette that
+ * are below the WCAG target and have shipped that way for months. They are
+ * Tyler's brand colours and a real design decision, not a bug introduced here —
+ * quietly restyling the app to make a new script pass would be the wrong way
+ * round. They are listed below with what they currently measure, and reported
+ * every run so they stay visible rather than becoming invisible.
+ *
+ * The LIGHT palette is new, so it carries no baseline: it has to meet the
+ * targets outright, and it does.
+ */
+const BASELINE = {
+  DARK: {
+    'accent on card2': 4.26,    // #4f7cff on #182333 — target 4.5
+    'muted2 on card2': 2.73,    // hint text on an inset control — target 3.0
+    'line on bg': 1.17,         // a hairline on the darkest ground
+    '#fff on accent': 3.71,     // the primary button — clears WCAG's 3:1 large-text bar
+    '#fff on danger': 2.78,     // the Delete action
+  },
+  LIGHT: {},
+};
+
+// Floating-point noise, not a regression.
+const EPSILON = 0.02;
+
+const palettes = readPalettes();
+let failures = 0;
+let belowTarget = 0;
+
+for (const [name, p] of Object.entries(palettes)) {
+  console.log(`\n${name}`);
+  const base = BASELINE[name] || {};
+  const rows = [
+    ...PAIRS.map(([f, b, min, what]) => [p[f], p[b], min, `${f} on ${b}`, what]),
+    ...ON_SOLID.map(([f, b, min, what]) => [f, p[b], min, `#fff on ${b}`, what]),
+  ];
+  for (const [fg, bg, min, label, what] of rows) {
+    if (!fg || !bg) {
+      console.log(`  ::error::${name}: ${label} — a token in this pairing is missing from the palette`);
+      failures++;
+      continue;
+    }
+    const r = ratio(fg, bg);
+    const allowed = base[label];
+
+    if (allowed !== undefined) {
+      // Known-below-target. Fail only if it got worse than what is committed.
+      if (r < allowed - EPSILON) {
+        failures++;
+        console.log(`  FAIL ${label.padEnd(26)} ${r.toFixed(2)}:1  (was ${allowed})  ${what}`);
+        console.log(`  ::error::${name}: ${what} REGRESSED to ${r.toFixed(2)}:1 from ${allowed}:1 — ${fg} on ${bg}`);
+      } else {
+        belowTarget++;
+        console.log(`  warn ${label.padEnd(26)} ${r.toFixed(2)}:1  (target ${min}, baselined)  ${what}`);
+      }
+      continue;
+    }
+
+    const ok = r >= min;
+    if (!ok) failures++;
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${label.padEnd(26)} ${r.toFixed(2)}:1  (min ${min})  ${what}`);
+    if (!ok) console.log(`  ::error::${name}: ${what} is ${r.toFixed(2)}:1, needs ${min}:1 — ${fg} on ${bg}`);
+  }
+}
+
+console.log('');
+if (failures) {
+  console.log(`${failures} contrast failure${failures === 1 ? '' : 's'}.`);
+  console.log('A colour that fails here is unreadable on a real device. Adjust the');
+  console.log('palette in src/lib/theme.ts rather than lowering the threshold.');
+  process.exit(1);
+}
+if (belowTarget) {
+  console.log(`All pairings hold. ${belowTarget} are below the WCAG target and baselined —`);
+  console.log('see BASELINE in this file. They are design decisions to raise with Tyler,');
+  console.log('not regressions, and none of them got worse.');
+} else {
+  console.log('All palette pairings meet their contrast minimum.');
+}

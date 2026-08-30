@@ -88,6 +88,42 @@ export async function manageSubscription(): Promise<void> {
   }
 }
 
+/**
+ * Restore a purchase made on another device, or before a reinstall.
+ *
+ * Apple **requires** a restore control for any app selling a non-consumable or
+ * subscription (Guideline 3.1.1), and until now the only one lived inside the
+ * fallback paywall — which is shown only when RevenueCat's remote template
+ * fails to load. In the normal case there was no restore button anywhere, which
+ * is a review rejection as much as a user problem: somebody who paid for
+ * lifetime Pro and got a new phone had no way to prove it.
+ *
+ * Returns whether Pro is active afterwards, and says so either way. Silence
+ * after tapping Restore is indistinguishable from a broken button.
+ */
+export async function restorePurchases(): Promise<boolean> {
+  if (!configured) {
+    Alert.alert('Purchases not configured', 'TaxTrail Pro is unavailable in this build.');
+    return false;
+  }
+  try {
+    const info = await Purchases.restorePurchases();
+    const pro = info.entitlements.active[ENTITLEMENT_PRO] != null;
+    Alert.alert(
+      pro ? 'Purchases restored' : 'Nothing to restore',
+      pro
+        ? 'TaxTrail Pro is active on this device.'
+        : 'No previous purchase was found for this Apple Account. If you bought Pro '
+          + 'with a different Apple Account, sign in with that one and try again.',
+    );
+    return pro;
+  } catch (e) {
+    console.warn('restorePurchases failed', e);
+    Alert.alert('Could not restore', 'Check your connection and try again.');
+    return false;
+  }
+}
+
 // Show the RevenueCat remote-configured paywall; falls back to a plain package
 // chooser if no paywall template is configured in the dashboard yet.
 export async function presentPaywall(): Promise<boolean> {

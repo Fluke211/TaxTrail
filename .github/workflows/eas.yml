@@ -322,6 +322,29 @@ jobs:
               print(f"  {m}: {n}")
           statuses = collections.Counter(b.get('status') for b in builds)
           print("\nBy status:", dict(statuses))
+
+          # Why did the errored ones error?
+          #
+          # An ERRORED build's log lives on expo.dev, which Claude Code sessions
+          # cannot reach — so the one place the reason is written down is the one
+          # place the agent debugging it cannot look. build:list carries the
+          # error alongside the status and costs nothing extra, so print it. It
+          # is the difference between "a build failed" and "it failed in Install
+          # pods on a version mismatch", which is the whole of the diagnosis.
+          errored = [b for b in builds if b.get('status') == 'ERRORED']
+          if errored:
+              # The code is the part that says whose fault it was: SERVER_ERROR
+              # is Expo's own infrastructure and means simply retry, while
+              # XCODE_BUILD_ERROR or UNKNOWN_ERROR happened on the worker and
+              # means the diff is at fault. Build 4 hit one of each in eleven
+              # minutes, and telling them apart is the whole decision.
+              print("\nErrored builds — reason as EAS recorded it:")
+              for b in errored[:6]:
+                  err = b.get('error') or {}
+                  created = (b.get('createdAt') or '')[:19].replace('T', ' ')
+                  print(f"  {created}  {b.get('id')}")
+                  print(f"    code:    {err.get('errorCode') or '(none recorded)'}")
+                  print(f"    message: {err.get('message') or '(none recorded)'}")
           print("\nNote: whether a FAILED build counts against the monthly quota is an")
           print("EAS billing policy question. This lists what EAS recorded; confirm")
           print("remaining quota at https://expo.dev/accounts/tylerthornbrue/settings/billing")

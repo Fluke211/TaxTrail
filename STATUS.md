@@ -1,6 +1,6 @@
 # Status
 
-**Last updated:** 2026-08-29 · Update this file at the end of every working session.
+**Last updated:** 2026-08-30 · Update this file at the end of every working session.
 
 | Artifact | Version | State |
 |---|---|---|
@@ -54,15 +54,45 @@ and **the app fails on launch**.
 
 So, in order:
 
-1. Cut and install **build 4** (it embeds js r22 already).
-2. Confirm the footer reads `v1.0.0 (build 4) · js r22` on device.
+1. ~~Cut **build 4**~~ — **done**, and submitted to TestFlight (below).
+2. **Install it** from TestFlight, and confirm the footer reads
+   `v1.0.0 (build 4) · js r22` on device. ← this is the remaining step
 3. Only then resume `step: update` publishes.
+
+Phase 1 (Settings tab, export ranges, `edited` diagnostics) is merged and
+waiting on step 2. It is JS-only, so the moment build 4 is confirmed on the
+device it ships as **js r23** with one `step: update` run.
 
 Build 3 is safe on **js r21**, which is what is live now. If someone needs to
 ship a JS fix before build 4 lands, publish from the `0b00b937` commit (r21),
 not from `main`.
 
 This note comes out once build 4 is confirmed on the device.
+
+### Build 4 attempts
+
+Tyler approved this build explicitly ("BUILD NOW … I pre approve"). It has taken
+three submissions, and the first two failed for unrelated reasons:
+
+| When | Build | Code | What it actually was |
+|---|---|---|---|
+| 23:35 | `c5adc37f` | `UNKNOWN_ERROR` | `Install pods` — `react-native-worklets` 0.8.3 arrived as reanimated's transitive peer against the SDK pin of 0.7.4. Fixed and guarded by `npm run test:pins` (D-054) |
+| 23:46 | `167f871b` | `SERVER_ERROR` | "Failed to upload application archive" — Expo's own infrastructure. The worklets fix was in this attempt but never got to run |
+| 01:03 | `b8ebc4af` | — | **Succeeded**, 5m34s. Same commit as the second attempt (`fba11d5`), retried because a `SERVER_ERROR` says nothing about the code |
+
+**Submitted to TestFlight at 01:11.** "Your binary has been successfully
+uploaded to App Store Connect" — v1.0.0, build 4. Apple processing takes 5–10
+minutes, then it appears at
+https://appstoreconnect.apple.com/apps/6797163508/testflight/ios
+
+The lesson is written up in `docs/RUNBOOK.md` under "A build errored — find out
+why, without expo.dev": the error **code** is what separates "retry it" from
+"the diff is broken", and until this session nothing here could read it. The
+`usage` step now prints it, free.
+
+August spend so far: **3 completed, 3 errored**, against separate 10/month
+pools — see the cost model at the top of the runbook, which was wrong about
+this and is now corrected.
 
 ---
 
@@ -90,27 +120,18 @@ that module (D-011). Dropping the module cleared it.
 The full Xcode build passed, so VisionKit document capture, camera, Face ID,
 print, haptics, and location are all live in this client.
 
-### EAS quota — actual numbers
+### EAS quota
 
-Read from the billing page 2026-08-02, so this supersedes the earlier
-"~15 builds/month" estimate:
+**Superseded — see the cost model in `docs/RUNBOOK.md`.** The table that stood
+here read the free plan as one pool of 30 builds a month. Tyler read the billing
+page on 2026-08-29 and it is three separate pools of 10: completed builds,
+failed builds, and SDK builds. A failure therefore does not consume a completed
+build, which is the difference between "retry costs us a build" and "retry is
+nearly free" — and this session spent an evening reasoning from the wrong one.
 
-| Meter | Used | Limit |
-|---|---|---|
-| Total builds | 3 (iOS 2 · Android 1) | **30 / month** |
-| Waived builds (failed, not charged) | 6 | **10 / month** |
-| Uploaded builds | 0 | 10 / month |
-| Monthly active users | 0 | 1,000 |
-| Global edge bandwidth | 6.93 KiB | 100 GiB |
-
-Plan: Free, $0.00.
-
-Both iOS builds are this project's (the signing failure and the successful one);
-the Android build is from elsewhere in the account. **Failed builds are waived
-rather than charged**, which is why the signing failure cost nothing — but the
-waiver pool is account-wide and already at 6/10, so failures stop being free
-after four more. Query current build records any time with the workflow's
-`usage` step.
+Measured spend for August, from the `usage` step: **3 completed, 3 errored.**
+That step is the only source here that can be checked from a Claude Code
+session; the pool limits come from the billing page, which cannot.
 
 ## Done
 

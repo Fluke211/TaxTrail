@@ -53,6 +53,13 @@ jobs:
       - name: Synthetic corpus (no regressions)
         run: npm run test:synth
 
+      # A light theme is where colour choices stop being taste and become a
+      # bug: '#fff' title text on a near-white background is invisible, which
+      # is what the fallback paywall shipped with until this ran. Ratcheted
+      # against a committed baseline, same as the synthetic corpus (D-041).
+      - name: Palette contrast (no regressions)
+        run: npm run test:contrast
+
       - name: TypeScript
         run: npx tsc --noEmit
 

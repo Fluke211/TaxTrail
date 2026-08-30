@@ -8,8 +8,8 @@
 // title, length, and price of each period, disclose auto-renewal, and link to
 // both a EULA and a privacy policy. The Alert this replaces had none of that.
 import React from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { T } from '../lib/theme';
+import { Linking, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { styled, useTheme } from '../lib/theme';
 
 // Apple's standard EULA, which applies unless a custom one is supplied in
 // App Store Connect. Linking to it satisfies the "terms of use" requirement.
@@ -36,6 +36,8 @@ interface Props {
 }
 
 export function FallbackPaywall({ visible, packages, onPurchase, onRestore, onClose }: Props) {
+  const T = useTheme();
+  const s = makeStyles(T);
   const anyAutoRenewing = packages.some((p) => p.autoRenewing);
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -91,10 +93,12 @@ export function FallbackPaywall({ visible, packages, onPurchase, onRestore, onCl
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   sheet: { flex: 1, backgroundColor: T.bg },
   body: { padding: 22, paddingTop: 64 },
-  title: { color: '#fff', fontSize: 26, fontWeight: '700' },
+  // Was '#fff', which is invisible on the light palette's near-white
+  // background — on the purchase screen, of all places.
+  title: { color: T.text, fontSize: 26, fontWeight: '700' },
   sub: { color: T.muted, fontSize: 15, marginTop: 8, marginBottom: 22, lineHeight: 21 },
   pkg: {
     backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1,
@@ -108,4 +112,4 @@ const s = StyleSheet.create({
   dot: { color: T.muted2, fontSize: 13 },
   notNow: { alignSelf: 'center', marginTop: 26, padding: 10 },
   notNowText: { color: T.muted, fontSize: 15 },
-});
+}));
