@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r24** | Crashed on its embedded r22 bundle; **fixed over the air** (D-062). Footer should read `(build 4) · js r24` after two launches |
+| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r25** | Crashed on its embedded r22 bundle; **fixed over the air** (D-062). Footer should read `(build 4) · js r25` after two launches |
 
 ---
 
@@ -31,7 +31,7 @@ no native build was needed. The Summary footer should read
 ### Blocked on Tyler — none of it is code
 
 1. **Confirm the app launches** and the Summary footer reads
-   `v1.0.0 (build 4) · js r24`. Everything else waits behind this.
+   `v1.0.0 (build 4) · js r25`. Everything else waits behind this.
 2. **Pick a capture-screen concept** — four mockups delivered
    2026-08-30, rendered in the app's real palette:
    https://claude.ai/code/artifact/62ca2334-2775-4813-afff-ad63dbafebb2
@@ -53,8 +53,9 @@ no native build was needed. The Summary footer should read
    spec-reading; nobody has fed a `.txf` to TurboTax. Still the largest
    remaining unknown in the product.
 9. **Real receipts** for the corpus, via Settings → Parser diagnostics (moved
-   there, behind seven taps on the version stamp). The corpus is now nine
-   receipts and it is what found the merchant bug (D-063).
+   there, behind seven taps on the version stamp). The corpus is nine receipts
+   and it has now found two merchant bugs (D-063, D-065) — it is the highest
+   return per unit of Tyler's time of anything on this list.
 10. **Small Business Program** acceptance (applied; Apple quotes over a month).
 
 ### Build 5, when it happens

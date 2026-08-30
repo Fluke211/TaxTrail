@@ -11,6 +11,25 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r25 — v1.0.0 (build 4) — 2026-08-30
+
+- **Costco receipts now name Costco** (D-065), which r24 recorded as
+  deliberately unresolved. That call was right about the evidence available at
+  the time and wrong about where to look: a Costco receipt prints the warehouse
+  location ("Hawaii Kai #120"), never the word Costco, so there is no name for
+  OCR to recover and no domain to fall back on. Both corpus dumps were landing
+  in the receipt list as "Bw Yai Grup" and "Howat Kai 1"
+- The merchant now comes from the receipt's own vocabulary when nothing else
+  yields one — `whse:`/`Trm:` fields, "TOTAL NUMBER OF ITEMS SOLD", "INSTANT
+  SAVINGS" — and **two** of them must match. One is not enough, and the corpus
+  proves it: Safeway prints "TOTAL NUMBER OF ITEMS SOLD" as well, so a
+  single-marker threshold would have renamed every Safeway receipt Costco.
+  That guard is now a test
+- Naming the merchant also settles the category, because "costco" was already a
+  General Merchandise keyword. The real corpus goes from 4 clean receipts of 9
+  to 6. The three still flagged are Bass Pro and Cabela's, whose merchants read
+  correctly and whose category is genuinely the user's call
+
 ### js r24 — v1.0.0 (build 4) — 2026-08-30
 
 - **Merchants are read from the shop's own domain** when the header does not

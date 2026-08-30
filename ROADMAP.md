@@ -98,12 +98,18 @@ what blocks what, not by size.
 - [x] **Receipt splitting could exceed the receipt** (D-049) — found while
       hardening something the export audit called unreachable. It was
       reachable: the negative came from subtraction, not from typing a minus
-- [ ] Fix whatever the score run flags, with a fixture per bug
-- [ ] **Costco receipts land Uncategorized / low-confidence** — both real
-      Costco dumps get the *amounts* right but the merchant line is OCR
-      garbage (`Bw  Yai Grup`), so no category matches. Arguably correct
-      behaviour rather than a bug — the app asks the user to pick — but worth
-      a look at whether store-number or item lines could carry the merchant
+- [ ] Fix whatever the score run flags, with a fixture per bug. Standing at
+      **6 clean of 9**; the three flagged are Bass Pro and Cabela's, whose
+      merchants are right and whose *category* is a judgment call, not a bug
+      (D-065)
+- [x] **Costco receipts land Uncategorized / low-confidence** (D-065). The
+      "worth a look" turned out to be worth it, but not where either previous
+      attempt looked: a Costco receipt never prints the word Costco, so the
+      merchant was never in the header to recover. It is now read from the
+      receipt's own vocabulary (`whse:`, "TOTAL NUMBER OF ITEMS SOLD",
+      "INSTANT SAVINGS"), two markers required — Safeway prints one of them,
+      and that guard is a test. Naming the merchant settled the category too.
+      Real corpus: 4 clean of 9 -> 6
 
 ### Polish
 

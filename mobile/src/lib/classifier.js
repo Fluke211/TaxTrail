@@ -623,6 +623,50 @@
     return best;
   }
 
+  /*
+   * Structural fingerprints — the receipt's own vocabulary, for when the shop's
+   * name is not on the paper at all.
+   *
+   * Costco warehouse receipts print the location ("Hawaii Kai #120"), never the
+   * word Costco, so there is no name for OCR to recover and no domain to fall
+   * back on. Both corpus dumps parsed to garbage: "Bw Yai Grup" and
+   * "Howat Kai 1". What those receipts do print is a set of terms no other
+   * chain prints together.
+   *
+   * TWO markers are required, and the corpus is why: Safeway also prints
+   * "TOTAL NUMBER OF ITEMS SOLD", so a single hit would have renamed every
+   * Safeway receipt Costco. Two independent hits is the difference between a
+   * fingerprint and a coincidence.
+   *
+   * This ranks BELOW a slogan or a domain — those are the shop naming itself —
+   * and ABOVE extractMerchant, whose best guess here is a street address.
+   */
+  var FINGERPRINTS = [
+    {
+      brand: 'Costco',
+      minHits: 2,
+      markers: [
+        /\bwhse\s*[:#]/i,                             // "whse:120 Trm:205 Trn:201 OP:705"
+        /\btrm\s*[:#]\s*\d/i,
+        /total\s+num\S*(\s+of)?\s+items\s+sold/i,     // OCR gives "TOTAL NUMP  ITEMS SOLD"
+        /^\s*instant\s+s/im,                          // "INSTANT SAVINGS", OCR'd "INSTANT Sf a"
+      ],
+    },
+  ];
+
+  function fingerprintBrand(text) {
+    var s = String(text || '');
+    for (var i = 0; i < FINGERPRINTS.length; i++) {
+      var fp = FINGERPRINTS[i];
+      var hits = 0;
+      for (var j = 0; j < fp.markers.length; j++) {
+        if (fp.markers[j].test(s)) hits++;
+      }
+      if (hits >= fp.minHits) return fp.brand;
+    }
+    return null;
+  }
+
   function brandFromText(text) {
     var lower = text.toLowerCase();
     for (var i = 0; i < BRANDS.length; i++) {
@@ -921,6 +965,7 @@
     var lines = text.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
     var merchant = sloganBrand(text)                 // strongest: the shop's own slogan
       || markerBrand(text)                           // then: its own domain, earliest wins
+      || fingerprintBrand(text)                      // then: the receipt's own vocabulary
       || extractMerchant(lines)
       || brandFromText(text);                        // fallback: recognized brand anywhere
     var total = applyTip(lines, extractTotal(lines));

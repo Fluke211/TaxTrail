@@ -2887,3 +2887,60 @@ servers. Adding a bucket means adding the thing the product exists to not have.
 - **Revisit only if** real corpus data shows Apple Vision itself failing on
   characters, rather than the parser failing on interpretation. That has not
   happened once in nine real receipts.
+
+---
+
+## D-065
+
+**A receipt's own vocabulary can name a shop that never prints its name**
+(2026-08-30)
+
+### Context
+
+D-063 fixed merchants by reading the shop's domain off the receipt, and closed
+by recording Costco as unresolvable: OCR mangled the header to "Bw Yai Grup" and
+"Howat Kai 1", no domain appears, and guessing from the street address would be
+inventing evidence. A test was written to pin that — so nobody would "fix" it by
+pattern-matching an address.
+
+That reasoning was sound and the conclusion was still wrong, for a reason that
+only shows up if you look at what a Costco receipt actually prints. **It does
+not print "Costco" anywhere.** The header is the warehouse location. There is no
+name on the paper for OCR to have mangled, so no amount of header work would
+ever have recovered it — the corpus was not showing a hard OCR problem, it was
+showing that the evidence lives elsewhere on the page.
+
+### Decision
+
+Add a third merchant source, ranked between the domain markers and the header
+guess: a **structural fingerprint** over terms the chain prints and others do
+not. For Costco: the `whse:` / `Trm:` footer fields, "TOTAL NUMBER OF ITEMS
+SOLD", and "INSTANT SAVINGS".
+
+**Two markers must match.** This is the whole safety argument, and the corpus
+supplies the counterexample rather than intuition: Safeway prints "TOTAL NUMBER
+OF ITEMS SOLD" too. On a one-marker threshold, every Safeway receipt in the
+world would have been renamed Costco. That is now a unit test in its own right,
+so a future marker addition cannot quietly lower the bar.
+
+Ranking matters as much as the threshold. A slogan or a domain is the shop
+identifying itself and still wins. A fingerprint beats `extractMerchant`,
+because a header line that reads like a street address is a weaker signal than
+four fields of the chain's own receipt format.
+
+### What it costs, and what it does not
+
+Naming the merchant also settles the category — "costco" was already a General
+Merchandise keyword — so the real corpus goes from 4 clean of 9 to 6. The three
+still flagged are Bass Pro and Cabela's. Their merchants read correctly; their
+*category* is unresolved, and that is left alone deliberately. A rod and reel is
+deductible for a charter operator and not for anyone else, so the app asking is
+correct behaviour, not a defect. Category keywords for ambiguous retailers are
+Tyler's call, not a parser fix.
+
+### The rule worth keeping
+
+**"OCR could not read it" and "it was never printed" look identical in a
+diagnostics dump, and they need opposite fixes.** Before hardening a reader,
+check that the thing being read exists on the page. Both prior attempts here
+went into the header because that is where a name usually is.

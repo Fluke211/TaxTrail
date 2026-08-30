@@ -893,14 +893,23 @@ const hd = C.parseReceipt(fx('corpus/homedepot-slogan-2026-08-17.txt'));
 check('merchant: a slogan still outranks a domain marker',
   hd.merchant === 'Home Depot' && hd.category === 'Supplies & Materials', hd.merchant);
 
-// The two Costco receipts have NO marker — OCR mangled the name to "Bw Yai Grup"
-// and "Howat Kai #1" and the domain appears nowhere. Guessing from the address
-// would be inventing evidence. They stay wrong here and are fixed by the user
-// once, after which merchant-memory recognizes the store (memory.ts). Asserted
-// so nobody "fixes" it by pattern-matching a street address.
+// The two Costco receipts print no name and no domain — OCR mangled the header
+// to "Bw Yai Grup" and "Howat Kai #1", because a Costco receipt prints the
+// warehouse location and never the word Costco. There is nothing to read, so
+// the merchant comes from the receipt's own vocabulary instead (FINGERPRINTS).
 const cos = C.parseReceipt(fx('corpus/costco-1.txt'));
-check('merchant: no marker means no guess — left for the user and memory.ts',
-  cos.merchant !== 'Costco' && cos.total === 140.35, `${cos.merchant} / ${cos.total}`);
+check('merchant: Costco from its receipt vocabulary, with no name on the paper',
+  cos.merchant === 'Costco' && cos.total === 140.35, `${cos.merchant} / ${cos.total}`);
+const cos2 = C.parseReceipt(fx('corpus/costco-2-fsa.txt'));
+check('merchant: the second Costco dump too, from a different marker set',
+  cos2.merchant === 'Costco' && cos2.total === 172.37, `${cos2.merchant} / ${cos2.total}`);
+
+// The guard that makes the above safe, and the reason two markers are required:
+// Safeway prints "TOTAL NUMBER OF ITEMS SOLD" as well. On a one-marker
+// threshold every Safeway receipt would have been renamed Costco. Pinned so a
+// later marker addition cannot quietly lower the bar.
+check('merchant: one shared marker is not a fingerprint — Safeway stays Safeway',
+  sfw.merchant === 'Safeway', sfw.merchant);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
