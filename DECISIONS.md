@@ -2244,13 +2244,70 @@ A check that fails on a proven-good condition blocks every PR, so it carries an
 `ALLOWED` map — and the rule for that map is that each entry needs evidence it
 has shipped, not a hunch.
 
-### Still unconfirmed
+### Confirmed (2026-08-29, after the fact)
 
-The pod log was never read, so the worklets drift is a **strong hypothesis, not
-a confirmed cause**. It is a real divergence from the tested set and worth
-fixing regardless. If the retry fails the same way, the next move is for Tyler
-to open the build's expo.dev page and paste the `Install pods` error — that URL
-is reachable from his browser and not from here.
+This was written while the cause was still a hypothesis — the pod log was
+unreadable from here. Tyler then pasted it, and it names the cause exactly:
 
-Build failures are not charged against the EAS quota (D-015), so the retry is
-cheap.
+```
+[Reanimated] Your installed version of Worklets (0.8.3) is not compatible with
+installed version of Reanimated (4.2.1). Please install the latest supported
+version of Worklets 0.7.x or older.
+[!] Invalid `RNReanimated.podspec` file: [Reanimated] Failed to validate worklets version.
+```
+
+The fix had already been pushed by the time the log arrived. Reanimated
+validates the worklets version in its **podspec**, so the mismatch is fatal at
+pod resolution and never reaches a compile — which is why the failure was fast
+and why nothing in the JS could have revealed it.
+
+**Correction to the last line of this entry as first written:** it said build
+failures are not charged against the EAS quota. That is only half right. They
+draw on a *separate* pool of 10 failed builds a month rather than on the 10
+completed builds — cheap relative to a completed build, not free. See the cost
+model in `docs/RUNBOOK.md`, corrected 2026-08-30.
+
+---
+
+## D-055
+
+**Read a build's error code, not just its status** (2026-08-30)
+
+Build 4 took three submissions. Two failed, eleven minutes apart, and from a
+Claude Code session they looked identical — the CLI reported a failure, and the
+reason lived on expo.dev, which is blocked from here (CLAUDE.md).
+
+They were not the same failure at all:
+
+| Build | Code | Cause |
+|---|---|---|
+| `c5adc37f` | `UNKNOWN_ERROR` | `Install pods` — the worklets pin (D-054). **Our fault.** |
+| `167f871b` | `SERVER_ERROR` | "Failed to upload application archive" — Expo's own infrastructure. **Not our fault.** |
+
+The second one is the interesting case. The CLI surfaced only
+`Network error: Service Unavailable / Response status: 503`, which reads like
+the request never landed. It had: EAS recorded a build, marked it ERRORED, and
+charged it against the failed-build pool. Judging by the CLI output alone, the
+worklets fix looked like it had been tested and failed. It had never run.
+
+**`eas build:list --json` carries `error.errorCode` and `error.message`** for
+every build, and it is reachable from CI. It was already being called by the
+workflow's `usage` step, which printed status and threw the error away. It now
+prints it. Free, ~60 seconds, no approval needed.
+
+The rule that follows:
+
+- `SERVER_ERROR` → Expo's infrastructure. **Retry as-is.** Nothing in the diff
+  is implicated, and treating it as a code failure sends you debugging a change
+  that was never executed.
+- anything else → it happened on the worker. **The diff is at fault.**
+
+### What was tried and rejected
+
+The first version of this also printed whether the build had reached a worker,
+derived from `metrics.buildStartTimestamp`. `build:list --json` does not return
+`metrics`, so it printed "never started on a worker" for a build whose own error
+message said `See logs of the Install pods build phase` — confidently wrong
+about the exact question it existed to answer. Removed rather than repaired: the
+error code already separates the two cases, and a diagnostic that lies is worse
+than no diagnostic, because it is believed.

@@ -20,10 +20,24 @@ because the expensive ones are worth avoiding.
 **JS-only changes never need a build.** Anything in `src/`, including the
 classifier, screens, and exporters, ships over the air.
 
-Quota (free plan, verified 2026-08-02): **30 builds/month**, plus **10 waived
-builds/month** — a failed build is waived rather than charged, so a failure is
-cheap, though the waiver pool is account-wide and finite. Check consumption with
-the `usage` step rather than counting by hand.
+Quota (free plan). The "30 builds/month" figure that was here is **not one
+pool**. Tyler read the dashboard on 2026-08-29 and it decomposes as:
+
+| Pool | Per month | Spent in 2026-08 |
+|---|---|---|
+| Completed builds | 10 | 3 |
+| Failed builds | 10 | 3 |
+| SDK builds | 10 | 0 |
+
+The consequence is the useful part: **a failed build does not cost a completed
+one.** They draw on separate allowances, so retrying a build that errored is
+much cheaper than the single-pool reading suggested — which matters, because
+the honest response to an ambiguous failure is usually to retry it once.
+
+The month totals above are what the `usage` step measured, and it is the only
+number here this session can verify; the per-pool limits come from the billing
+page, which is unreachable from Claude Code. Re-read them rather than trusting
+this table if a build is ever refused.
 
 ---
 
@@ -150,8 +164,44 @@ This costs a build, so batch them.
    An `eas update` can land on a binary compiled before the module existed;
    `require` it in a `try`/`catch` and hide the control rather than offering one
    that throws (see `isRestoreAvailable` in `exportShare.ts`).
-7. Bump the build number — see the next section.
-8. Preflight in CI, then request approval for the build.
+7. **Run `npm run test:pins`.** npm resolves transitive peers on its own, and
+   one arriving outside the SDK's pinned range kills the build in `Install
+   pods`. This is exactly how build 4 died: three modules were hand-checked
+   against `bundledNativeModules.json` and a fourth, `react-native-worklets`,
+   came in as reanimated's peer at 0.8.3 against a pin of 0.7.4 (D-054). CI
+   runs this too, so it is a pre-push convenience rather than the guard itself.
+8. Bump the build number — see the next section.
+9. Preflight in CI, then request approval for the build.
+
+---
+
+## A build errored — find out why, without expo.dev
+
+An ERRORED build writes its reason to expo.dev, which these sessions cannot
+reach. `build:list` carries it too, so the `usage` step prints it:
+
+```
+step: usage        # free, ~60s, no approval needed
+```
+
+Read the **error code** first, because it says whose fault it was:
+
+| Code | Whose fault | What to do |
+|---|---|---|
+| `SERVER_ERROR` | Expo's infrastructure | Retry as-is. Nothing in the diff is implicated. |
+| `UNKNOWN_ERROR` | The worker, usually `Install pods` | A native dependency conflict. Start with `npm run test:pins`. |
+| `XCODE_BUILD_ERROR` | The worker, at signing or compile | The message names the target and the missing capability. |
+
+Build 4 hit two of these eleven minutes apart and they looked identical from
+here — both just "the build failed". The first was `UNKNOWN_ERROR … See logs of
+the Install pods build phase` (the worklets pin), the second `SERVER_ERROR —
+Failed to upload application archive`, which was Expo dropping the upload and
+had nothing to do with the fix that had just been pushed. Retrying the first
+would have wasted an attempt; not retrying the second would have wasted an
+evening.
+
+A `SERVER_ERROR` still records an ERRORED build against the failed-build pool,
+so it is not free — it is just not a signal about the code.
 
 ---
 
