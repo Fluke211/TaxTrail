@@ -2643,3 +2643,83 @@ outright, and it does.
 should make alone. White on `#4f7cff` clears WCAG's 3:1 large-text bar but not
 the 4.5:1 body-text one, and the button label is 15–16px. Darkening the accent a
 little would fix it and change the app's signature colour.
+
+---
+
+## D-062
+
+**Never add a native module ahead of the feature that uses it** (2026-08-30)
+
+Build 4 crashed on launch, on Tyler's only phone, and the cause was a decision
+recorded approvingly in D-053: add `react-native-gesture-handler`,
+`react-native-reanimated`, `react-native-worklets` and `expo-mail-composer` now,
+because "a native build is the only moment native modules can be added — so the
+question is not what feature is ready but what we will wish had been compiled
+in."
+
+That reasoning is wrong, and this entry supersedes it.
+
+### What actually happened
+
+`App.tsx` imported `GestureHandlerRootView` at module scope purely to pre-wire
+swipe-to-delete, a feature that had not shipped. Importing gesture-handler drags
+**Reanimated's entire runtime** in with it: build 4's bundle contains
+`NativeReanimated` 87 times despite nothing in the app importing Reanimated.
+Something in that graph threw during bundle evaluation.
+
+The crash log is conclusive. `SIGABRT` on `expo.controller.errorRecoveryQueue`,
+`-[NSException raise]` four frames into the app binary. That is
+`ErrorRecovery.crash()` in expo-updates, which builds its exception name from
+`RCTFatalExceptionName` and reads `RCTJSStackTraceKey` — a React Native **JS**
+fatal error. The `JavaScript` and `hades` threads are both alive in the report,
+so Hermes started and evaluated the bundle before it threw.
+
+Removing the import takes the bundle from 1178 modules to **752**.
+
+### Why it was terminal rather than annoying
+
+expo-updates has a recovery pipeline — fetch a newer update, launch it, else
+fall back to an older working one, else crash. A **fresh install has only its
+embedded bundle**, so there is nothing for any step but the last. The user is
+stuck until they reinstall, which is not something you can ask of someone who is
+asleep or away.
+
+### The second, worse mistake
+
+The same `main` would have destroyed **build 3**, the only working fallback.
+Build 3 has neither gesture-handler nor `expo-mail-composer`, and `main`
+statically imported both. `runtimeVersion` policy is `appVersion`, so every
+update reaches every v1.0.0 binary. One `eas update` would have taken out both
+builds at once and left no working install anywhere.
+
+That is the failure this entry exists to prevent, and it was one dispatch away.
+
+### The rules
+
+1. **A native module goes in the build that ships the feature using it.** Spare
+   capacity in a build is not a reason to add one. An unused module is not free
+   — it is untested weight in the startup path, and this one was fatal.
+2. **A binary is not shipped until it has been observed to launch.** Building,
+   signing, uploading and passing Apple's processing test none of that. Say
+   "built", not "shipped", until a device has run it.
+3. **Any module not in every live binary must never be statically imported.**
+   Reach it through a guarded require inside a function and hide the control
+   when it is absent — `isRestoreAvailable()` in `exportShare.ts`.
+
+Rule 3 is now mechanical: `scripts/check-ota-safety.js` keeps a committed record
+of what each live binary was compiled with, scans every static import the bundle
+can reach, and fails CI on a mismatch. It was verified by running it against the
+unfixed tree, where it named both landmines and the files importing them.
+
+### What this cost, and what to do differently
+
+Tyler lost a night to it and had to fetch a crash log from his phone. Two things
+would have prevented it outright: not adding the modules (rule 1), and the CI
+check (rule 3). A third would have caught it earlier — treating "it built" as
+progress rather than completion (rule 2).
+
+The airplane-mode test that was run mid-diagnosis is worth recording as a trap.
+It **cannot** distinguish a JS fault from a native one: with no network,
+recovery steps (a) and (b) are unavailable and a fresh install has nothing for
+(c), so *any* startup fault ends identically. It was read as evidence of a
+native cause and sent the diagnosis the wrong way for an hour.

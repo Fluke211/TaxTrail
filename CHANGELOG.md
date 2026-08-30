@@ -11,10 +11,24 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
-### Unreleased — will ship as js r23
+### js r23 — v1.0.0 (build 4) — 2026-08-30
 
-Phase 1 of the feature list Tyler approved. All JS, so it goes out over the air
-once build 4 is confirmed installed.
+**Fixes the build 4 launch crash.** Shipped over the air; no new build.
+
+- **Build 4 crashed on every launch** on its embedded r22 bundle (D-062).
+  `GestureHandlerRootView` was imported at module scope to pre-wire
+  swipe-to-delete, and that import drags Reanimated's whole runtime in.
+  Removing it takes the bundle from 1178 modules to 752
+- **`expo-mail-composer` moved behind a guarded require.** It was statically
+  imported, which would have crashed build 3 — the only working fallback — the
+  moment an update reached it
+- **Swipe-to-delete held back** until a build has been observed to launch with
+  gesture-handler in it
+- New `npm run test:ota` fails CI on any static import of a native module a
+  live binary was not compiled with
+
+Everything below shipped in the same update — the overnight feature work, minus
+swipe-to-delete.
 
 - **Settings tab** (D-058). Subscription, restore-from-archive, about, developer
   options and a danger zone. Manage Subscription moved out of the EXPORT card,
@@ -36,10 +50,9 @@ once build 4 is confirmed installed.
   `stored`, which is a labelled fixture rather than an anecdote
 - Developer-only exports (JSON backup, parser diagnostics) moved behind seven
   taps on the version stamp
-- **Swipe a receipt left to delete it** (D-060), on the UI thread via
-  gesture-handler's `ReanimatedSwipeable`. Reveal, tap, confirm — the confirm
-  stays because there is no undo and a receipt image is substantiation for a
-  deduction
+- ~~Swipe a receipt left to delete it~~ (D-060) — **written but held back.** It
+  needs gesture-handler, which is what crashed build 4; it ships with build 5,
+  once a binary has been observed to launch with that module in it
 - **Send feedback** (D-059), from Settings or from a specific receipt. Attaches
   only what you tick, and sends through the Mail app so you see your own
   address and every attachment before it goes. Checked against Apple's

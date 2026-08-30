@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r22** | 🔴 **CRASHES ON LAUNCH** — see the blocker below. Build 3 still works and is the fallback |
+| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r23** | Crashed on its embedded r22 bundle; **fixed over the air** (D-062). r21 rescue published 09:34, r23 with all features after it |
 
 ---
 
@@ -44,101 +44,57 @@ no native build was needed. The Summary footer should read
 
 ---
 
-## 🔴 BUILD 4 CRASHES ON LAUNCH — a JS fatal error. An OTA fixes it.
+## Build 4 crashed on launch — diagnosed, fixed over the air (D-062)
 
-Tyler installed build 4 from TestFlight on 2026-08-30 and **it crashes on
-launch, every time.** This is the live blocker; everything else is parked.
+Tyler installed build 4 on 2026-08-30 and it crashed every launch. **Resolved
+without a new build.** He was away and could not reinstall, so everything below
+was done over the air.
 
-**It is not a bad OTA that was downloaded** — the newest update on `production`
-is r21, the same one build 3 runs happily. The fault is in the bundle **embedded
-in build 4**, and the crash log confirms it is a JavaScript error, not native.
-See "CONFIRMED by the crash log" below.
+### What it was
 
-`main` is therefore **more** dangerous than before, not less: it still imports
-`GestureHandlerRootView`, which build 3 cannot resolve at all, and which is the
-prime suspect for build 4's crash. An `eas update` from `main` would take out
-both binaries at once. **Publish nothing until the cause is known.**
+A **JavaScript fatal error** during bundle evaluation. The crash log is
+conclusive: `SIGABRT` on `expo.controller.errorRecoveryQueue`, with
+`-[NSException raise]` four frames into the app binary. That is
+`ErrorRecovery.crash()` in expo-updates, which builds its exception name from
+`RCTFatalExceptionName` and reads `RCTJSStackTraceKey`. The `JavaScript` and
+`hades` threads are both alive in the report, so Hermes started and evaluated
+the bundle before it threw.
 
-Build 3 is still installable from TestFlight and still works. That is the
-fallback while this is open.
+`App.tsx` imported `GestureHandlerRootView` at module scope to pre-wire
+swipe-to-delete — a feature that had not shipped. That import drags Reanimated's
+whole runtime in: build 4's bundle held `NativeReanimated` 87 times with nothing
+importing Reanimated. Removing it took the bundle from 1178 modules to **752**.
 
-### What has been ruled out, with evidence
+It was terminal rather than annoying because expo-updates' recovery pipeline
+needs somewhere to fall back TO, and a fresh install has only its embedded
+bundle.
 
-| Suspect | Verdict |
+### The near miss
+
+The same `main` would have destroyed **build 3**, the only working fallback.
+Build 3 has neither gesture-handler nor `expo-mail-composer`; `main` statically
+imported both, and every update reaches every v1.0.0 binary. One `eas update`
+would have left no working install anywhere. It was one dispatch away.
+
+### What was done
+
+| | |
 |---|---|
-| Missing worklets Babel plugin | **Ruled out.** Ran Babel over a `'worklet'` function with the real preset; the transform fires. `babel-preset-expo` 55.0.24 adds `react-native-worklets/plugin` whenever `hasModule('react-native-worklets')` |
-| Wrong package versions | **Ruled out.** reanimated 4.2.1, worklets 0.7.4, gesture-handler 2.30.1 — all exactly what `bundledNativeModules.json` pins, and the lockfile at `fba11d5` froze those same three |
-| A missing config plugin | **Ruled out.** None of the three ships one |
-| New Architecture incompatibility | **Ruled out.** All three declare `codegenConfig` |
-| A bad OTA on `production` | **Ruled out** by the airplane-mode test |
-| Something else removed from the dep tree | **Ruled out.** The `package.json` diff between build 3 and build 4 adds four packages and removes nothing |
+| 09:34 | **r21 rescue published** to `production` — the last bundle proven to run on device. Group `c18b6543-2177-4025-bd72-8c36dabe1fd6` |
+| after | **r23 published** — everything from the overnight work, with gesture-handler removed and `expo-mail-composer` behind a guarded require |
+| CI | **`npm run test:ota`** now fails any static import of a module a live binary lacks (D-062) |
 
-### The narrowed cause
+Swipe-to-delete is the only feature held back. It needs build 5, and it does not
+go in until a binary has been *observed to launch* with it.
 
-The entire app-code difference between r21 (works on build 3) and r22 (embedded
-in build 4) is the `GestureHandlerRootView` import plus the wrapper. Building
-build 4's exact bundle from `fba11d5` shows **Reanimated and Worklets JS are in
-it** — 1162 modules, `NativeReanimated` appears 87 times — even though nothing in
-the app imports them. `GestureHandlerRootView` drags them in.
+### Traps recorded so they are not re-run
 
-That matters because `NativeReanimated.js` has a throw that is **not**
-`__DEV__`-gated:
-
-```js
-if (global.__reanimatedModuleProxy === undefined) {
-  throw new ReanimatedError("Native part of Reanimated doesn't seem to be initialized.")
-}
-```
-
-The version checks beside it (`checkCppVersion`, `assertWorkletsVersion`) *are*
-`__DEV__`-gated, so a release build gets no useful message — just the crash.
-That is consistent with everything observed.
-
-### CONFIRMED by the crash log — it is a JS error, and an OTA is the fix
-
-Tyler sent `TaxTrail-2026-08-29-225404.ips`. It is conclusive:
-
-```
-exception     EXC_CRASH (SIGABRT), "Abort trap: 6"
-asi           libsystem_c.dylib: "abort() called"
-faultingThread 6, queue = expo.controller.errorRecoveryQueue
-stack         -[NSException raise] <- objc_exception_throw <- __cxa_throw
-              <- 4 frames inside the TaxTrail binary
-```
-
-`expo.controller.errorRecoveryQueue` is `ErrorRecovery.swift` in **expo-updates**,
-and the `-[NSException raise]` is its `crash()` at line 241. Its own header
-comment describes the pipeline:
-
-> (a) check for a new update and start downloading if there is one
-> (b) if there is a new update, reload and launch the new update
-> (c) if not, or if another error occurs, fall back to an older working update (if one exists)
-> (d) crash.
-
-`crash()` builds the exception name from `RCTFatalExceptionName` and reads
-`RCTJSStackTraceKey` out of the userInfo — so **the initial error was a React
-Native JS fatal error.** The `com.facebook.react.runtime.JavaScript` and `hades`
-threads are both alive in the report, so Hermes started and the bundle was
-evaluated before it threw.
-
-So the sequence was: bundle evaluated → JS threw fatal → expo-updates tried to
-recover → no newer update to fetch and no older one to fall back to (a fresh
-install has only its embedded bundle) → deliberate crash.
-
-**An OTA is not merely a workaround here, it is the designed remedy** — step (b)
-of that pipeline exists for exactly this.
-
-### Correction to what this file said an hour ago
-
-The airplane-mode test was read wrongly, by me, and it sent the diagnosis the
-wrong way. Airplane mode **cannot** distinguish a JS fault from a native one:
-with no network, recovery steps (a) and (b) are unavailable and a fresh install
-has nothing for (c), so *any* startup fault ends at (d). The test only confirmed
-the fault is in the embedded bundle — which is true of a JS fault too.
-
-Tyler was told, on the strength of that, that a rescue OTA "would have done
-nothing." That was wrong; it would have fixed it. He then chose to wait for the
-crash log instead of publishing, on that bad information.
+- **The airplane-mode test cannot distinguish JS from native.** With no network,
+  recovery steps (a) and (b) are unavailable and a fresh install has nothing for
+  (c), so any startup fault ends identically. It was read as evidence of a
+  native cause and sent the diagnosis the wrong way for an hour.
+- **"It built" is not "it shipped."** Building, signing, uploading and clearing
+  Apple's processing test nothing about whether the app launches.
 
 ### Build 4 attempts
 
