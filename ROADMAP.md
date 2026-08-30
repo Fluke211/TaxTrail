@@ -125,15 +125,17 @@ what blocks what, not by size.
 
 ### Store submission
 
-- [ ] **Cut build 4 before submitting — the binary embeds stale JS.** Build 3
-      was compiled at js r12, and that bundle is what a brand-new install runs
-      until `expo-updates` fetches and applies the OTA on the *second* launch.
-      Confirmed on device 2026-08-29: Tyler deleted and reinstalled from
-      TestFlight and the footer read `build 3 · js r12`. For a TestFlight
-      tester that is a shrug; for an App Store user's first session it means
-      the old parser, the pre-rename category names, and no migration. The
-      submitted binary should embed current JS. **Costs one EAS build credit
-      and needs Tyler's explicit go** (CLAUDE.md)
+- [x] **Cut build 4 before submitting** — done 2026-08-30, and it then crashed
+      on launch (D-062), which turned this item into the one below
+- [ ] **Cut build 5 before submitting — build 4's embedded bundle does not
+      launch** (D-067). The mechanism is the same one written here for build 3:
+      a brand-new install runs the *embedded* bundle, and only picks up the OTA
+      on the second launch — `launchWaitMs` defaults to 0. For build 3 that
+      meant an old parser and was a shrug. Build 4 embeds js r22, the bundle
+      that crashes, so **every fresh install crashes on first launch**,
+      including every new TestFlight tester and the review device. Not
+      optional. **Costs one EAS build credit and needs Tyler's explicit go**
+      (CLAUDE.md); preflight is free and comes first
 
 - [ ] Screenshots — **screenshot 2 is the privacy-label comparison** against
       Keeper / QuickBooks / Wave; that contrast is the entire pitch

@@ -3012,3 +3012,68 @@ Config, manifests and docs can agree perfectly and all be wrong together —
 they are copies of an intention, not observations of a program. `grep` for the
 import is the check that would have caught this on day one, and it takes a
 second.
+
+---
+
+## D-067
+
+**Build 5 is mandatory before submission — every fresh install of build 4
+crashes on its first launch** (2026-08-30)
+
+### The finding
+
+Build 4's embedded bundle is **js r22**, and r22 is the bundle that crashed.
+Verified directly rather than inferred: `git show fba11d5:mobile/src/lib/
+version.ts` reads `JS_REVISION = 22`, and `git show fba11d5:mobile/App.tsx`
+still has `import { GestureHandlerRootView } from 'react-native-gesture-handler'`
+at line 6 — the exact import D-062 identified as fatal.
+
+The OTA fix does not save a new install, because of *when* the bundle loads.
+Read out of the installed `expo-updates` rather than from memory:
+
+- `launchWaitMs` defaults to **0** — `UpdatesConfig.swift` ends its parse with
+  `?? 0`, and `UpdatesConfiguration.kt` has
+  `UPDATES_CONFIGURATION_LAUNCH_WAIT_MS_DEFAULT_VALUE = 0`. `app.json` sets no
+  override; its `updates` block is a URL and nothing else.
+- `AppLoaderTask.swift:158` — `if launchWaitMs == 0 || !shouldCheckForUpdate {
+  isTimerFinished = true }`, then `loadEmbeddedUpdate { self.launch { ... } }`.
+
+So the embedded bundle launches **immediately** and the remote update is fetched
+alongside it, for the *next* launch. On a fresh install the first launch is
+r22, and r22 aborts.
+
+This is the same mechanism Tyler saw on 2026-08-29, when he deleted and
+reinstalled build 3 and the footer read `build 3 · js r12` — an update that had
+long since been published. It was recorded then as a shrug for a TestFlight
+tester. It is not a shrug now: r12 merely ran an old parser, and r22 does not
+run at all.
+
+### What it means
+
+- **Every new TestFlight tester Tyler adds today gets a crash on first launch.**
+  His own install works only because it has been running since before the OTA.
+- **Build 4 cannot be the submitted binary.** The App Store review device would
+  be a fresh install, and so would every user's.
+- The error-recovery pipeline may rescue the *second* launch once r25 downloads,
+  so this can present as "it crashed once and then was fine" — which is worse to
+  diagnose and no better to ship.
+
+### Decision
+
+**Build 5 is a submission blocker, not the optional convenience STATUS called
+it.** It was already planned to carry swipe-to-delete; its actual job is to
+embed a bundle that launches. Everything else that wants to ride along —
+whatever D-066 decides about the unused permissions, and Tyler's capture-screen
+pick — should go in the same build, because this is the one that has to happen.
+
+`buildNumber` to **5** in `mobile/app.json` and `APP_BUILD` to 5 in
+`mobile/src/lib/version.ts`, same commit. Add build 5 to `LIVE_BUILDS` in
+`scripts/check-ota-safety.js` only once it has been *observed to launch*
+(D-062 rule 2).
+
+### The rule worth keeping
+
+**An OTA fixes the installs you already have, never the next one.** The
+embedded bundle is the binary's floor and only a build can raise it. Any time a
+crash is fixed over the air, the fix is a stopgap and the build is the repair —
+say so at the time, because "fixed" reads as finished.

@@ -51,7 +51,7 @@ const LIVE_BUILDS = [
   {
     build: 3,
     commit: '0b00b937',
-    note: 'TestFlight. Tyler\'s fallback while build 4 is broken.',
+    note: 'TestFlight. Was the fallback during the build 4 crash (D-062).',
     modules: [
       '@react-native-async-storage/async-storage', 'expo-camera', 'expo-clipboard',
       'expo-dev-client', 'expo-document-picker', 'expo-file-system', 'expo-haptics',
@@ -65,7 +65,8 @@ const LIVE_BUILDS = [
   {
     build: 4,
     commit: 'fba11d5',
-    note: 'TestFlight. Adds gesture-handler, reanimated, worklets, mail-composer.',
+    note: 'TestFlight. Adds gesture-handler, reanimated, worklets, mail-composer. '
+      + 'Embeds js r22, which does NOT launch — fresh installs crash (D-067).',
     modules: [
       '@react-native-async-storage/async-storage', 'expo-camera', 'expo-clipboard',
       'expo-dev-client', 'expo-document-picker', 'expo-file-system', 'expo-haptics',
