@@ -11,6 +11,20 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r24 — v1.0.0 (build 4) — 2026-08-30
+
+- **Merchants are read from the shop's own domain** when the header does not
+  yield one (D-063). Scoring the real corpus showed the merchant, not the
+  categorizer, was the broken field: Cabela's parsed as "All Ammo And Firearm
+  Sales Are Final", Target as its street address and phone number, Safeway as
+  "Safeway €).". That string is what a CPA reads on the export, and what
+  merchant memory keys off
+- The **earliest** marker wins, so the second receipt appended to the Target
+  scan cannot rename it Cabela's
+- Costco is deliberately still unresolved — OCR mangles the name and the domain
+  appears nowhere, so there is nothing to match. Correct it once and merchant
+  memory recognizes the store thereafter
+
 ### js r23 — v1.0.0 (build 4) — 2026-08-30
 
 **Fixes the build 4 launch crash.** Shipped over the air; no new build.

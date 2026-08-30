@@ -562,6 +562,67 @@
     return null;
   }
 
+  /*
+   * Unambiguous brand markers — a domain or a proprietary programme name that
+   * only one retailer prints.
+   *
+   * Real receipts routinely fail to yield a usable merchant from their header.
+   * From the corpus: Cabela's parsed as "All Ammo And Firearm Sales Are Final",
+   * Target as "Glen Allen Broad St - 804-360-8900", Bass Pro as just "Bass".
+   * All three print their own domain, which is not ambiguous the way a header
+   * line is.
+   *
+   * Two rules make this safe:
+   *
+   * 1. **The EARLIEST match wins.** A shop identifies itself before anything
+   *    else on the paper. This matters concretely: the Target receipt in the
+   *    corpus has a whole second receipt appended, so "cabelas. com/careers"
+   *    appears at line 43 — well after "target circle" at line 27. Taking the
+   *    first match gives Target; taking any match could give Cabela's.
+   * 2. **Dots are matched through OCR spacing.** The Cabela's receipt reads
+   *    "CABELAS. COM/CAREERS", with a space after the dot.
+   *
+   * These override an extracted merchant, like SLOGANS and unlike BRANDS: a
+   * header line that reads like a disclaimer or a street address is not a
+   * merchant name, and the domain is better evidence than either.
+   */
+  var BRAND_MARKERS = [
+    ['basspro.com', 'Bass Pro Shops'],
+    ['cabelas.com', "Cabela's"],
+    ['target.com', 'Target'],
+    ['target circle', 'Target'],
+    ['costco.com', 'Costco'],
+    ['safeway.com', 'Safeway'],
+    ['homedepot.com', 'Home Depot'],
+    ['lowes.com', "Lowe's"],
+    ['walmart.com', 'Walmart'],
+    ['staples.com', 'Staples'],
+    ['officedepot.com', 'Office Depot'],
+    ['bestbuy.com', 'Best Buy'],
+    ['autozone.com', 'AutoZone'],
+    ['acehardware.com', 'Ace Hardware'],
+  ];
+
+  /** Whitespace flattened, and spacing around dots closed up, so a domain
+   *  survives however OCR broke it across the line. */
+  function flattenForMarkers(text) {
+    return String(text || '').toLowerCase()
+      .replace(/\s*\.\s*/g, '.')
+      .replace(/\s+/g, ' ');
+  }
+
+  function markerBrand(text) {
+    var flat = flattenForMarkers(text);
+    var bestAt = -1;
+    var best = null;
+    for (var i = 0; i < BRAND_MARKERS.length; i++) {
+      var at = flat.indexOf(BRAND_MARKERS[i][0]);
+      if (at === -1) continue;
+      if (bestAt === -1 || at < bestAt) { bestAt = at; best = BRAND_MARKERS[i][1]; }
+    }
+    return best;
+  }
+
   function brandFromText(text) {
     var lower = text.toLowerCase();
     for (var i = 0; i < BRANDS.length; i++) {
@@ -859,6 +920,7 @@
     var text = (rawText || '').replace(/\r/g, '');
     var lines = text.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
     var merchant = sloganBrand(text)                 // strongest: the shop's own slogan
+      || markerBrand(text)                           // then: its own domain, earliest wins
       || extractMerchant(lines)
       || brandFromText(text);                        // fallback: recognized brand anywhere
     var total = applyTip(lines, extractTotal(lines));
