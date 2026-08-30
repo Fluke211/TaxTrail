@@ -15,6 +15,7 @@ import { deleteAllData, type Receipt } from '../lib/db';
 import { manageSubscription, presentPaywall, restorePurchases } from '../lib/purchases';
 import { exportBackup, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
 import { versionStamp } from '../lib/version';
+import FeedbackComposer from '../components/FeedbackComposer';
 const DM = require('../lib/devMode.js');
 
 // Namespaced like the other stored keys (see memory.ts).
@@ -31,6 +32,7 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
   const [tapState, setTapState] = useState({ count: 0, lastAt: 0 });
   const [hint, setHint] = useState<string | null>(null);
   const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'none' | 'error'>('idle');
+  const [feedback, setFeedback] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(DEV_MODE_KEY).then((v) => setDev(v === '1')).catch(() => {});
@@ -210,7 +212,13 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
 
       <View style={s.card}>
         <Text style={s.title}>ABOUT</Text>
-        <Row label="Contact support" tone="accent"
+        {/*
+          Goes through the composer rather than a bare mailto:, so the user can
+          attach the diagnostics that make a parser bug fixable — and can see
+          exactly what they are attaching. See D-059.
+        */}
+        <Row label="Send feedback" tone="accent" onPress={() => setFeedback(true)} />
+        <Row label={`Email ${SUPPORT_EMAIL}`}
           onPress={() => { void Linking.openURL(`mailto:${SUPPORT_EMAIL}`); }} />
         <Row label="Privacy policy" tone="accent"
           onPress={() => { void Linking.openURL(`${SITE}/privacy`); }} />
@@ -256,6 +264,13 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
           it back.
         </Text>
       </View>
+
+      <FeedbackComposer
+        visible={feedback}
+        receipts={receipts}
+        kind="general"
+        onClose={() => setFeedback(false)}
+      />
 
       <Pressable onPress={tapVersion} hitSlop={10}>
         <Text style={s.version}>{versionStamp()}</Text>

@@ -2461,3 +2461,112 @@ by idle scrolling.
 rules and it drifted silently once already (D-039), so it is not a thing to
 relocate on a tidiness argument. Settings carries a second copy for the tap
 gesture; both call `versionStamp()`, so they cannot disagree.
+
+---
+
+## D-059
+
+**Feedback goes through the system Mail composer, and that is what keeps the privacy label** (2026-08-30)
+
+Tyler wanted a feedback control with a checkbox for attaching receipt data, and
+asked whether we want the images: *"If we don't need their receipt images, it's
+fine to only get the raw OCR text and parsed fields, but I suspect we actually do
+want the images."*
+
+We do — a photo usually shows why a receipt read badly when the text alone does
+not. The question is whether receiving any of it costs the **Data Not Collected**
+label, which is the entire product pitch.
+
+### What Apple actually says
+
+Checked against `developer.apple.com/app-store/app-privacy-details` rather than
+recalled. Data is **optional to disclose** only if it meets **all four**:
+
+1. not used for tracking — not linked with third-party data for advertising or
+   measurement, not shared with a data broker;
+2. not used for third-party advertising, our advertising or marketing, or
+   "Other Purposes";
+3. *"Collection of the data occurs only in infrequent cases that are not part of
+   your app's primary functionality, and which are optional for the user"*;
+4. *"The data is provided by the user in your app's interface, it is clear to the
+   user what data is collected, the user's name or account name is prominently
+   displayed in the submission form alongside the other data elements being
+   submitted, and the user affirmatively chooses to provide the data for
+   collection each time."*
+
+Apple names this exact case: *"data collected in optional feedback forms or
+customer service requests that are unrelated to the primary purpose of the app
+and meet the other criteria above."*
+
+### Criterion 4 is why this is not an HTTP POST
+
+An in-app upload to a support endpoint would satisfy 1–3 and **fail 4**. There is
+no account name to display, and "affirmatively chooses each time" is weak when
+the app is the thing doing the sending.
+
+The system Mail composer satisfies it directly: *it is the submission form*. It
+shows the user's own address in the From field, the body, and every attachment by
+name, and nothing leaves until they tap Send. TaxTrail has no account and no
+name to display — the user's own email address in the composer is the closest
+true equivalent, and it is Apple's own UI presenting it.
+
+So the design follows from the criteria rather than from taste:
+
+- every attachment defaults to **off**, ticked individually, every time;
+- each is named in plain words on the checkbox — the diagnostics option says
+  "text only, no photos", which is the difference between someone attaching
+  receipt text and believing they attached pictures;
+- the body **restates what was attached**, so criterion 4's "clear to the user
+  what data is collected" holds in the sent artifact, not only in a screen they
+  have already dismissed;
+- the app never sends; it opens the composer and stops.
+
+### Report from the receipt, not from Settings
+
+A report opened on a specific receipt carries that one receipt's text and photo.
+That is the pair that fixes a parser bug. A general report from Settings would
+otherwise carry every receipt on the device, most of which scanned fine — worse
+for us to read and far worse for the person sending it.
+
+### The size cap
+
+8 MB, against a ~20–25 MB provider limit. A bounced support email is a **silent**
+failure: the user tapped Send, watched it leave, and nothing arrived. Images are
+attached newest-first until the budget is spent, and anything left out is
+reported in the confirmation rather than dropped quietly.
+
+---
+
+## D-060
+
+**Swipe-to-delete reveals, then confirms** (2026-08-30)
+
+Tyler: *"It's totally fine to add a dependency if that makes it look and feel the
+best."* It did not need one — `react-native-gesture-handler` and
+`react-native-reanimated` both went into build 4 for exactly this (D-053), so
+swipe-to-delete ships over the air with nothing new.
+
+Uses `ReanimatedSwipeable`, gesture-handler's own implementation, which tracks
+the finger on the UI thread through reanimated instead of crossing the JS bridge
+every frame. That is the difference between "native" and "a list that lags".
+
+**Import path:** `react-native-gesture-handler/ReanimatedSwipeable`. It is *not*
+re-exported from the package root — the root exports the older `Swipeable`. The
+subpath was verified to resolve (`require.resolve`, then a real Metro bundle)
+before the component was written, rather than assumed from the docs.
+
+### Reveal, tap, confirm — three steps on purpose
+
+iOS Mail deletes on swipe with an Undo, which is the nicer interaction. Undo is
+not available here: `deleteReceiptFiles` removes the JPEG, a receipt image is the
+substantiation for a deduction, and there is no server copy to restore from — by
+design. Photos confirms for the same reason, and this follows Photos, not Mail.
+
+The confirmation names the merchant and the amount, so it informs rather than
+merely obstructs. Cancelling re-closes the row: without that the row sits open
+behind the dismissed alert, looking like the delete is still pending.
+
+`overshootRight` is off. Rubber-banding past a destructive action suggests that
+swiping further will delete, and here it will not. `rightThreshold` is raised to
+40 from the default half-action-width, which on an 88pt action opens on almost
+any horizontal movement — including the diagonal drift of a vertical scroll.

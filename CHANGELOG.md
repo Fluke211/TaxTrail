@@ -36,6 +36,15 @@ once build 4 is confirmed installed.
   `stored`, which is a labelled fixture rather than an anecdote
 - Developer-only exports (JSON backup, parser diagnostics) moved behind seven
   taps on the version stamp
+- **Swipe a receipt left to delete it** (D-060), on the UI thread via
+  gesture-handler's `ReanimatedSwipeable`. Reveal, tap, confirm — the confirm
+  stays because there is no undo and a receipt image is substantiation for a
+  deduction
+- **Send feedback** (D-059), from Settings or from a specific receipt. Attaches
+  only what you tick, and sends through the Mail app so you see your own
+  address and every attachment before it goes. Checked against Apple's
+  optional-disclosure criteria: this is what keeps the **Data Not Collected**
+  label true, and an in-app upload would not have
 - **Fixed: a custom export range would have crashed the XLSX export.** SheetJS
   throws on a worksheet name over 31 characters and `Summary <range>` exceeded it
 - **Fixed: year filtering by `Date` put New Year's Day in the previous year** for

@@ -81,7 +81,9 @@ export async function exportXLSX(receipts: Receipt[], range: ExportRange = ALL):
  * Contains receipt text, so it goes through the share sheet like everything
  * else — the user chooses where it goes, and nothing is uploaded.
  */
-export async function exportDiagnostics(receipts: Receipt[]): Promise<void> {
+/** The diagnostics payload as JSON. Shared by the export and the feedback
+ *  composer so the two can never describe the same receipts differently. */
+function diagnosticsJson(receipts: Receipt[]): string {
   const rows = receipts.map((r) => {
     const snapshot = E.readSnapshot(r.parsedSnapshot ?? null);
     const changed = E.changedFields(snapshot, r);
@@ -125,11 +127,31 @@ export async function exportDiagnostics(receipts: Receipt[]): Promise<void> {
     },
     receipts: rows,
   };
+  return JSON.stringify(payload, null, 1);
+}
+
+export async function exportDiagnostics(receipts: Receipt[]): Promise<void> {
   await shareText(
     `taxtrail-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
-    JSON.stringify(payload, null, 1),
+    diagnosticsJson(receipts),
     'application/json',
   );
+}
+
+/**
+ * Write the diagnostics JSON to a file and hand back the path, rather than
+ * opening the share sheet.
+ *
+ * The feedback composer needs it as an attachment, and the share-sheet version
+ * would make the user pick a destination and then pick Mail — two sheets to do
+ * one thing.
+ */
+export async function writeDiagnosticsFile(receipts: Receipt[]): Promise<string> {
+  const path = `${FileSystem.cacheDirectory}taxtrail-diagnostics-${new Date().toISOString().slice(0, 10)}.json`;
+  await FileSystem.writeAsStringAsync(path, diagnosticsJson(receipts), {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+  return path;
 }
 
 // Filename-safe, human-browsable name: 0007-costco-2026-08-02.jpg

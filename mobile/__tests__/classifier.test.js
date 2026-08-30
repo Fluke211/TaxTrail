@@ -799,5 +799,66 @@ check('devmode: it starts counting down once intent is obvious',
 check('devmode: a null starting state does not throw',
   DM.tap(null, 0).count === 1);
 
+// ---------------------------------------------------------------------------
+// Feedback attachments (feedback.js)
+//
+// This is where the "Data Not Collected" label is kept or lost, so the rules
+// are tested rather than trusted. Apple's optional-disclosure criteria and the
+// reasoning are in feedback.js and D-059.
+// ---------------------------------------------------------------------------
+const FB = require('../src/lib/feedback.js');
+
+const MB = 1024 * 1024;
+const imgs = [
+  { id: 1, imagePath: '/a.jpg', size: 3 * MB },
+  { id: 2, imagePath: '/b.jpg', size: 3 * MB },
+  { id: 3, imagePath: '/c.jpg', size: 3 * MB },
+  { id: 4, imagePath: '/d.jpg', size: 3 * MB },
+];
+
+// A bounced support email is a SILENT failure — the user tapped Send, watched it
+// leave, and nothing arrived. So the cap is enforced, and what did not fit is
+// reported rather than dropped quietly.
+const picked = FB.selectImages(imgs, 8 * MB);
+check('feedback: images are capped at the size limit',
+  picked.chosen.length === 2 && picked.bytes === 6 * MB, JSON.stringify(picked.bytes));
+check('feedback: what did not fit is counted, not silently dropped',
+  picked.skipped === 2, picked.skipped);
+check('feedback: everything fits when it fits',
+  FB.selectImages(imgs, 100 * MB).skipped === 0);
+check('feedback: a receipt with no image is never attached',
+  FB.selectImages([{ id: 9, imagePath: null, size: 10 }], 8 * MB).chosen.length === 0);
+check('feedback: a zero-byte or unreadable image is skipped',
+  FB.selectImages([{ id: 9, imagePath: '/x.jpg', size: 0 }], 8 * MB).chosen.length === 0);
+check('feedback: no receipts does not throw',
+  FB.selectImages([], 8 * MB).chosen.length === 0 && FB.selectImages(null).chosen.length === 0);
+
+// The body restates what was attached, so a user reading the sent message later
+// can still see what they sent — "it is clear to the user what data is
+// collected" has to be true in the artifact, not only in a dismissed screen.
+const bodyNone = FB.buildBody({ message: 'hello', version: 'v1 r23', receiptCount: 4 });
+check('feedback: attaching nothing says so in the body',
+  bodyNone.indexOf('Attached: nothing') !== -1, bodyNone);
+check('feedback: the message and version survive into the body',
+  bodyNone.indexOf('hello') === 0 && bodyNone.indexOf('v1 r23') !== -1);
+
+const bodyBoth = FB.buildBody({
+  message: 'wrong total', version: 'v1 r23', receiptCount: 1,
+  includeDiagnostics: true, includeImages: true, imageCount: 1,
+});
+check('feedback: each attachment is named in the body',
+  bodyBoth.indexOf(FB.ATTACHMENT_LABELS.diagnostics) !== -1
+  && bodyBoth.indexOf(FB.ATTACHMENT_LABELS.images) !== -1, bodyBoth);
+
+// The label text is what the user reads on the checkbox AND in the sent mail.
+// "no photos" on the diagnostics option is load-bearing: it is the difference
+// between someone attaching receipt text and thinking they attached pictures.
+check('feedback: the diagnostics option states that it carries no photos',
+  /no photos/i.test(FB.ATTACHMENT_LABELS.diagnostics), FB.ATTACHMENT_LABELS.diagnostics);
+
+check('feedback: a scan report and general feedback have distinguishable subjects',
+  FB.buildSubject('scan', 'v1').indexOf('scanning problem') !== -1
+  && FB.buildSubject('general', 'v1').indexOf('scanning problem') === -1);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
