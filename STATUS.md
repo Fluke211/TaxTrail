@@ -9,11 +9,21 @@
 
 ---
 
-## Where things stand — 2026-08-29
+## Where things stand — 2026-08-30
 
-**Pre-launch correctness work is done; what remains needs Tyler or a device.**
+**Pre-launch correctness work is done. Two things now block submission, and
+both are below before the Tyler list, because they are new.**
 
-Cleared in the overnight session:
+Cleared 2026-08-30, after the build 4 crash was fixed over the air:
+
+| | |
+|---|---|
+| Parser (D-065) | Costco receipts named "Bw Yai Grup" now name **Costco**. A Costco receipt never prints its own name, so no header work could ever have found it; it comes from the receipt's vocabulary instead. Real corpus 4 clean of 9 -> 6. **Shipped as js r25, live on `production`** |
+| Permissions (D-066) | Build 4 asks for **Face ID and Location and has neither feature** — nothing imports either module. Now a CI check (`test:perms`) rather than a rule someone remembers |
+| Build 5 (D-067) | Build 4 embeds js r22, the bundle that crashes. A fresh install gets five seconds to fetch r25 or it dies. **Build 5 is a submission blocker**, and its preflight already passes |
+| Privacy label | `MARKET_AND_GTM_STRATEGY.md` still told you to build screenshot 2 around "Data Not Collected". It has not been that since D-022, and screenshot 2 is the pitch |
+
+Cleared in the earlier overnight session:
 
 | | |
 |---|---|
