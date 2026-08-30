@@ -860,5 +860,47 @@ check('feedback: a scan report and general feedback have distinguishable subject
   FB.buildSubject('scan', 'v1').indexOf('scanning problem') !== -1
   && FB.buildSubject('general', 'v1').indexOf('scanning problem') === -1);
 
+// ---------------------------------------------------------------------------
+// Merchant from the shop's own domain (D-063)
+//
+// Real receipts routinely yield nothing usable from their header. Every one of
+// these came out of the corpus wrong, and the merchant is what a CPA reads on
+// the export and what merchant-memory keys off.
+// ---------------------------------------------------------------------------
+const bp = C.parseReceipt(fx('corpus/basspro-2026-08-02.txt'));
+check('merchant: Bass Pro from its domain, not the truncated header',
+  bp.merchant === 'Bass Pro Shops', bp.merchant);
+
+const cab = C.parseReceipt(fx('corpus/cabelas-2026-08-08.txt'));
+check("merchant: Cabela's from a domain OCR broke as \"CABELAS. COM\"",
+  cab.merchant === "Cabela's", cab.merchant);
+
+// THE TRAP. This receipt has an entire second receipt appended to it, so
+// "cabelas. com/careers" appears at line 43 — after "target circle" at line 27.
+// Taking any match would name it Cabela's; taking the EARLIEST names it Target.
+const tgt = C.parseReceipt(fx('corpus/target-column-2026-08-07.txt'));
+check('merchant: the earliest marker wins, so an appended receipt cannot steal it',
+  tgt.merchant === 'Target', tgt.merchant);
+check('merchant: fixing Target did not disturb its total', tgt.total === 26.50, tgt.total);
+
+const sfw = C.parseReceipt(fx('corpus/safeway-double-column.txt'));
+check('merchant: trailing OCR junk is dropped ("Safeway €)." -> "Safeway")',
+  sfw.merchant === 'Safeway', sfw.merchant);
+
+// A slogan still outranks a domain: the Home Depot receipt never prints the
+// name and the slogan is the stronger signal.
+const hd = C.parseReceipt(fx('corpus/homedepot-slogan-2026-08-17.txt'));
+check('merchant: a slogan still outranks a domain marker',
+  hd.merchant === 'Home Depot' && hd.category === 'Supplies & Materials', hd.merchant);
+
+// The two Costco receipts have NO marker — OCR mangled the name to "Bw Yai Grup"
+// and "Howat Kai #1" and the domain appears nowhere. Guessing from the address
+// would be inventing evidence. They stay wrong here and are fixed by the user
+// once, after which merchant-memory recognizes the store (memory.ts). Asserted
+// so nobody "fixes" it by pattern-matching a street address.
+const cos = C.parseReceipt(fx('corpus/costco-1.txt'));
+check('merchant: no marker means no guess — left for the user and memory.ts',
+  cos.merchant !== 'Costco' && cos.total === 140.35, `${cos.merchant} / ${cos.total}`);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

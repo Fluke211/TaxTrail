@@ -2723,3 +2723,70 @@ It **cannot** distinguish a JS fault from a native one: with no network,
 recovery steps (a) and (b) are unavailable and a fresh install has nothing for
 (c), so *any* startup fault ends identically. It was read as evidence of a
 native cause and sent the diagnosis the wrong way for an hour.
+
+---
+
+## D-063
+
+**A shop's own domain names it better than its header does** (2026-08-30)
+
+Scoring the real corpus showed 6 of 9 receipts flagged, and the obvious reading —
+"the categorizer is weak" — was wrong. Totals, tax and dates were correct on all
+nine. **The merchant was the broken field**, and the bad category was downstream
+of it, because `classify()` takes the merchant as a signal.
+
+What the parser was producing:
+
+| Receipt | Merchant |
+|---|---|
+| Cabela's | `All Ammo And Firearm Sales Are Final` |
+| Target | `Glen Allen Broad St - 804-360-8900` |
+| Costco | `Bw Yai Grup` |
+| Bass Pro | `Bass` |
+| Safeway | `Safeway €).` |
+
+That is the string a CPA reads on the export, and the key merchant-memory
+fingerprints on. A disclaimer line is not a merchant.
+
+### The fix
+
+`BRAND_MARKERS`: a domain or proprietary programme name only one retailer
+prints. It overrides an extracted merchant, like `SLOGANS` and unlike `BRANDS`,
+because a header line that reads like a street address is weaker evidence than
+the shop's own domain.
+
+Two details make it safe, and both came from the corpus rather than from
+imagination:
+
+1. **The earliest match wins.** The Target receipt has an entire second receipt
+   appended: `cabelas. com/careers` sits at line 43, after `target circle` at
+   line 27. Any-match would have named it Cabela's. Earliest-match names it
+   Target, because a shop identifies itself before anything else on the paper.
+2. **Dots match through OCR spacing.** The real Cabela's receipt reads
+   `CABELAS. COM/CAREERS`, so the text is flattened with `\s*\.\s*` → `.`
+   before matching.
+
+Result: Bass Pro, Cabela's, Target and Safeway all resolve correctly, Target's
+confidence rises from low to medium, and no total, tax or date moved.
+
+### What was deliberately NOT fixed
+
+Both Costco receipts. OCR mangled the name to `Bw Yai Grup` and `Howat Kai #1`,
+and the domain appears nowhere in either — there is no marker to match. The
+available "fix" would be pattern-matching the street address, which is inventing
+evidence, and it would fire on any other shop at that address.
+
+They are left wrong on purpose. The user corrects the merchant once and
+`memory.ts` recognizes the store by fingerprint afterwards — that is the
+mechanism that already exists for this, and it is better than a guess. There is
+a test asserting Costco is NOT resolved, so nobody "improves" it later by
+matching an address.
+
+### On the metric
+
+The triage score counts `uncategorized` as a flag, which made a correct
+behaviour look like a defect. Bass Pro and Cabela's stay Uncategorized even now,
+and that is right: whether a battery from a sporting-goods shop is a business
+supply is not something the receipt can answer. Flagging it for review beats
+guessing on a tax return. **Read the per-receipt output before chasing the
+number** — the number pointed at the categorizer and the bug was in the merchant.
