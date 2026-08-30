@@ -3054,9 +3054,19 @@ run at all.
   His own install works only because it has been running since before the OTA.
 - **Build 4 cannot be the submitted binary.** The App Store review device would
   be a fresh install, and so would every user's.
-- The error-recovery pipeline may rescue the *second* launch once r25 downloads,
-  so this can present as "it crashed once and then was fine" — which is worse to
-  diagnose and no better to ship.
+- **The recovery pipeline gives it five seconds, and that is the whole margin.**
+  `ErrorRecovery.swift` runs `waitForRemoteUpdate -> launchNew -> launchCached
+  -> crash`, and `RemoteLoadTimeoutMs = 5000`. On a JS fatal it fires
+  `loadRemoteUpdate()` and waits 5s. Win that race and it relaunches into r25
+  and the user sees a stall; lose it and `launchCached` finds nothing on a
+  fresh install, so the next step is `crash()`.
+
+  So the honest version of "every fresh install crashes" is: **every fresh
+  install has five seconds to download the entire bundle or it crashes** — a
+  coin flip on cellular, and the review device gets the same coin. It is also
+  why the symptom will not reproduce reliably: on fast Wi-Fi it looks like a
+  slow first launch, on a train it looks like a dead app. That is worse to
+  diagnose than a clean crash and no better to ship.
 
 ### Decision
 

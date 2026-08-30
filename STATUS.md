@@ -82,12 +82,16 @@ Two ways out, and it is a product question rather than a cleanup:
 
 ### Build 5 is a submission blocker (D-067)
 
-**Not optional, and not "when it happens" — every fresh install of build 4
-crashes on its first launch.** Build 4's embedded bundle is js r22, the bundle
-that crashed, and `launchWaitMs` defaults to 0, so a new install runs the
-embedded bundle *before* any OTA is applied. r25 only takes effect on the
-second launch. Verified against the installed `expo-updates` source and against
-build 4's own commit, not inferred.
+**Not optional, and not "when it happens".** Build 4's embedded bundle is js
+r22 — the bundle that crashed — and `launchWaitMs` defaults to 0, so a new
+install runs that bundle *before* any OTA is applied. When it throws, the
+recovery pipeline gets **five seconds** (`RemoteLoadTimeoutMs = 5000`) to fetch
+r25; win the race and the user sees a long first launch, lose it and there is
+nothing cached to fall back to and the app crashes.
+
+So a fresh install is a coin flip decided by network speed, and it will not
+reproduce reliably — fine on fast Wi-Fi, dead on cellular. Verified against the
+installed `expo-updates` source and build 4's own commit, not inferred.
 
 Consequences today, before anything is submitted:
 
