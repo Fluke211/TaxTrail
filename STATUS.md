@@ -5,15 +5,25 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r25** | Crashed on its embedded r22 bundle; **fixed over the air** (D-062). Footer should read `(build 4) · js r25` after two launches |
+| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r25** | r25 is **live on `production`** (published 2026-08-30, verified at the head of the branch). That fixes the installs that already exist — **not the next one**: build 4 embeds js r22, which crashes, so a fresh install still crashes on first launch until build 5 (D-067). Footer should read `(build 4) · js r25` after two launches |
 
 ---
 
-## Where things stand — 2026-08-29
+## Where things stand — 2026-08-30
 
-**Pre-launch correctness work is done; what remains needs Tyler or a device.**
+**Pre-launch correctness work is done. Two things now block submission, and
+both are below before the Tyler list, because they are new.**
 
-Cleared in the overnight session:
+Cleared 2026-08-30, after the build 4 crash was fixed over the air:
+
+| | |
+|---|---|
+| Parser (D-065) | Costco receipts named "Bw Yai Grup" now name **Costco**. A Costco receipt never prints its own name, so no header work could ever have found it; it comes from the receipt's vocabulary instead. Real corpus 4 clean of 9 -> 6. **Shipped as js r25, live on `production`** |
+| Permissions (D-066) | Build 4 asks for **Face ID and Location and has neither feature** — nothing imports either module. Now a CI check (`test:perms`) rather than a rule someone remembers |
+| Build 5 (D-067) | Build 4 embeds js r22, the bundle that crashes. A fresh install gets five seconds to fetch r25 or it dies. **Build 5 is a submission blocker**, and its preflight already passes |
+| Privacy label | `MARKET_AND_GTM_STRATEGY.md` still told you to build screenshot 2 around "Data Not Collected". It has not been that since D-022, and screenshot 2 is the pitch |
+
+Cleared in the earlier overnight session:
 
 | | |
 |---|---|
@@ -82,12 +92,16 @@ Two ways out, and it is a product question rather than a cleanup:
 
 ### Build 5 is a submission blocker (D-067)
 
-**Not optional, and not "when it happens" — every fresh install of build 4
-crashes on its first launch.** Build 4's embedded bundle is js r22, the bundle
-that crashed, and `launchWaitMs` defaults to 0, so a new install runs the
-embedded bundle *before* any OTA is applied. r25 only takes effect on the
-second launch. Verified against the installed `expo-updates` source and against
-build 4's own commit, not inferred.
+**Not optional, and not "when it happens".** Build 4's embedded bundle is js
+r22 — the bundle that crashed — and `launchWaitMs` defaults to 0, so a new
+install runs that bundle *before* any OTA is applied. When it throws, the
+recovery pipeline gets **five seconds** (`RemoteLoadTimeoutMs = 5000`) to fetch
+r25; win the race and the user sees a long first launch, lose it and there is
+nothing cached to fall back to and the app crashes.
+
+So a fresh install is a coin flip decided by network speed, and it will not
+reproduce reliably — fine on fast Wi-Fi, dead on cellular. Verified against the
+installed `expo-updates` source and build 4's own commit, not inferred.
 
 Consequences today, before anything is submitted:
 
@@ -112,8 +126,22 @@ build 5 to `LIVE_BUILDS` in `mobile/scripts/check-ota-safety.js` **once it has
 been observed to launch** (D-062 rule 2), or the OTA check will keep holding
 gesture-handler back.
 
-It costs one EAS build credit and needs Tyler's explicit go (CLAUDE.md). The
-preflight is free and can be run first.
+It costs one EAS build credit and needs Tyler's explicit go (CLAUDE.md).
+
+**The free preflight has already been run** (2026-08-30, `step: build` with
+`confirm_build` empty, profile `production`, no credit consumed):
+
+- `expo-doctor` and `prebuild` both **pass** — the tree builds
+- Apple is reachable, app ID `6797163508`, and already holds builds **2, 3, 4**
+  for 1.0.0, so the guard correctly refuses: *"buildNumber 4 is not above what
+  Apple already has"*
+
+So build 5 is two numbers and a go. Nothing else stands in the way.
+
+**Do not bump those two numbers ahead of the build.** They are what the footer
+prints, and any OTA published from `main` in between would make every build-4
+device report "build 5" — the D-039 drift, arrived at from the other side. The
+bump belongs in the same commit that dispatches the build.
 
 ---
 
