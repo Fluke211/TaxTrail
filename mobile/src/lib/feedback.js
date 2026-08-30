@@ -27,8 +27,9 @@
  * in-app HTTP POST. The composer IS the submission form, and it shows the user's
  * own address in the From field, the body, and every attachment by name, then
  * waits for them to tap Send. An app that posted the same bytes to a server
- * would satisfy 1-3 and fail 4 — and "Data Not Collected" is the entire product
- * pitch, so failing it quietly is not an option (D-059).
+ * would satisfy 1-3 and fail 4. The label is the entire product pitch — it reads
+ * "Data Not Linked to You — Purchases only" (D-022), and receipt data would add
+ * rows far beyond that — so failing criterion 4 quietly is not an option (D-059).
  *
  * Everything below therefore defaults to attaching NOTHING. Each attachment is
  * an explicit opt-in, named in plain words, chosen again every time.

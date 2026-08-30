@@ -2474,8 +2474,16 @@ fine to only get the raw OCR text and parsed fields, but I suspect we actually d
 want the images."*
 
 We do — a photo usually shows why a receipt read badly when the text alone does
-not. The question is whether receiving any of it costs the **Data Not Collected**
-label, which is the entire product pitch.
+not. The question is whether receiving any of it adds rows to the App Store
+privacy label, which is the entire product pitch.
+
+**Correction (2026-08-30):** as first written this entry said the label is
+"Data Not Collected". It is not, and has not been since D-022 — RevenueCat
+forces a Purchase History row, so the label is **"Data Not Linked to You —
+Purchases only"**. The reasoning below is unaffected: the thing to protect is
+that the label carries *purchases and nothing else*, and receipt data would add
+rows far beyond it. The wrong phrase came from `CLAUDE.md`, which still carried
+the pre-D-022 claim; that has been fixed at the source.
 
 ### What Apple actually says
 
@@ -2790,3 +2798,92 @@ and that is right: whether a battery from a sporting-goods shop is a business
 supply is not something the receipt can answer. Flagging it for review beats
 guessing on a tax return. **Read the per-receipt output before chasing the
 number** — the number pointed at the categorizer and the bug was in the merchant.
+
+---
+
+## D-064
+
+**No cloud OCR, for MVP or for Pro. And the learning loop already exists** (2026-08-30)
+
+Tyler asked three things on 2026-08-29 that were never answered:
+
+> "how can we make the parser intelligent and able to continuously learn…
+> Dare we allow pro users the ability to enhance recognition with cloud
+> services?… do we use Cloudflare R2? or am I getting way too ahead of myself
+> for our MVP launch?"
+
+**Yes, too far ahead for MVP — but the cloud question deserves a real answer,
+because it is not a scaling decision. It is the product.**
+
+### Cloud OCR costs the label, and the label is the product
+
+The App Store privacy label is currently one row: **Data Not Linked to You —
+Purchases only** (D-022). That single row against Keeper, QuickBooks and Wave —
+which carry identity-linked financial data used for advertising — is the entire
+differentiator.
+
+Sending receipt images or OCR text to a server for recognition does **not**
+qualify for Apple's optional-disclosure exemption. The criteria are in
+`src/lib/feedback.js`, quoted from Apple; the one that kills it is:
+
+> "Collection of the data occurs only in **infrequent cases that are not part of
+> your app's primary functionality**, and which are optional for the user."
+
+Scanning receipts IS the primary functionality. So cloud OCR must be disclosed,
+and what gets disclosed is not a small row: a receipt carries **Purchases**,
+**Financial Info**, often **Location** (the store address) and, on a business
+meal, arguably **Sensitive Info**. The label would go from one row to four or
+five, and the marketing comparison collapses.
+
+Gating it behind Pro does not help. The label describes the app, not the tier.
+An app that *can* upload receipts discloses that it uploads receipts.
+
+### It also would not buy much
+
+The OCR engine is Apple Vision, and it is good. What limits accuracy is the
+image handed to it — D-051 and D-063 were both failures of *interpretation*, not
+of character recognition: a total read from a stacked column, a merchant read
+from a disclaimer line. A cloud model would have read the same characters.
+
+Where a cloud model would genuinely help is semantic classification — deciding
+whether a Bass Pro battery is a business supply. But that is a question about
+**Tyler's user's business**, which no model can answer from the receipt, and
+which the app already handles correctly by flagging it for review (D-063).
+
+### The learning loop that already exists
+
+"Continuously learn" is the right instinct and two thirds of it already ships:
+
+1. **Merchant memory** (`memory.ts`) — Dice-similarity fingerprints over the OCR
+   text with a street-number gate. Correct a merchant once and that store is
+   recognized afterwards. This is what makes the unfixable Costco receipts
+   (D-063) a one-time annoyance rather than a permanent defect.
+2. **`parsedSnapshot`** (D-057) — every receipt freezes what the classifier said
+   before the user touched it. A correction is therefore a **labelled training
+   pair**: OCR text in, right answer out. The diagnostics export emits them as
+   `parserSaid` next to `stored`.
+
+That second one is new and it changes what a scanning session produces. It is
+already how D-063 was found.
+
+**The missing third is not a model, it is a pipeline**: getting those pairs off
+the device and into `__tests__/corpus/` regularly. That is the highest-value
+parser work available, it needs no cloud, and it is bounded — the diagnostics
+export already produces the file.
+
+### On Cloudflare R2
+
+R2 is object storage. Nothing in this product needs it. `taxtrail.app` is
+already on Cloudflare Pages and email routes through Cloudflare (D-029) — that
+is the right amount of Cloudflare for an app with no
+servers. Adding a bucket means adding the thing the product exists to not have.
+
+### Decision
+
+- **No cloud OCR**, MVP or later, unless the positioning changes deliberately —
+  in which case it is a marketing decision made first and a technical one
+  second, exactly like D-022's closing note.
+- **Learning stays on-device**: merchant memory plus snapshot-derived fixtures.
+- **Revisit only if** real corpus data shows Apple Vision itself failing on
+  characters, rather than the parser failing on interpretation. That has not
+  happened once in nine real receipts.

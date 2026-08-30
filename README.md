@@ -6,9 +6,14 @@ IRS Schedule C lines (plus Schedule A, Form 8829, Form 4562, COGS, and Personal)
 with receipt splitting, tax-aware math, sales-tax tracking, and CPA-ready exports
 (CSV / XLSX / TXF / QuickBooks CSV).
 
-The differentiator is the App Store privacy label: TaxTrail can ship
-**"Data Not Collected"** while every meaningful competitor requires an account
-and cloud processing.
+The differentiator is the App Store privacy label. TaxTrail ships
+**"Data Not Linked to You — Purchases only"** while every meaningful competitor
+requires an account and cloud processing and carries identity-linked financial
+data used for advertising.
+
+(Not "Data Not Collected": RevenueCat requires disclosing Purchase History, so
+that row is unavoidable while the app sells anything. The contrast is still
+stark, and unlike the old claim it is provable — see `DECISIONS.md` D-022.)
 
 ## Two artifacts
 

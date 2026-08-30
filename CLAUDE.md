@@ -133,7 +133,11 @@ Two artifacts:
 - **After any config-plugin change, inspect the generated `Info.plist`.** Plugins
   add permissions silently — `expo-image-picker` adds a microphone request,
   `expo-location` adds always-on location. For an app whose differentiator is the
-  "Data Not Collected" label, an unexplained permission is corrosive. See D-007.
+  privacy label, an unexplained permission is corrosive. See D-007.
+  **The label is "Data Not Linked to You — Purchases only", not "Data Not
+  Collected"** — RevenueCat forces the Purchase History row (D-022). Saying
+  otherwise in a decision entry or on the site is a factual error about the
+  listing; it has happened more than once because this file used to say it.
 - **Entitlements can invalidate an existing provisioning profile.** Adding
   `expo-notifications` injects `aps-environment`, which a profile created before
   it will not carry — the build then fails at signing. Adding an

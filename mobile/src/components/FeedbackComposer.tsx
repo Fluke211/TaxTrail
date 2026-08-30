@@ -5,7 +5,7 @@
  * the shape of this screen: every attachment is off until ticked, each is named
  * in plain words, and the final Send happens in Apple's own Mail composer where
  * the user sees their own address, the body, and every attachment before it
- * goes. That is what keeps the "Data Not Collected" label true.
+ * goes. That is what keeps the privacy label down to purchases alone (D-022).
  *
  * The one thing this must never do is attach something the user did not tick.
  */
