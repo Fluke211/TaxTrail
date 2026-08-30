@@ -80,10 +80,17 @@ three submissions, and the first two failed for unrelated reasons:
 | 23:46 | `167f871b` | `SERVER_ERROR` | "Failed to upload application archive" — Expo's own infrastructure. The worklets fix was in this attempt but never got to run |
 | 01:03 | `b8ebc4af` | — | **Succeeded**, 5m34s. Same commit as the second attempt (`fba11d5`), retried because a `SERVER_ERROR` says nothing about the code |
 
-**Submitted to TestFlight at 01:11.** "Your binary has been successfully
-uploaded to App Store Connect" — v1.0.0, build 4. Apple processing takes 5–10
-minutes, then it appears at
+**Submitted at 01:11, and Apple finished processing it.** Verified rather than
+assumed: the free build-number preflight queries App Store Connect and now reads
+`build numbers already on App Store Connect for 1.0.0: ['2', '3', '4']`.
+
+**Build 4 is installable from TestFlight now**, at
 https://appstoreconnect.apple.com/apps/6797163508/testflight/ios
+
+Note that running `step: build` again will now fail the build-number preflight
+with "buildNumber 4 is not above what Apple already has". That is the guard
+working — the next native build needs `buildNumber` 5 in `mobile/app.json` and
+`APP_BUILD` 5 in `mobile/src/lib/version.ts`, in the same commit.
 
 The lesson is written up in `docs/RUNBOOK.md` under "A build errored — find out
 why, without expo.dev": the error **code** is what separates "retry it" from
