@@ -14,7 +14,6 @@ import {
   ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as MailComposer from 'expo-mail-composer';
 import * as FileSystem from 'expo-file-system/legacy';
 import { styled, useTheme } from '../lib/theme';
 import type { Receipt } from '../lib/db';
@@ -23,6 +22,34 @@ import { versionStamp } from '../lib/version';
 const F = require('../lib/feedback.js');
 
 const SUPPORT_EMAIL = 'support@taxtrail.app';
+
+/*
+ * expo-mail-composer is reached through a guarded require, never a static
+ * import.
+ *
+ * An `eas update` reaches every binary sharing this runtimeVersion, and
+ * build 3 was compiled without this module. A static `import` is evaluated at
+ * module load, so on build 3 it would throw before any app code ran — and
+ * expo-updates has nothing to fall back to on a fresh install, which makes that
+ * crash terminal (D-062). Build 4 died of exactly this shape of mistake.
+ *
+ * Same pattern as `isRestoreAvailable()` in exportShare.ts: ask, do not assume,
+ * and hide the control rather than offering one that cannot work.
+ */
+function mailComposer(): any | null {
+  try {
+    const m = require('expo-mail-composer');
+    return typeof m?.composeAsync === 'function' ? m : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether this binary can compose mail at all. The caller hides the entry
+ *  point when it cannot, so nobody taps a button that dead-ends. */
+export function isFeedbackAvailable(): boolean {
+  return mailComposer() != null;
+}
 
 export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
   visible: boolean;
@@ -51,6 +78,14 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
   const send = useCallback(async () => {
     setSending(true);
     try {
+      const MailComposer = mailComposer();
+      if (!MailComposer) {
+        Alert.alert(
+          'Not available in this version',
+          `This build of TaxTrail cannot open the Mail composer. Write to ${SUPPORT_EMAIL} instead.`,
+        );
+        return;
+      }
       if (!(await MailComposer.isAvailableAsync())) {
         Alert.alert(
           'No mail account',

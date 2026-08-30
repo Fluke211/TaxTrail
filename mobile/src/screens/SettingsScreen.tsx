@@ -15,7 +15,7 @@ import { deleteAllData, type Receipt } from '../lib/db';
 import { manageSubscription, presentPaywall, restorePurchases } from '../lib/purchases';
 import { exportBackup, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
 import { versionStamp } from '../lib/version';
-import FeedbackComposer from '../components/FeedbackComposer';
+import FeedbackComposer, { isFeedbackAvailable } from '../components/FeedbackComposer';
 const DM = require('../lib/devMode.js');
 
 // Namespaced like the other stored keys (see memory.ts).
@@ -219,7 +219,9 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
           attach the diagnostics that make a parser bug fixable — and can see
           exactly what they are attaching. See D-059.
         */}
-        <Row label="Send feedback" tone="accent" onPress={() => setFeedback(true)} />
+        {isFeedbackAvailable() && (
+          <Row label="Send feedback" tone="accent" onPress={() => setFeedback(true)} />
+        )}
         <Row label={`Email ${SUPPORT_EMAIL}`}
           onPress={() => { void Linking.openURL(`mailto:${SUPPORT_EMAIL}`); }} />
         <Row label="Privacy policy" tone="accent"
