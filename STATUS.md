@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r23** | Crashed on its embedded r22 bundle; **fixed over the air** (D-062). r21 rescue published 09:34, r23 with all features after it |
+| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r24** | Crashed on its embedded r22 bundle; **fixed over the air** (D-062). Footer should read `(build 4) · js r24` after two launches |
 
 ---
 
@@ -30,17 +30,41 @@ no native build was needed. The Summary footer should read
 
 ### Blocked on Tyler — none of it is code
 
-1. **Sandbox purchase test** — monthly, annual, lifetime, and Restore. The
-   Paid Applications agreement is active and all three products read
-   `READY_TO_SUBMIT`, so this is unblocked for the first time.
-2. **Screenshots**, six of them. Slot 2 is the privacy-label comparison, which
-   is the entire pitch.
-3. **Import one export into real tax software.** The whole audit is
-   spec-reading; nobody has fed a `.txf` to TurboTax. This is the largest
+1. **Confirm the app launches** and the Summary footer reads
+   `v1.0.0 (build 4) · js r24`. Everything else waits behind this.
+2. **Pick a capture-screen concept** — four mockups delivered
+   2026-08-30, rendered in the app's real palette:
+   https://claude.ai/code/artifact/62ca2334-2775-4813-afff-ad63dbafebb2
+   Recommendation is A with C's recent list. Implementation is one JS change.
+3. **Decide the five dark-theme contrast ratios** that sit below the WCAG
+   target and have shipped for months — white-on-accent is 3.71:1 on the
+   primary button. Baselined rather than changed unilaterally (D-061).
+4. **Moving trucks** (U-Haul, Penske, Ryder) — Schedule C line 20a, or stay in
+   Travel? Open since 2026-08-29.
+5. **Sandbox purchase test** — monthly, annual, lifetime, and Restore. All
+   three products read `READY_TO_SUBMIT`.
+6. **Screenshots**, six of them. Needs a Mac; see `docs/MAC_SETUP.md`. Slot 2
+   is the privacy-label comparison, which is the entire pitch.
+7. **Import one export into real tax software.** The whole audit is
+   spec-reading; nobody has fed a `.txf` to TurboTax. Still the largest
    remaining unknown in the product.
-4. **Real receipts** for the corpus, via Summary → Parser diagnostics. The
-   synthetic corpus supplements it and never replaces it.
-5. **Small Business Program** acceptance (applied; Apple quotes over a month).
+8. **Real receipts** for the corpus, via Settings → Parser diagnostics (moved
+   there, behind seven taps on the version stamp). The corpus is now nine
+   receipts and it is what found the merchant bug (D-063).
+9. **Small Business Program** acceptance (applied; Apple quotes over a month).
+
+### Build 5, when it happens
+
+Not urgent, and not to be cut casually. It carries:
+
+- **swipe-to-delete** — written, tested, and held back (D-060, D-062). The
+  component was deleted from `main`; recover it from the PR #81 history.
+- Whatever the capture redesign needs, once Tyler picks one.
+
+`buildNumber` must go to **5** in `mobile/app.json` and `APP_BUILD` to **5** in
+`mobile/src/lib/version.ts`, in the same commit — Apple already has 4. And add
+build 5 to `LIVE_BUILDS` in `mobile/scripts/check-ota-safety.js` once it ships,
+or the OTA check will keep holding gesture-handler back.
 
 ---
 
@@ -81,8 +105,22 @@ would have left no working install anywhere. It was one dispatch away.
 | | |
 |---|---|
 | 09:34 | **r21 rescue published** to `production` — the last bundle proven to run on device. Group `c18b6543-2177-4025-bd72-8c36dabe1fd6` |
-| after | **r23 published** — everything from the overnight work, with gesture-handler removed and `expo-mail-composer` behind a guarded require |
+| 09:43 | **r23 published** — everything from the overnight work, with gesture-handler removed and `expo-mail-composer` behind a guarded require. Group `9da02f2a-374b-4213-bd97-2161f547287a` |
+| later | **r24 published** — merchant read from the shop's own domain (D-063) |
 | CI | **`npm run test:ota`** now fails any static import of a module a live binary lacks (D-062) |
+
+### If it is STILL broken when you get back
+
+Unlikely — r23's startup path was audited line by line and its only module-scope
+native touch is the one the proven r21 bundle already had — but if the app still
+crashes, the rollback is one dispatch and needs no build:
+
+```
+step: update · update_branch: production · ref: rescue/r21-for-build4
+```
+
+That branch is kept at `0b00b937` for exactly this. It republishes r21, which
+IS proven to run. Do not delete it until build 5 is installed and working.
 
 Swipe-to-delete is the only feature held back. It needs build 5, and it does not
 go in until a binary has been *observed to launch* with it.
