@@ -106,7 +106,10 @@ would have left no working install anywhere. It was one dispatch away.
 |---|---|
 | 09:34 | **r21 rescue published** to `production` — the last bundle proven to run on device. Group `c18b6543-2177-4025-bd72-8c36dabe1fd6` |
 | 09:43 | **r23 published** — everything from the overnight work, with gesture-handler removed and `expo-mail-composer` behind a guarded require. Group `9da02f2a-374b-4213-bd97-2161f547287a` |
-| later | **r24 published** — merchant read from the shop's own domain (D-063) |
+| 09:50 | **r24 published** — merchant read from the shop's own domain (D-063). Group `390d233c-ce7c-4bd2-8093-e9d1b1da7a9e` |
+
+All three verified against the live channel with `step: channels`: r24 is the head
+of `production` at runtimeVersion 1.0.0, so build 4 will fetch it.
 | CI | **`npm run test:ota`** now fails any static import of a module a live binary lacks (D-062) |
 
 ### If it is STILL broken when you get back
