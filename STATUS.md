@@ -44,15 +44,15 @@ no native build was needed. The Summary footer should read
 
 ---
 
-## 🔴 BUILD 4 CRASHES ON LAUNCH. DO NOT PUBLISH ANYTHING FROM `main`.
+## 🔴 BUILD 4 CRASHES ON LAUNCH — a JS fatal error. An OTA fixes it.
 
 Tyler installed build 4 from TestFlight on 2026-08-30 and **it crashes on
 launch, every time.** This is the live blocker; everything else is parked.
 
-**It is not a bad OTA.** Tyler launched it in airplane mode with wifi off and
-got the identical crash, so the fault is in the binary or the bundle embedded in
-it. The newest update on the `production` channel is r21 — the same one build 3
-runs happily — so there is nothing bad to download in any case.
+**It is not a bad OTA that was downloaded** — the newest update on `production`
+is r21, the same one build 3 runs happily. The fault is in the bundle **embedded
+in build 4**, and the crash log confirms it is a JavaScript error, not native.
+See "CONFIRMED by the crash log" below.
 
 `main` is therefore **more** dangerous than before, not less: it still imports
 `GestureHandlerRootView`, which build 3 cannot resolve at all, and which is the
@@ -94,14 +94,51 @@ The version checks beside it (`checkCppVersion`, `assertWorkletsVersion`) *are*
 `__DEV__`-gated, so a release build gets no useful message — just the crash.
 That is consistent with everything observed.
 
-**Not yet confirmed.** The crash log is the missing evidence and Tyler is
-fetching it. Do not treat the above as the cause until the `.ips` names a frame.
+### CONFIRMED by the crash log — it is a JS error, and an OTA is the fix
 
-### Staged but NOT fired
+Tyler sent `TaxTrail-2026-08-29-225404.ips`. It is conclusive:
 
-A rescue OTA of r21's proven JS to `production` would very likely revive build 4
-and would tell us JS-vs-native for free. **Tyler chose to wait for the crash log
-rather than publish on an inference.** Respect that: it is not authorized.
+```
+exception     EXC_CRASH (SIGABRT), "Abort trap: 6"
+asi           libsystem_c.dylib: "abort() called"
+faultingThread 6, queue = expo.controller.errorRecoveryQueue
+stack         -[NSException raise] <- objc_exception_throw <- __cxa_throw
+              <- 4 frames inside the TaxTrail binary
+```
+
+`expo.controller.errorRecoveryQueue` is `ErrorRecovery.swift` in **expo-updates**,
+and the `-[NSException raise]` is its `crash()` at line 241. Its own header
+comment describes the pipeline:
+
+> (a) check for a new update and start downloading if there is one
+> (b) if there is a new update, reload and launch the new update
+> (c) if not, or if another error occurs, fall back to an older working update (if one exists)
+> (d) crash.
+
+`crash()` builds the exception name from `RCTFatalExceptionName` and reads
+`RCTJSStackTraceKey` out of the userInfo — so **the initial error was a React
+Native JS fatal error.** The `com.facebook.react.runtime.JavaScript` and `hades`
+threads are both alive in the report, so Hermes started and the bundle was
+evaluated before it threw.
+
+So the sequence was: bundle evaluated → JS threw fatal → expo-updates tried to
+recover → no newer update to fetch and no older one to fall back to (a fresh
+install has only its embedded bundle) → deliberate crash.
+
+**An OTA is not merely a workaround here, it is the designed remedy** — step (b)
+of that pipeline exists for exactly this.
+
+### Correction to what this file said an hour ago
+
+The airplane-mode test was read wrongly, by me, and it sent the diagnosis the
+wrong way. Airplane mode **cannot** distinguish a JS fault from a native one:
+with no network, recovery steps (a) and (b) are unavailable and a fresh install
+has nothing for (c), so *any* startup fault ends at (d). The test only confirmed
+the fault is in the embedded bundle — which is true of a JS fault too.
+
+Tyler was told, on the strength of that, that a rescue OTA "would have done
+nothing." That was wrong; it would have fixed it. He then chose to wait for the
+crash log instead of publishing, on that bad information.
 
 ### Build 4 attempts
 
