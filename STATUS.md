@@ -54,9 +54,14 @@ and **the app fails on launch**.
 
 So, in order:
 
-1. Cut and install **build 4** (it embeds js r22 already).
-2. Confirm the footer reads `v1.0.0 (build 4) · js r22` on device.
+1. ~~Cut **build 4**~~ — **done**, and submitted to TestFlight (below).
+2. **Install it** from TestFlight, and confirm the footer reads
+   `v1.0.0 (build 4) · js r22` on device. ← this is the remaining step
 3. Only then resume `step: update` publishes.
+
+Phase 1 (Settings tab, export ranges, `edited` diagnostics) is merged and
+waiting on step 2. It is JS-only, so the moment build 4 is confirmed on the
+device it ships as **js r23** with one `step: update` run.
 
 Build 3 is safe on **js r21**, which is what is live now. If someone needs to
 ship a JS fix before build 4 lands, publish from the `0b00b937` commit (r21),
@@ -73,7 +78,12 @@ three submissions, and the first two failed for unrelated reasons:
 |---|---|---|---|
 | 23:35 | `c5adc37f` | `UNKNOWN_ERROR` | `Install pods` — `react-native-worklets` 0.8.3 arrived as reanimated's transitive peer against the SDK pin of 0.7.4. Fixed and guarded by `npm run test:pins` (D-054) |
 | 23:46 | `167f871b` | `SERVER_ERROR` | "Failed to upload application archive" — Expo's own infrastructure. The worklets fix was in this attempt but never got to run |
-| 01:02 | in flight | — | Same commit as the second attempt (`fba11d5`), retried because a `SERVER_ERROR` says nothing about the code |
+| 01:03 | `b8ebc4af` | — | **Succeeded**, 5m34s. Same commit as the second attempt (`fba11d5`), retried because a `SERVER_ERROR` says nothing about the code |
+
+**Submitted to TestFlight at 01:11.** "Your binary has been successfully
+uploaded to App Store Connect" — v1.0.0, build 4. Apple processing takes 5–10
+minutes, then it appears at
+https://appstoreconnect.apple.com/apps/6797163508/testflight/ios
 
 The lesson is written up in `docs/RUNBOOK.md` under "A build errored — find out
 why, without expo.dev": the error **code** is what separates "retry it" from

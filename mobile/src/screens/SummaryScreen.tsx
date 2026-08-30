@@ -1,54 +1,104 @@
-// Summary: totals by tax form/category, sales-tax tracking, exports (CSV free;
-// XLSX/TXF/QBO are Pro), JSON backup, version stamp.
+// Summary: totals by tax form/category, sales-tax tracking, and exports
+// (CSV free; XLSX/TXF/QBO are Pro).
+//
+// Subscription, restore, developer options and deletion moved to the Settings
+// tab. They were never export steps, and having Manage Subscription sit between
+// "Full JSON backup" and a note about QuickBooks date formats meant nobody
+// could find it.
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { T } from '../lib/theme';
 import type { Receipt } from '../lib/db';
-import { exportRows, isBusiness, allocationsOf } from '../lib/rows';
+import { isBusiness, allocationsOf } from '../lib/rows';
 const P = require('../lib/prorate.js');
-import { exportCSV, exportTXF, exportQBO, exportXLSX, exportBackup, exportArchive, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
-import { isPro, manageSubscription, presentPaywall } from '../lib/purchases';
+import { exportCSV, exportTXF, exportQBO, exportXLSX, exportArchive } from '../lib/exportShare';
+import { makeRange, filterByRange, yearsPresent, type ExportRange } from '../lib/exportRange';
+import { presentPaywall } from '../lib/purchases';
 import { versionStamp } from '../lib/version';
-import * as Updates from 'expo-updates';
 const C = require('../lib/classifier.js');
+
+/*
+ * What each format is for, in the words of somebody deciding which to tap.
+ *
+ * Seven buttons with no explanation is a guessing game, and the wrong guess is
+ * expensive here: a user who picks "Full JSON backup" thinking it is a backup
+ * loses their images on the next reinstall. Tyler asked for an info control on
+ * each one; these are the answers.
+ */
+const EXPORT_HELP: Record<string, { title: string; body: string }> = {
+  csv: {
+    title: 'CPA CSV',
+    body: 'One row per receipt, grouped by IRS form and Schedule C line, with a '
+      + 'sales-tax column that sums to exactly the tax you paid.\n\n'
+      + 'This is the one to send an accountant. It opens in Excel, Numbers or '
+      + 'Google Sheets, and it is readable by a human without any software.',
+  },
+  xlsx: {
+    title: 'Excel workbook',
+    body: 'The same data as the CPA CSV, as a real .xlsx with three sheets: a '
+      + 'summary of category totals by tax form, then Schedule C entries and '
+      + 'other-form entries on their own filterable tabs.\n\n'
+      + 'Choose this over the CSV when you want to sort and filter rather than '
+      + 'hand the file to somebody else.',
+  },
+  txf: {
+    title: 'TXF for tax software',
+    body: 'The interchange format TurboTax, H&R Block and TaxAct import '
+      + 'directly, so category totals land on the right Schedule C lines '
+      + 'without retyping.\n\n'
+      + 'It carries totals, not individual receipts — keep the archive for '
+      + 'substantiation.',
+  },
+  qbo: {
+    title: 'QuickBooks Online',
+    body: 'A three-column CSV (date, description, amount) in the shape QBO\'s '
+      + 'bank-transaction importer expects.\n\n'
+      + 'At the column-mapping step, set the date format to MM/DD/YYYY. It '
+      + 'defaults to day-first, which files anything before the 13th of a '
+      + 'month under the wrong month and reports no error.\n\n'
+      + 'QuickBooks Desktop cannot import transactions from CSV at all.',
+  },
+  archive: {
+    title: 'Receipt archive (.zip)',
+    body: 'Everything: the receipt photographs, the data as JSON, and a CSV, in '
+      + 'one file.\n\n'
+      + 'This is the one that lets you throw away the paper. The IRS accepts '
+      + 'electronic records provided you can produce legible copies on demand, '
+      + 'which means the images have to be able to leave the phone.\n\n'
+      + 'It is also the only export TaxTrail can read back in — Settings → '
+      + 'Restore from a receipt archive.',
+  },
+};
 
 export default function SummaryScreen({ receipts, pro, onChanged }: {
   receipts: Receipt[]; pro: boolean; onChanged: () => void;
 }) {
   const [busyExport, setBusyExport] = useState<string | null>(null);
-  const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'none' | 'error'>('idle');
 
-  // Dev/preview affordance only — never in the shipped app.
-  //
-  // Fails CLOSED: shown only when the channel is explicitly a non-production
-  // one, so an unset or unrecognised channel hides it. Production builds use
-  // channel "production" (mobile/eas.json), which is why this needs no manual
-  // step before submitting — there is nothing to remember to turn off.
-  const showUpdateCheck = Updates.channel === 'development' || Updates.channel === 'preview';
+  /*
+   * Which receipts the export covers.
+   *
+   * Every export used to take all of them while being NAMED for the current
+   * year — so `taxtrail-2026.csv` could hold three years of receipts, and last
+   * year's return could not be exported at all. Tyler asked for "export all, or
+   * year to date, or an entire year"; the options are built from the years that
+   * actually have receipts, so nobody is offered an empty 2027 in January.
+   */
+  const [range, setRange] = useState<ExportRange>(() => makeRange('all'));
+  const rangeOptions = useMemo(() => {
+    const opts: ExportRange[] = [makeRange('all'), makeRange('ytd')];
+    for (const y of yearsPresent(receipts)) {
+      // "Year to date" already covers the current year up to today; a whole-year
+      // option for it as well would be two buttons that differ only in December.
+      if (y !== new Date().getFullYear()) opts.push(makeRange('year', { year: y }));
+    }
+    return opts;
+  }, [receipts]);
 
-  // A dev client pins whichever update was launched from its launcher and does
-  // not poll the channel, so getting a new JS revision otherwise means the dev
-  // menu -> Go home -> pick the newest build. This does it in one tap.
-  // Harmless in production builds, where it just forces an early check.
-  const checkForUpdate = useCallback(async () => {
-    if (!Updates.isEnabled) {
-      Alert.alert('Not available', 'This build loads JS from a dev server, so there is nothing to fetch.');
-      return;
-    }
-    setUpdateState('checking');
-    try {
-      const result = await Updates.checkForUpdateAsync();
-      if (result.isAvailable) {
-        await Updates.fetchUpdateAsync();
-        await Updates.reloadAsync();   // does not return
-      } else {
-        setUpdateState('none');
-      }
-    } catch (e) {
-      console.warn('update check failed', e);
-      setUpdateState('error');
-    }
-  }, []);
+  // What the current range actually selects, so the button can say so before
+  // the user taps it and so undated receipts are declared rather than dropped.
+  const scoped = useMemo(() => filterByRange(receipts, range), [receipts, range]);
 
 
   const stats = useMemo(() => {
@@ -99,47 +149,10 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
     finally { setBusyExport(null); }
   };
 
-  // Hidden rather than disabled on a binary without expo-document-picker: an
-  // over-the-air update can reach a build compiled before the native module.
-  const canRestore = useMemo(() => isRestoreAvailable(), []);
-
-  // Restore is the only control on this screen that WRITES, so it asks first
-  // and then says exactly what it did. Re-importing the same archive is a no-op
-  // (receipts are fingerprinted on merchant + date + total), and saying so up
-  // front is what makes it safe to tap when you are not sure.
-  const [restoring, setRestoring] = useState(false);
-  const runRestore = useCallback(() => {
-    Alert.alert(
-      'Restore from archive',
-      'Pick a TaxTrail archive (.zip). Receipts it contains that are not already '
-      + 'here will be added, with their images. Nothing is deleted or overwritten, '
-      + 'and restoring the same archive twice changes nothing.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Choose file',
-          onPress: async () => {
-            setRestoring(true);
-            try {
-              const r = await restoreArchive();
-              if (!r) return;                       // picker cancelled
-              onChanged();
-              const parts = [`${r.imported} receipt${r.imported === 1 ? '' : 's'} added`];
-              if (r.images) parts.push(`${r.images} image${r.images === 1 ? '' : 's'} restored`);
-              if (r.skipped) parts.push(`${r.skipped} already here, skipped`);
-              if (r.imagesMissing) parts.push(`${r.imagesMissing} image${r.imagesMissing === 1 ? '' : 's'} could not be read`);
-              Alert.alert(r.imported ? 'Restored' : 'Nothing to add', parts.join('\n'));
-            } catch (e) {
-              console.warn(e);
-              Alert.alert('Restore failed', String(e));
-            } finally {
-              setRestoring(false);
-            }
-          },
-        },
-      ],
-    );
-  }, [onChanged]);
+  const showHelp = useCallback((key: string) => {
+    const h = EXPORT_HELP[key];
+    if (h) Alert.alert(h.title, h.body);
+  }, []);
 
   return (
     <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} contentContainerStyle={{ paddingBottom: 120 }}>
@@ -176,63 +189,52 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
 
       <View style={s.card}>
         <Text style={s.formTitle}>EXPORT</Text>
-        {([
-          ['csv', 'CPA CSV (organized by IRS form)', false, () => exportCSV(receipts)],
-          ['xlsx', 'Excel workbook (.xlsx)' + (pro ? '' : '  ·  PRO'), true, () => exportXLSX(receipts)],
-          ['txf', 'TXF for tax software' + (pro ? '' : '  ·  PRO'), true, () => exportTXF(receipts)],
-          ['qbo', 'QuickBooks Online (3-column CSV)' + (pro ? '' : '  ·  PRO'), true, () => exportQBO(receipts)],
-          ['archive', 'Receipt archive (.zip — images + data)', false, () => exportArchive(receipts)],
-          ['backup', 'Full JSON backup (data only)', false, () => exportBackup(receipts)],
-          ['diag', 'Parser diagnostics (raw OCR text)', false, () => exportDiagnostics(receipts)],
-        ] as [string, string, boolean, () => Promise<void>][]).map(([key, label, needsPro, fn]) => (
-          <Pressable key={key} style={s.exportBtn} disabled={busyExport != null}
-            onPress={() => gated(key, fn, needsPro)}>
-            {busyExport === key
-              ? <ActivityIndicator color={T.accent} />
-              : <Text style={{ color: T.text, fontSize: 14 }}>{label}</Text>}
-          </Pressable>
-        ))}
-        {/*
-          Only shown to subscribers, because tapping it with nothing to manage
-          presents an empty sheet. Apple offers no other exit from a
-          TestFlight subscription bought with a real Apple Account, and a
-          shipping subscriber who cannot find the cancel button asks for a
-          refund instead of finding it.
-        */}
-        {pro && (
-          <Pressable style={s.exportBtn} onPress={() => { void manageSubscription(); }}>
-            <Text style={{ color: T.accent, fontSize: 14 }}>Manage subscription</Text>
-          </Pressable>
-        )}
-        {/*
-          QuickBooks accepts MM/DD/YYYY but does not default to it — Intuit's
-          own guidance recommends dd/mm/yyyy. For any day from 1 to 12 both
-          readings are valid, so the import succeeds and files the transaction
-          in the wrong month with no error. That silence is why this warning
-          sits next to the button rather than in a help page nobody opens.
-        */}
-        <Text style={s.restoreNote}>
-          Importing to QuickBooks Online: at the column-mapping step, set the
-          date format to MM/DD/YYYY. It defaults to day-first, which files
-          anything before the 13th of a month under the wrong month without
-          reporting an error.
-        </Text>
-      </View>
 
-      {canRestore && (
-        <View style={s.card}>
-          <Text style={s.formTitle}>RESTORE</Text>
-          <Pressable style={s.exportBtn} disabled={restoring} onPress={runRestore}>
-            {restoring
-              ? <ActivityIndicator color={T.accent} />
-              : <Text style={{ color: T.text, fontSize: 14 }}>Restore from a receipt archive (.zip)</Text>}
-          </Pressable>
-          <Text style={s.restoreNote}>
-            Adds receipts an archive has and this device does not. Never deletes
-            or overwrites anything.
-          </Text>
+        {/* Which receipts go in the file. Stated before the buttons, because it
+            changes what every one of them produces. */}
+        <View style={s.rangeRow}>
+          {rangeOptions.map((r) => {
+            const on = r.slug === range.slug;
+            return (
+              <Pressable key={r.slug} onPress={() => setRange(r)}
+                style={[s.chip, on && s.chipOn]}>
+                <Text style={[s.chipText, on && { color: T.accent, fontWeight: '700' }]}>
+                  {r.kind === 'all' ? 'All' : r.kind === 'ytd' ? 'This year' : String(r.slug)}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
-      )}
+        <Text style={s.rangeNote}>
+          {range.label} — {scoped.receipts.length} receipt{scoped.receipts.length === 1 ? '' : 's'}
+          {scoped.undated.length > 0
+            ? `. ${scoped.undated.length} undated receipt${scoped.undated.length === 1 ? '' : 's'} cannot be placed in a date range and ${scoped.undated.length === 1 ? 'is' : 'are'} left out — choose All to include ${scoped.undated.length === 1 ? 'it' : 'them'}.`
+            : '.'}
+        </Text>
+
+        {([
+          ['csv', 'CPA CSV (organized by IRS form)', false, (r: ExportRange) => exportCSV(receipts, r)],
+          ['xlsx', 'Excel workbook (.xlsx)' + (pro ? '' : '  ·  PRO'), true, (r: ExportRange) => exportXLSX(receipts, r)],
+          ['txf', 'TXF for tax software' + (pro ? '' : '  ·  PRO'), true, (r: ExportRange) => exportTXF(receipts, r)],
+          ['qbo', 'QuickBooks Online (3-column CSV)' + (pro ? '' : '  ·  PRO'), true, (r: ExportRange) => exportQBO(receipts, r)],
+          ['archive', 'Receipt archive (.zip — images + data)', false, (r: ExportRange) => exportArchive(receipts, r)],
+        ] as [string, string, boolean, (r: ExportRange) => Promise<void>][]).map(([key, label, needsPro, fn]) => (
+          <View key={key} style={s.exportLine}>
+            <Pressable style={[s.exportBtn, { flex: 1, marginBottom: 0 }]} disabled={busyExport != null}
+              onPress={() => gated(key, () => fn(range), needsPro)}>
+              {busyExport === key
+                ? <ActivityIndicator color={T.accent} />
+                : <Text style={{ color: T.text, fontSize: 14 }}>{label}</Text>}
+            </Pressable>
+            {/* Seven buttons with no explanation is a guessing game, and the
+                wrong guess loses images. Tyler asked for these. */}
+            <Pressable onPress={() => showHelp(key)} hitSlop={8} style={s.infoBtn}
+              accessibilityLabel={`What is ${label}?`}>
+              <Ionicons name="information-circle-outline" size={20} color={T.muted} />
+            </Pressable>
+          </View>
+        ))}
+      </View>
 
       {!pro && (
         <Pressable style={s.proBtn} onPress={async () => { if (await presentPaywall()) onChanged(); }}>
@@ -243,19 +245,17 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
         </Pressable>
       )}
 
-      {showUpdateCheck ? (
-        <Pressable onPress={checkForUpdate} disabled={updateState === 'checking'} hitSlop={10}>
-          <Text style={s.version}>{versionStamp()}</Text>
-          <Text style={[s.version, s.updateLink, { marginTop: 4 }]}>
-            {updateState === 'checking' ? 'Checking…'
-              : updateState === 'none' ? 'Up to date · tap to check again'
-              : updateState === 'error' ? 'Check failed · tap to retry'
-              : 'Tap to check for updates'}
-          </Text>
-        </Pressable>
-      ) : (
-        <Text style={s.version}>{versionStamp()}</Text>
-      )}
+      {/*
+        The version stamp stays in the Summary footer. It is one of Tyler's
+        standing rules ("the Expo app shows it in the Summary footer via
+        version.ts"), and it silently drifted once already (D-039), so it is not
+        a thing to relocate on a tidiness argument.
+
+        Settings has a second copy, because that is where the tap-to-unlock
+        gesture and the update check live. Both call versionStamp(), so they
+        cannot disagree.
+      */}
+      <Text style={s.version}>{versionStamp()}</Text>
       <Text style={[s.version, { marginTop: 2 }]}>
         {pro ? '★ Pro' : 'Free plan'} · {receipts.length} receipt{receipts.length === 1 ? '' : 's'} · 100% on-device
       </Text>
@@ -282,6 +282,16 @@ const s = StyleSheet.create({
     backgroundColor: T.card2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
     paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
   },
+  exportLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  infoBtn: { padding: 6 },
+  rangeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+  chip: {
+    borderColor: T.line, borderWidth: 1, borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 6, backgroundColor: T.card2,
+  },
+  chipOn: { borderColor: T.accentLine, backgroundColor: T.accentSoft },
+  chipText: { color: T.muted, fontSize: 12.5, fontWeight: '600' },
+  rangeNote: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginBottom: 10 },
   proBtn: {
     backgroundColor: T.accent, borderRadius: T.radius, padding: 16, alignItems: 'center', marginTop: 14,
   },

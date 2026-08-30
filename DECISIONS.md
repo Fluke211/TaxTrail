@@ -2311,3 +2311,153 @@ message said `See logs of the Install pods build phase` — confidently wrong
 about the exact question it existed to answer. Removed rather than repaired: the
 error code already separates the two cases, and a diagnostic that lies is worse
 than no diagnostic, because it is believed.
+
+---
+
+## D-056
+
+**Exports say what they cover, and are named for it** (2026-08-30)
+
+Every export took ALL receipts while being named for the CURRENT year:
+`taxtrail-2026.csv` could hold three years of data, and last year's return could
+not be exported at all. Exporting twice produced the same filename twice, which
+iOS resolves by appending "(1)".
+
+Tyler asked for "export all, or just year to date, or an entire year".
+
+`exportRange.js` holds the range logic, and the range decides **both** what goes
+in the file and what the file is called:
+
+```
+taxtrail-2025-exported-2026-08-30.csv
+taxtrail-2026-ytd-exported-2026-08-30.txf
+taxtrail-all-exported-2026-08-30.xlsx
+```
+
+Coverage first so a folder sorts by tax year; the export date spelled out with
+"exported" rather than merely appended, because `taxtrail-2025-2026-08-30` reads
+as two ranges and nobody can tell which is which.
+
+The export functions filter their own input rather than trusting the caller to.
+A caller that passed the range for the filename and forgot to filter would
+produce a file labelled "All of 2025" containing everything — the exact bug this
+feature exists to fix, one layer up.
+
+### ISO strings, never Date objects
+
+`new Date('2026-01-01')` parses as **UTC midnight**, which is 2025-12-31 in every
+US timezone. A Date-based year filter therefore drops New Year's Day receipts
+for every American user — the entire market. Comparing `yyyy-mm-dd` strings
+lexicographically has no timezone to get wrong. Demonstrated rather than
+asserted: the naive version puts 2026-01-01 in 2025 under `TZ=America/Los_Angeles`,
+and the suite is run under four timezones in CI.
+
+### Undated receipts are reported, not dropped
+
+A receipt with no date is not "outside 2025", it is unplaceable. Every bounded
+range returns it separately and the UI says so, because silently dropping a row
+from a tax export is how a deduction goes missing.
+
+### Two things this turned up
+
+- **A custom range would have crashed the XLSX export.** SheetJS *throws* on a
+  worksheet name over 31 characters (verified, not assumed), and
+  `Summary 2026-01-01 to 2026-06-30` is 32. Harmless while the label was always
+  a four-digit year. `safeSheetName` falls back to the bare prefix rather than
+  truncating to `Summary 2026-01-01 to 2026-0`, which reads as a corrupt file.
+- **A ranged archive is not a backup.** Its README used to end "Keep this file
+  somewhere durable"; for a partial range it now says, in as many words, that it
+  is not a full backup and how to get one.
+
+---
+
+## D-057
+
+**`edited` is derived from what the parser said, not tracked** (2026-08-30)
+
+Tyler asked for an `edited: true` flag in the diagnostics export. The flag alone
+answers "was this row touched". What the parser needs is "touched HOW", because
+a corrected receipt is a labelled training example and an uncorrected one is not.
+
+So a receipt stores `parsedSnapshot`: the classifier's own output, frozen at scan
+time, before the merchant-memory override and before any keystroke. The flag is
+then **derived** — no bookkeeping to fall out of sync — and diagnostics can emit
+the pair that actually fixes a parser bug:
+
+```
+"parserSaid": { "total": 25.00, ... },
+"stored":     { "total": 26.50, ... },
+"edited": true, "editedFields": ["total"]
+```
+
+That is Tyler's real Target correction. The OCR text plus the right answer is
+everything a regression fixture needs, so a scanning session now produces
+labelled data instead of anecdotes.
+
+### null, not false
+
+A row scanned before the snapshot column existed reports `edited: null`.
+Backfilling a snapshot from the current values would assert the parser got them
+right, which is the one thing there is no evidence for — and it would silently
+inflate every future accuracy measurement. The diagnostics summary counts
+`corrected` / `unedited` / `unknown` as three separate things for the same
+reason.
+
+### What is not compared
+
+Notes (never parsed) and `taxRate` (four possible sources: printed, city memory,
+derived, last used). A difference in either says nothing about the parser.
+Merchant compares case- and whitespace-insensitively, and money compares in whole
+cents — a sub-cent float difference is not a user correction, and flagging it
+would bury the real ones in noise.
+
+---
+
+## D-058
+
+**Settings is its own tab, and the destructive control lives there** (2026-08-30)
+
+Manage Subscription sat in the EXPORT card, between "Full JSON backup" and a note
+about QuickBooks date formats. Tyler said he could not find it. He was right:
+export is a workflow, and subscription, restore and deletion are settings.
+
+The fourth tab holds subscription, restore-from-archive, about, developer
+options and a danger zone.
+
+### Three things came out of building it
+
+- **There was no Restore Purchases control at all.** The only one lived inside
+  the fallback paywall, which is shown *only* when RevenueCat's remote template
+  fails to load — so in the normal case there was none. Apple requires one
+  (Guideline 3.1.1); this is a review rejection as much as a user problem.
+  `restorePurchases()` is now exported and on the Settings screen, and it says
+  what happened either way, because silence after tapping Restore is
+  indistinguishable from a broken button.
+- **Delete-all removes the images too.** Deleting rows alone would leave every
+  photograph in the documents directory while telling the user their data was
+  gone. For an app whose whole claim is "it never leaves your phone", being
+  wrong about deletion is the worst available failure. Rows go first: orphaned
+  images are invisible and recoverable, rows pointing at deleted images show up
+  as broken thumbnails in a tax record.
+- **Two confirmations, and the second one names the number.** The first alert is
+  the tap people make while reading. The copy points at the archive export,
+  because that is the difference between a user who meant it and a user about to
+  lose a year of records.
+
+### The developer gate
+
+The JSON backup and the diagnostics dump moved behind seven taps on the version
+stamp. Both are useful to Tyler and misleading to everyone else — the JSON backup
+records image *paths*, which go stale on reinstall, so it looks like a backup and
+is not one. Hidden rather than removed: they are how parser bugs get fixed at all.
+
+Taps were chosen because Tyler is usually phone-only and terminal paste does not
+work on his phone. The counting rules live in `devMode.js`, pure, so "seven taps
+unlocks it" is a unit test rather than something verified by tapping a phone
+seven times — including that a pause resets the count, so it cannot be triggered
+by idle scrolling.
+
+**The version stamp stays in the Summary footer.** It is one of Tyler's standing
+rules and it drifted silently once already (D-039), so it is not a thing to
+relocate on a tidiness argument. Settings carries a second copy for the tap
+gesture; both call `versionStamp()`, so they cannot disagree.

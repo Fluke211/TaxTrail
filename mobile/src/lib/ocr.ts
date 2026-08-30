@@ -7,6 +7,13 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 const DIR = `${FileSystem.documentDirectory}receipts/`;
 
+// Exported so "Delete all data" can remove the photographs too, not merely the
+// rows that point at them. Deleting the rows alone would leave every receipt
+// image on the device while telling the user their data was gone — which for an
+// app whose whole claim is "it never leaves your phone" is the worst possible
+// thing to be wrong about.
+export const RECEIPTS_DIR = DIR;
+
 async function ensureDir(): Promise<void> {
   const info = await FileSystem.getInfoAsync(DIR);
   if (!info.exists) await FileSystem.makeDirectoryAsync(DIR, { intermediates: true });

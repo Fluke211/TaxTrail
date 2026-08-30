@@ -1,5 +1,5 @@
-// TaxTrail — root component. Custom three-tab shell (no navigation library:
-// fewer native deps = safer single EAS build), same layout as the PWA.
+// TaxTrail — root component. Custom four-tab shell (no navigation library:
+// fewer native deps = safer single EAS build).
 import React, { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -13,8 +13,9 @@ import { FallbackPaywall, type PaywallPackage } from './src/components/FallbackP
 import CaptureScreen from './src/screens/CaptureScreen';
 import ReceiptsScreen from './src/screens/ReceiptsScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
-type Tab = 'capture' | 'receipts' | 'summary';
+type Tab = 'capture' | 'receipts' | 'summary' | 'settings';
 
 function Root() {
   const insets = useSafeAreaInsets();
@@ -83,6 +84,7 @@ function Root() {
         {tab === 'capture' && <CaptureScreen onSaved={() => { refresh(); setTab('receipts'); }} />}
         {tab === 'receipts' && <ReceiptsScreen receipts={receipts} onChanged={refresh} />}
         {tab === 'summary' && <SummaryScreen receipts={receipts} pro={pro} onChanged={refresh} />}
+        {tab === 'settings' && <SettingsScreen receipts={receipts} pro={pro} onChanged={refresh} />}
       </View>
 
       <View style={[s.tabbar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -90,7 +92,8 @@ function Root() {
           ['capture', 'camera', 'Capture'],
           ['receipts', 'receipt', 'Receipts'],
           ['summary', 'stats-chart', 'Summary'],
-        ] as [Tab, 'camera' | 'receipt' | 'stats-chart', string][]).map(([key, icon, label]) => {
+          ['settings', 'settings', 'Settings'],
+        ] as [Tab, 'camera' | 'receipt' | 'stats-chart' | 'settings', string][]).map(([key, icon, label]) => {
           const active = tab === key;
           return (
             <Pressable key={key} style={s.tabBtn} onPress={() => { setTab(key); if (key !== 'capture') refresh(); }}>

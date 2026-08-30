@@ -24,6 +24,7 @@ import { SC_BY_NAME } from '../lib/rows';
 import { ZoomableImage } from '../components/ZoomableImage';
 import { CategoryPicker } from '../components/CategoryPicker';
 const C = require('../lib/classifier.js');
+const E = require('../lib/edited.js');
 
 const CATEGORY_NAMES: string[] = (C.CATEGORIES as { name: string }[]).map((c) => c.name);
 
@@ -41,6 +42,10 @@ interface Pending {
   confidence: string;
   merchantRemembered: boolean;
   city: string | null;
+  // What the classifier said, frozen before the merchant-memory override and
+  // before the user touches anything. Saved with the receipt so a correction
+  // becomes a labelled fixture rather than just a changed row (edited.js).
+  parsedSnapshot: string;
 }
 
 export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
@@ -130,6 +135,10 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
         category, confidence: parsed.confidence,
         merchantRemembered: !!remembered,
         city: parsed.city,
+        // `parsed`, not the values above: the merchant-memory override and the
+        // tax-rate fallbacks are the app being helpful, and folding them in
+        // would credit the parser with answers it did not produce.
+        parsedSnapshot: JSON.stringify(E.snapshotOf(parsed)),
       });
       setNotes(''); setAllocs([]); setShowRaw(false); setShowSplits(false);
     } catch (e) {
@@ -173,6 +182,7 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
       ocrText: pending.ocrText,
       imagePath: pending.imagePath,
       thumbPath: pending.thumbPath,
+      parsedSnapshot: pending.parsedSnapshot,
     });
     const learned = await memLearn(pending.ocrText, merchant);
     await taxMemLearn(pending.city, pending.taxRate);

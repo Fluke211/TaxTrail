@@ -11,7 +11,44 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### Unreleased — will ship as js r23
+
+Phase 1 of the feature list Tyler approved. All JS, so it goes out over the air
+once build 4 is confirmed installed.
+
+- **Settings tab** (D-058). Subscription, restore-from-archive, about, developer
+  options and a danger zone. Manage Subscription moved out of the EXPORT card,
+  where it sat between "Full JSON backup" and a note about QuickBooks date
+  formats and could not be found
+- **Restore Purchases** — there was none outside the fallback paywall, which
+  only appears when RevenueCat's remote template fails to load. Apple requires
+  one (Guideline 3.1.1)
+- **Delete all data**, behind two confirmations, removing the receipt
+  photographs as well as the rows
+- **Export date ranges** (D-056): All / This year / any year with receipts.
+  Filenames now carry both the coverage and the export date —
+  `taxtrail-2025-exported-2026-08-30.csv`. Exporting twice no longer produces
+  two files with the same name
+- **An info control on every export format**, explaining what it is for and
+  which one to send an accountant
+- **`edited` in parser diagnostics** (D-057), derived from a frozen snapshot of
+  the classifier's output. A correction now exports as `parserSaid` next to
+  `stored`, which is a labelled fixture rather than an anecdote
+- Developer-only exports (JSON backup, parser diagnostics) moved behind seven
+  taps on the version stamp
+- **Fixed: a custom export range would have crashed the XLSX export.** SheetJS
+  throws on a worksheet name over 31 characters and `Summary <range>` exceeded it
+- **Fixed: year filtering by `Date` put New Year's Day in the previous year** for
+  every US timezone. Ranges compare ISO strings; the suite runs under four
+  timezones
+
 ### Build 4 — v1.0.0 (build 4) · js r22 — 2026-08-29
+
+**Built and submitted to TestFlight 2026-08-30** — build ID
+`b8ebc4af-5092-4351-9a07-8380a829f7f5`. Took three submissions: the first died in
+`Install pods` on the worklets pin (D-054), the second on an Expo-side
+`SERVER_ERROR` that never reached a worker (D-055).
+
 
 First native build since 26 August, cut so the submitted binary does not embed
 stale JS and so the native surface for pending work is compiled in (D-053).

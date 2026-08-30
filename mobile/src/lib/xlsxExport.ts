@@ -24,6 +24,26 @@ function formatMoneyColumns(ws: XLSX.WorkSheet, cols: number[]): void {
   }
 }
 
+/**
+ * A worksheet name Excel will actually accept.
+ *
+ * SheetJS THROWS on a name over 31 characters — verified, not assumed — and
+ * `[ ] : * ? / \` are illegal in a sheet name. That was harmless while the
+ * label was always a four-digit year, but export ranges can produce
+ * "2026-01-01 to 2026-06-30", and `Summary ` + that is 32 characters. The
+ * export would have crashed on exactly the range a user picks when they are
+ * being careful.
+ *
+ * Falls back to the bare prefix rather than truncating to something like
+ * "Summary 2026-01-01 to 2026-0", which reads as a corrupted file. The
+ * coverage is spelled out in the sheet's own title row either way.
+ */
+function safeSheetName(prefix: string, label: string): string {
+  const clean = label.replace(/[[\]:*?/\\]/g, ' ').replace(/\s+/g, ' ').trim();
+  const full = `${prefix} ${clean}`;
+  return full.length <= 31 ? full : prefix;
+}
+
 export function buildXlsxBase64(rows: ExportRow[], yearLabel: string): string {
   const wb = XLSX.utils.book_new();
 
@@ -40,7 +60,7 @@ export function buildXlsxBase64(rows: ExportRow[], yearLabel: string): string {
   });
 
   const summary: (string | number)[][] = [
-    [`TaxTrail — Tax Year ${yearLabel}`], [],
+    [`TaxTrail — ${yearLabel}`], [],
     ['Category', 'Tax Form', 'Entries', 'Total'],
   ];
   let currentForm = '';
@@ -64,7 +84,7 @@ export function buildXlsxBase64(rows: ExportRow[], yearLabel: string): string {
   const wsSummary = XLSX.utils.aoa_to_sheet(summary);
   wsSummary['!cols'] = [{ wch: 42 }, { wch: 46 }, { wch: 9 }, { wch: 14 }];
   formatMoneyColumns(wsSummary, [3]); // Total — the "Entries" count stays an integer
-  XLSX.utils.book_append_sheet(wb, wsSummary, `Summary ${yearLabel}`);
+  XLSX.utils.book_append_sheet(wb, wsSummary, safeSheetName('Summary', yearLabel));
 
   // ---- Transaction tabs ----
   const header = ['Date', 'Merchant', 'Amount', 'Tax Form', 'Category', 'Form Line', 'Sales Tax Portion', 'Notes', 'Receipt ID', 'Split Part'];
