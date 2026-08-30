@@ -2944,3 +2944,71 @@ Tyler's call, not a parser fix.
 diagnostics dump, and they need opposite fixes.** Before hardening a reader,
 check that the thing being read exists on the page. Both prior attempts here
 went into the header because that is where a name usually is.
+
+---
+
+## D-066
+
+**Build 4 asks for Face ID and Location, and the app has neither feature**
+(2026-08-30)
+
+### What was found
+
+`expo-local-authentication` and `expo-location` are in `package.json`, are
+configured as plugins in `app.json` with hand-written purpose strings, and are
+compiled into build 4. **No file in `mobile/src/` or `App.tsx` imports either
+one.** There is no app lock and no mileage log. Neither permission prompt can
+ever appear, because nothing ever asks.
+
+The App Review notes in `docs/APP_STORE_LISTING.md` described both as shipping
+features — "Face ID — optional app lock", "Location (when in use) — optional
+mileage logging" — and D-044 checked the permission list against the generated
+`Info.plist` and found it correct.
+
+### Why it survived two checks
+
+Both checks were real and both were of the same kind. D-007 compared the plist
+against the plugin config. D-044 compared the notes against the plist. The
+config, the plist and the notes agreed with each other, so each check passed.
+**Nothing compared any of them against the code**, which is the only place the
+answer lived.
+
+The permissions are not an accident either — D-006 added them to the dev client
+deliberately, noting that GPS mileage "needs `expo-location` compiled in", and
+recorded that the surface would be trimmed in the production build. That trim
+never happened; build 4 became the production build with the dev client's
+permission set.
+
+### Decision
+
+The notes are corrected now: they list camera and photo library, and carry an
+explicit instruction not to paste the other two back. That part needs no build
+and is done.
+
+**What to do about the binary is Tyler's call, and it is one of two things:**
+
+1. **Drop both plugins in build 5.** Smallest permission surface, which is the
+   product's whole argument. Costs nothing extra — build 5 is already planned
+   for swipe-to-delete — but forecloses GPS mileage without another build.
+2. **Ship the features that justify them.** Both modules are already compiled
+   into build 4, so the Face ID app lock and GPS mileage are **OTA-shippable
+   today** — no build, no credit. This corrects D-006's note, which said GPS
+   mileage needed a build: it needed the module compiled in, and it now is.
+
+Not decided unilaterally, because it is a product question — whether TaxTrail
+is an app with an unlock screen and a trip log — not a cleanup.
+
+### Do not submit before this is resolved
+
+An unexplained permission on an app whose entire pitch is restraint is the
+corrosive thing D-007 was written to prevent, and this is that, arrived at from
+the other direction: not a permission nobody disclosed, but a permission
+disclosed for a feature nobody wrote.
+
+### The rule worth keeping
+
+**A claim about behaviour has to be checked against code at least once.**
+Config, manifests and docs can agree perfectly and all be wrong together —
+they are copies of an intention, not observations of a program. `grep` for the
+import is the check that would have caught this on day one, and it takes a
+second.

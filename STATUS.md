@@ -28,6 +28,28 @@ Cleared in the overnight session:
 no native build was needed. The Summary footer should read
 `TaxTrail v1.0.0 (build 3) · js r17` once the app has restarted twice.
 
+### Do not submit to the App Store before this is answered
+
+**Build 4 asks for Face ID and Location, and the app has neither feature**
+(D-066). Both modules are compiled in with hand-written purpose strings; no file
+imports either one, so neither prompt can ever appear. `expo-camera` is a third
+unused module, though the camera permission itself is justified by the document
+scanner. The App Review notes described an app lock and a mileage log as
+shipping features — that text is now removed, and the notes carry an instruction
+not to paste it back.
+
+It survived two prior checks because both compared documents with documents. A
+new CI check, `npm run test:perms`, compares `app.json` against the code and
+baselines the three that already shipped, so a fourth cannot be added quietly.
+
+Two ways out, and it is a product question rather than a cleanup:
+
+- **Drop the plugins in build 5** — smallest permission surface, which is the
+  whole argument. Build 5 is already planned, so it costs nothing extra.
+- **Ship the features instead** — and note this corrects D-006: because both
+  modules are already in build 4, the Face ID app lock and **GPS mileage are
+  OTA-shippable today**, with no build and no credit.
+
 ### Blocked on Tyler — none of it is code
 
 1. **Confirm the app launches** and the Summary footer reads
@@ -64,6 +86,10 @@ Not urgent, and not to be cut casually. It carries:
 
 - **swipe-to-delete** — written, tested, and held back (D-060, D-062). The
   component was deleted from `main`; recover it from the PR #81 history.
+- **Whatever D-066 decides** about `expo-local-authentication`, `expo-location`
+  and `expo-camera` — either they come out of `app.json`, or the features that
+  justify them go in. Dropping a plugin also means dropping it from `BASELINE`
+  in `mobile/scripts/check-permissions.js`.
 - Whatever the capture redesign needs, once Tyler picks one.
 
 `buildNumber` must go to **5** in `mobile/app.json` and `APP_BUILD` to **5** in

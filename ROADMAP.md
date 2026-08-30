@@ -138,8 +138,15 @@ what blocks what, not by size.
 - [ ] Screenshots — **screenshot 2 is the privacy-label comparison** against
       Keeper / QuickBooks / Wave; that contrast is the entire pitch
 - [ ] App Privacy questionnaire answers (drafted in `docs/APP_STORE_LISTING.md`)
-- [ ] App Review notes explaining on-device OCR, so the privacy
-      claim is not challenged
+- [x] App Review notes explaining on-device OCR, so the privacy claim is not
+      challenged — drafted, and then **checked against the code**, which found
+      that two of the four permissions they described have no feature behind
+      them (D-066). Face ID and Location are out of the notes
+- [ ] **Resolve D-066 before submitting.** Build 4 requests Face ID and
+      Location for features that do not exist, plus an unused `expo-camera`.
+      Either drop the plugins in build 5 or ship the features — both modules
+      are compiled in, so an app lock and GPS mileage are OTA-shippable with no
+      build. `npm run test:perms` holds the line meanwhile
 - [x] **Final listing copy pass** — every number checked against the code.
       "29 categories" was wrong (28 are selectable; the 29th is
       "Uncategorized"), and the QuickBooks wording promised Desktop users a
@@ -160,7 +167,10 @@ what blocks what, not by size.
 ### Engineering hygiene
 
 - [x] **CI on pull requests** — `.github/workflows/ci.yml`: unit tests, `tsc`,
-      and a version-stamp check that would have caught the D-039 drift
+      a version-stamp check that would have caught the D-039 drift, and four
+      ratcheted guards that each replaced a rule someone had to remember —
+      Expo pins, OTA import safety (D-062), palette contrast, and permissions
+      having features behind them (D-066)
 - [x] **Android audited and explicitly parked** (D-047). The audit overturned
       the standing assumption: OCR is *not* the blocker —
       `expo-text-extractor` has an Android build, every other dependency does
