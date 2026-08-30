@@ -291,6 +291,42 @@ to set.
 
 ---
 
+## A permission needs a feature behind it
+
+A config plugin writes a purpose string into the shipped `Info.plist` whether or
+not any code ever asks for it. Everything downstream still passes: prebuild
+succeeds, the plist matches the config, the App Review notes match the plist.
+The permission is simply never used, and nothing notices.
+
+Build 4 shipped three that way — `expo-local-authentication`, `expo-location`
+and `expo-camera` (D-066). It got past D-007's plist inspection and D-044's
+notes review because **both compared documents with documents.** Neither looked
+at the code, which was the only place the answer was.
+
+```bash
+npm run test:perms    # also runs in CI on every PR
+```
+
+`scripts/check-permissions.js` reads the plugin list out of `app.json`, greps
+the app's own sources for each module (a guarded `require` counts — that is a
+real optional feature), and fails on any that nothing imports. The three that
+already shipped are in `BASELINE`, so it ratchets: a fourth fails, and these
+three can only get fewer.
+
+**Removing a plugin does not remove the permission from a binary already in
+someone's hands.** It takes a native build. So when D-066 is settled, whatever
+comes out of `app.json` also comes out of `BASELINE`, and the permission itself
+leaves at build 5.
+
+The cheapest version of this check is one line, and it is worth running by hand
+any time a claim is made about what the app does:
+
+```bash
+grep -rn "expo-location" mobile/src mobile/App.tsx    # nothing? then it has no feature
+```
+
+---
+
 ## An OTA can only use native modules the BINARY already has
 
 `eas update` ships JavaScript. It cannot add a native module. So the moment

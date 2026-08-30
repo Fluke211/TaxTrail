@@ -137,23 +137,32 @@ TaxTrail performs all receipt processing on-device.
 - The paywall links to Apple's standard EULA and to the privacy policy. Those
   open in Safari when tapped; the app itself issues no HTTP requests.
 
-Permissions:
+Permissions the app requests:
 - Camera — photographing receipts.
 - Photo library — importing an existing receipt picture chosen by the user.
-- Face ID — optional app lock. No biometric data is accessed.
-- Location (when in use) — optional mileage logging. Declining leaves all other
-  functionality intact.
 
-These four are the complete set. Verified 2026-08-29 against the plugin
-configuration in `app.json`: `expo-image-picker` and `expo-camera` both set
-`microphonePermission: false`, and `expo-location` sets both always-on variants
-to `false`, so none of those keys is generated (D-007). The local-network key
+Verified 2026-08-29 against the plugin configuration in `app.json`:
+`expo-image-picker` and `expo-camera` both set `microphonePermission: false`,
+so no microphone key is generated (D-007). The local-network key
 `expo-dev-launcher` adds in development is stripped by a build phase in any
 non-Debug configuration, so it does not ship either (D-044).
 
 To test Pro without purchasing, use the sandbox account provided, or note that
 the free tier permits 10 scans per month with full parsing and CSV export.
 ```
+
+> **Face ID and Location were removed from the block above — do not paste them
+> back until D-066 is resolved.** Build 4 carries purpose strings for both, but
+> no code in the app imports `expo-local-authentication` or `expo-location`, so
+> neither prompt can ever appear. Describing an app lock and mileage logging to
+> a reviewer who will then go looking for them is the fastest way to lose the
+> benefit of everything else in these notes.
+>
+> The earlier check was made against `app.json`, not against the code. The
+> plist and the notes agreed with each other; neither was compared with what
+> the app does. Resolving D-066 decides whether the two permissions leave the
+> binary in build 5 or the two features arrive to justify them — and the notes
+> follow whichever Tyler picks.
 
 ## App Privacy questionnaire
 
