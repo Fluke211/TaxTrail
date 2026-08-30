@@ -132,7 +132,7 @@ what blocks what, not by size.
 - [ ] Screenshots — **screenshot 2 is the privacy-label comparison** against
       Keeper / QuickBooks / Wave; that contrast is the entire pitch
 - [ ] App Privacy questionnaire answers (drafted in `docs/APP_STORE_LISTING.md`)
-- [ ] App Review notes explaining on-device OCR, so the "Data Not Collected"
+- [ ] App Review notes explaining on-device OCR, so the privacy
       claim is not challenged
 - [x] **Final listing copy pass** — every number checked against the code.
       "29 categories" was wrong (28 are selectable; the 29th is

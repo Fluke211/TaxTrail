@@ -41,17 +41,21 @@ no native build was needed. The Summary footer should read
    primary button. Baselined rather than changed unilaterally (D-061).
 4. **Moving trucks** (U-Haul, Penske, Ryder) — Schedule C line 20a, or stay in
    Travel? Open since 2026-08-29.
-5. **Sandbox purchase test** — monthly, annual, lifetime, and Restore. All
+5. **Read D-064** — the cloud-AI question is answered (no, and why), and it
+   names the one piece of "continuous learning" still missing: a routine for
+   getting diagnostics exports into `__tests__/corpus/`. Needs no cloud and no
+   decision, only receipts.
+6. **Sandbox purchase test** — monthly, annual, lifetime, and Restore. All
    three products read `READY_TO_SUBMIT`.
-6. **Screenshots**, six of them. Needs a Mac; see `docs/MAC_SETUP.md`. Slot 2
+7. **Screenshots**, six of them. Needs a Mac; see `docs/MAC_SETUP.md`. Slot 2
    is the privacy-label comparison, which is the entire pitch.
-7. **Import one export into real tax software.** The whole audit is
+8. **Import one export into real tax software.** The whole audit is
    spec-reading; nobody has fed a `.txf` to TurboTax. Still the largest
    remaining unknown in the product.
-8. **Real receipts** for the corpus, via Settings → Parser diagnostics (moved
+9. **Real receipts** for the corpus, via Settings → Parser diagnostics (moved
    there, behind seven taps on the version stamp). The corpus is now nine
    receipts and it is what found the merchant bug (D-063).
-9. **Small Business Program** acceptance (applied; Apple quotes over a month).
+10. **Small Business Program** acceptance (applied; Apple quotes over a month).
 
 ### Build 5, when it happens
 
