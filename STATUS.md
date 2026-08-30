@@ -80,9 +80,23 @@ Two ways out, and it is a product question rather than a cleanup:
    return per unit of Tyler's time of anything on this list.
 10. **Small Business Program** acceptance (applied; Apple quotes over a month).
 
-### Build 5, when it happens
+### Build 5 is a submission blocker (D-067)
 
-Not urgent, and not to be cut casually. It carries:
+**Not optional, and not "when it happens" — every fresh install of build 4
+crashes on its first launch.** Build 4's embedded bundle is js r22, the bundle
+that crashed, and `launchWaitMs` defaults to 0, so a new install runs the
+embedded bundle *before* any OTA is applied. r25 only takes effect on the
+second launch. Verified against the installed `expo-updates` source and against
+build 4's own commit, not inferred.
+
+Consequences today, before anything is submitted:
+
+- **Every new TestFlight tester Tyler adds gets a crash on first launch.** His
+  own install works only because it has been running since before the OTA.
+- Build 4 cannot be the binary that goes to review.
+
+So build 5 is the one build that has to happen, and everything else waiting on
+a build should ride in it. It carries:
 
 - **swipe-to-delete** — written, tested, and held back (D-060, D-062). The
   component was deleted from `main`; recover it from the PR #81 history.
@@ -94,8 +108,12 @@ Not urgent, and not to be cut casually. It carries:
 
 `buildNumber` must go to **5** in `mobile/app.json` and `APP_BUILD` to **5** in
 `mobile/src/lib/version.ts`, in the same commit — Apple already has 4. And add
-build 5 to `LIVE_BUILDS` in `mobile/scripts/check-ota-safety.js` once it ships,
-or the OTA check will keep holding gesture-handler back.
+build 5 to `LIVE_BUILDS` in `mobile/scripts/check-ota-safety.js` **once it has
+been observed to launch** (D-062 rule 2), or the OTA check will keep holding
+gesture-handler back.
+
+It costs one EAS build credit and needs Tyler's explicit go (CLAUDE.md). The
+preflight is free and can be run first.
 
 ---
 
