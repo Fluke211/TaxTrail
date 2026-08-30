@@ -11,17 +11,19 @@
 // it is NOT re-exported from the package root (the root exports the older
 // `Swipeable`), and the subpath was verified to resolve before this was written.
 import React, { useCallback, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { T } from '../lib/theme';
+import { styled, useTheme } from '../lib/theme';
 
 export default function SwipeableRow({ children, onDelete }: {
   children: React.ReactNode;
   /** Called when the user taps Delete. Do the confirming here — see below. */
   onDelete: (close: () => void) => void;
 }) {
+  const T = useTheme();
+  const s = makeStyles(T);
   const ref = useRef<SwipeableMethods>(null);
   const close = useCallback(() => ref.current?.close(), []);
 
@@ -67,7 +69,7 @@ export default function SwipeableRow({ children, onDelete }: {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   action: {
     backgroundColor: T.danger,
     justifyContent: 'center', alignItems: 'center',
@@ -77,4 +79,4 @@ const s = StyleSheet.create({
     width: 88, marginBottom: 10, borderRadius: T.radius, gap: 3,
   },
   actionText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-});
+}));

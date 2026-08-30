@@ -6,9 +6,9 @@
 // "Full JSON backup" and a note about QuickBooks date formats meant nobody
 // could find it.
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { T } from '../lib/theme';
+import { styled, useTheme } from '../lib/theme';
 import type { Receipt } from '../lib/db';
 import { isBusiness, allocationsOf } from '../lib/rows';
 const P = require('../lib/prorate.js');
@@ -74,6 +74,8 @@ const EXPORT_HELP: Record<string, { title: string; body: string }> = {
 export default function SummaryScreen({ receipts, pro, onChanged }: {
   receipts: Receipt[]; pro: boolean; onChanged: () => void;
 }) {
+  const T = useTheme();
+  const s = makeStyles(T);
   const [busyExport, setBusyExport] = useState<string | null>(null);
 
   /*
@@ -263,7 +265,7 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   statRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   stat: {
     flex: 1, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
@@ -298,4 +300,4 @@ const s = StyleSheet.create({
   version: { color: T.muted2, fontSize: 11, textAlign: 'center', marginTop: 18, letterSpacing: 0.3 },
   updateLink: { color: T.accent, marginTop: 4 },
   restoreNote: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginTop: 8 },
-});
+}));

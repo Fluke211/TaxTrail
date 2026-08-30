@@ -10,7 +10,7 @@
 // the keyboard is dismissed rather than competing for space.
 import React from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { T } from '../lib/theme';
+import { styled, useTheme } from '../lib/theme';
 
 interface Props {
   visible: boolean;
@@ -26,6 +26,8 @@ interface Props {
 export function CategoryPicker({
   visible, categories, lineFor, selected, title = 'Tax category', onSelect, onClose,
 }: Props) {
+  const T = useTheme();
+  const s = makeStyles(T);
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={s.sheet}>
@@ -62,7 +64,7 @@ export function CategoryPicker({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   sheet: { flex: 1, backgroundColor: T.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -82,4 +84,4 @@ const s = StyleSheet.create({
   nameActive: { color: T.accent, fontWeight: '600' },
   line: { color: T.muted2, fontSize: 11, marginTop: 2 },
   check: { color: T.accent, fontSize: 17, fontWeight: '700', marginLeft: 12 },
-});
+}));

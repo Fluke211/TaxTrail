@@ -3,14 +3,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable,
-  ScrollView, StyleSheet, Text, TextInput, View,
+  ScrollView, Text, TextInput, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
 import * as Clipboard from 'expo-clipboard';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { T } from '../lib/theme';
+import { styled, useTheme } from '../lib/theme';
 import { addReceipt, countAll, countThisMonth, type Allocation } from '../lib/db';
 import { processReceiptPages } from '../lib/ocr';
 import { memLookup, memLearn, taxMemLookup, taxMemLearn } from '../lib/memory';
@@ -49,6 +49,8 @@ interface Pending {
 }
 
 export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
+  const T = useTheme();
+  const s = makeStyles(T);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [notes, setNotes] = useState('');
@@ -434,7 +436,7 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   wrap: { flex: 1, paddingHorizontal: 16 },
   hero: {
     marginTop: 14, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
@@ -484,4 +486,4 @@ const s = StyleSheet.create({
   rawBox: { backgroundColor: T.bg2, borderRadius: 10, padding: 10, borderColor: T.line, borderWidth: 1 },
   copyBtn: { alignSelf: 'flex-end', padding: 4 },
   rawText: { color: T.muted, fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-});
+}));

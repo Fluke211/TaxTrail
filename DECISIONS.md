@@ -2570,3 +2570,76 @@ behind the dismissed alert, looking like the delete is still pending.
 swiping further will delete, and here it will not. `rightThreshold` is raised to
 40 from the default half-action-width, which on an 88pt action opens on almost
 any horizontal movement — including the diagonal drift of a vertical scroll.
+
+---
+
+## D-061
+
+**Light theme follows the system, and the palette's contrast is a test** (2026-08-30)
+
+Tyler approved this despite a recommendation to defer it — 178 `T.*` references
+across ten files.
+
+### The mechanical part
+
+`StyleSheet.create` runs once at module load, so a themed screen cannot keep its
+styles at module scope. Every file got the same three edits:
+
+```
+  import { T } from '../lib/theme'   ->  import { styled, useTheme }
+  const s = StyleSheet.create({…})   ->  const makeStyles = styled((T) => ({…}))
+  (inside the component)             ->  const T = useTheme(); const s = makeStyles(T);
+```
+
+Done with a script rather than by hand, because ten identical edits done by hand
+is ten chances to get one wrong, and `tsc` plus a real Metro bundle is the check
+that they landed. `styled()` memoises per palette, and there are exactly two, so
+a screen builds its styles at most twice for the life of the process.
+
+`T` is still exported as the dark palette, so anything not yet converted keeps
+working rather than failing at runtime.
+
+**No in-app toggle.** iOS already has that setting and it is where people look
+for it; an app-level override is one more thing to keep in sync for no benefit.
+`useColorScheme` returns null before the value is known, and dark is the default,
+because that is what the current binary and every screenshot look like.
+
+### The part that mattered
+
+The light palette is not the dark one inverted. `line` had to become a black
+alpha — a white hairline on a white card is invisible, which would have silently
+removed every border in the app — and `accent`, `danger`, `warn` and `good` all
+had to darken to stay readable on white.
+
+Getting that right by eye is not possible, so `scripts/check-contrast.js`
+computes WCAG 2.1 ratios from the palette itself, flattening alpha onto the
+background first (every `line` and `accentSoft` token has some). It found, on
+its first run:
+
+- **`#fff` title text on the fallback paywall.** On the light palette's near-white
+  background that is invisible — on the purchase screen. It was hardcoded, so
+  the theme conversion alone would not have caught it.
+- **The danger-zone border and the Delete button border** hardcoded as the *dark*
+  palette's red. Now a `dangerLine` token.
+- **`muted2` at 2.85:1** in light, under the 3:1 bar for secondary text.
+  Darkened to `#7f899c`.
+
+### The baseline, and why the dark theme is not "fixed"
+
+The check also found **five pairings in the DARK palette below the WCAG target**,
+shipped that way for months — including white-on-accent at 3.71:1 on the primary
+button, and white-on-danger at 2.78:1.
+
+Those are Tyler's brand colours and a real design decision. Quietly restyling the
+shipped app so a new script passes would be the wrong way round. So the check is a
+**ratchet against a committed baseline, exactly like the synthetic parser corpus
+(D-041)**: a palette that gets worse fails, one that is merely imperfect does not.
+The five are printed as warnings on every run so they stay visible.
+
+The LIGHT palette carries no baseline — it is new, so it meets the targets
+outright, and it does.
+
+**For Tyler:** those five dark-theme ratios are worth a decision, not a fix I
+should make alone. White on `#4f7cff` clears WCAG's 3:1 large-text bar but not
+the 4.5:1 body-text one, and the button label is 15–16px. Darkening the accent a
+little would fix it and change the app's signature colour.

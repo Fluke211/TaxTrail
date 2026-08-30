@@ -7,10 +7,10 @@
 // Tyler said so directly. Export is a workflow; subscription, restore and
 // deletion are settings, and mixing them made both harder to scan.
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
-import { T } from '../lib/theme';
+import { styled, useTheme } from '../lib/theme';
 import { deleteAllData, type Receipt } from '../lib/db';
 import { manageSubscription, presentPaywall, restorePurchases } from '../lib/purchases';
 import { exportBackup, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
@@ -27,6 +27,8 @@ const SITE = 'https://taxtrail.app';
 export default function SettingsScreen({ receipts, pro, onChanged }: {
   receipts: Receipt[]; pro: boolean; onChanged: () => void;
 }) {
+  const T = useTheme();
+  const s = makeStyles(T);
   const [busy, setBusy] = useState<string | null>(null);
   const [dev, setDev] = useState(false);
   const [tapState, setTapState] = useState({ count: 0, lastAt: 0 });
@@ -256,7 +258,7 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
         </View>
       )}
 
-      <View style={[s.card, { borderColor: 'rgba(255,107,107,0.35)' }]}>
+      <View style={[s.card, { borderColor: T.dangerLine }]}>
         <Text style={[s.title, { color: T.danger }]}>DANGER ZONE</Text>
         <Row label="Delete all receipts and images" k="delete" tone="danger" onPress={confirmDeleteAll} />
         <Text style={s.note}>
@@ -283,7 +285,7 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   card: {
     backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: T.radius,
     padding: 14, marginTop: 12,
@@ -296,4 +298,4 @@ const s = StyleSheet.create({
   },
   note: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginTop: 4 },
   version: { color: T.muted2, fontSize: 11, textAlign: 'center', marginTop: 14, letterSpacing: 0.3 },
-});
+}));

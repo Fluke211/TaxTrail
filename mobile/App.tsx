@@ -1,12 +1,12 @@
 // TaxTrail — root component. Custom four-tab shell (no navigation library:
 // fewer native deps = safer single EAS build).
 import React, { useCallback, useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { T } from './src/lib/theme';
+import { styled, useTheme } from './src/lib/theme';
 import { allReceipts, type Receipt } from './src/lib/db';
 import { initPurchases, isPro, registerFallbackPaywall } from './src/lib/purchases';
 import { FallbackPaywall, type PaywallPackage } from './src/components/FallbackPaywall';
@@ -18,6 +18,8 @@ import SettingsScreen from './src/screens/SettingsScreen';
 type Tab = 'capture' | 'receipts' | 'summary' | 'settings';
 
 function Root() {
+  const T = useTheme();
+  const s = makeStyles(T);
   const insets = useSafeAreaInsets();
   // Compliant fallback paywall, shown only if RevenueCat's remote template fails
   // to load. Rendered here so it sits above the tab shell (see purchases.ts).
@@ -107,7 +109,11 @@ function Root() {
           );
         })}
       </View>
-      <StatusBar style="light" />
+      {/* "light" means light CONTENT — white clock and battery — which is right
+          on the dark ground and unreadable on the light one. Driven off the
+          palette rather than hardcoded, or light mode ships with an invisible
+          status bar. */}
+      <StatusBar style={T.scheme === 'light' ? 'dark' : 'light'} />
     </View>
   );
 }
@@ -126,7 +132,7 @@ export default function App() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   app: { flex: 1, backgroundColor: T.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -146,4 +152,4 @@ const s = StyleSheet.create({
   },
   tabBtn: { flex: 1, alignItems: 'center', gap: 2 },
   tabLabel: { color: T.muted2, fontSize: 11, fontWeight: '600' },
-});
+}));

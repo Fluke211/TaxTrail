@@ -50,6 +50,14 @@ once build 4 is confirmed installed.
 - **Fixed: year filtering by `Date` put New Year's Day in the previous year** for
   every US timezone. Ranges compare ISO strings; the suite runs under four
   timezones
+- **Light theme** (D-061), following the iOS system setting. No in-app toggle —
+  iOS already has that switch and it is where people look for it
+- **Fixed: the fallback paywall's title was hardcoded `#fff`**, which is
+  invisible on a light background. Found by the new contrast check, not by eye
+- **Fixed: two danger-red borders were hardcoded** to the dark palette's red
+- New `npm run test:contrast` computes WCAG contrast from the palette itself and
+  ratchets against a baseline, so a colour change cannot quietly make something
+  unreadable
 
 ### Build 4 — v1.0.0 (build 4) · js r22 — 2026-08-29
 

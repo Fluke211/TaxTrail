@@ -1,10 +1,10 @@
 // Receipts list + detail modal (image, fields, edit, delete, raw-text copy).
 import React, { useCallback, useState } from 'react';
 import {
-  Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { T } from '../lib/theme';
+import { styled, useTheme } from '../lib/theme';
 import MoneyInput from '../components/MoneyInput';
 import { ZoomableImage } from '../components/ZoomableImage';
 import { CategoryPicker } from '../components/CategoryPicker';
@@ -17,6 +17,8 @@ import { SC_BY_NAME, allocationsOf } from '../lib/rows';
 const CATEGORY_NAMES: string[] = (require('../lib/classifier.js').CATEGORIES as { name: string }[]).map((c) => c.name);
 
 export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Receipt[]; onChanged: () => void }) {
+  const T = useTheme();
+  const s = makeStyles(T);
   const [selected, setSelected] = useState<Receipt | null>(null);
   const [showCats, setShowCats] = useState(false);
   // The receipt being reported, or null. Held separately from `selected` so the
@@ -179,7 +181,7 @@ export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Rece
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: T.radius,
@@ -199,8 +201,8 @@ const s = StyleSheet.create({
   },
   hint: { color: T.muted2, fontSize: 12, marginTop: 6 },
   dangerBtn: {
-    flex: 1, borderColor: 'rgba(255,107,107,0.45)', borderWidth: 1, borderRadius: 12,
+    flex: 1, borderColor: T.dangerLine, borderWidth: 1, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
   },
   primaryBtn: { flex: 1, backgroundColor: T.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-});
+}));

@@ -11,12 +11,12 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as MailComposer from 'expo-mail-composer';
 import * as FileSystem from 'expo-file-system/legacy';
-import { T } from '../lib/theme';
+import { styled, useTheme } from '../lib/theme';
 import type { Receipt } from '../lib/db';
 import { writeDiagnosticsFile } from '../lib/exportShare';
 import { versionStamp } from '../lib/version';
@@ -31,6 +31,8 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
   kind: 'scan' | 'general';
   onClose: () => void;
 }) {
+  const T = useTheme();
+  const s = makeStyles(T);
   const [message, setMessage] = useState('');
   const [withDiagnostics, setWithDiagnostics] = useState(false);
   const [withImages, setWithImages] = useState(false);
@@ -195,7 +197,7 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = styled((T) => ({
   sheet: { flex: 1, backgroundColor: T.bg },
   title: { color: T.text, fontSize: 18, fontWeight: '700', flex: 1 },
   label: { color: T.muted2, fontSize: 10, letterSpacing: 0.6, marginTop: 18, marginBottom: 6, fontWeight: '600' },
@@ -214,4 +216,4 @@ const s = StyleSheet.create({
     backgroundColor: T.accent, borderRadius: T.radius, padding: 15,
     alignItems: 'center', marginTop: 20,
   },
-});
+}));
