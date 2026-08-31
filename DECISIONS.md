@@ -3336,3 +3336,94 @@ that can describe its own failure is strictly the better state.
 **An app whose startup can fail needs a way to say why.** Three revisions were
 spent guessing at an error that the process was busy destroying. The cost of
 this net is a few dozen lines; the cost of not having it has been four days.
+
+---
+
+## D-072
+
+**The crash was `expo-font` compiled at the wrong major, and my own pins check
+waved it through** (2026-08-31)
+
+### The error
+
+The r27 diagnostic did its job on the first launch:
+
+```
+Error: Cannot find native module 'ExpoFontLoader'
+    at requireNativeModule (...)
+```
+
+`ExpoFontLoader` is `expo-font`'s native module. `@expo/vector-icons` imports
+`expo-font` at module scope, `App.tsx` imports `@expo/vector-icons/Ionicons`,
+so the throw happened while the module graph was still evaluating — before
+anything could render, and before any error boundary existed. That is the
+361 ms abort, exactly.
+
+### Why the module was missing
+
+Two copies of `expo-font` were installed:
+
+| copy | version | why |
+|---|---|---|
+| `node_modules/expo-font` | **57.0.1** | `@expo/vector-icons` peer-depends on `expo-font >=14.0.4`, so npm hoisted the newest |
+| `node_modules/expo/node_modules/expo-font` | 55.0.8 | `expo` pins `~55.0.8` |
+
+**Autolinking compiles the hoisted one.** Verified, not assumed —
+`expo-modules-autolinking resolve -p apple` reports
+`packageVersion: "57.0.1"` with the podspec at the top-level copy. So the binary
+carried expo-font 57's native code built against expo-modules-core 55. It
+linked, it built, it signed, it passed Apple's processing — and at runtime the
+module never registered.
+
+Nothing in the toolchain objects to this. A cross-major native module is not a
+build error; it is a runtime absence.
+
+### The part that is mine
+
+`scripts/check-expo-pins.js` had an explicit allowance for this, which I wrote:
+
+> "@expo/vector-icons@15 depends on expo-font@57, which npm hoists to the top
+> level; `expo` itself keeps its own nested copy at the pinned 55.0.8, **so the
+> native module the SDK links is the right one** and 57 is only a JS consumer of
+> the API. This exact arrangement was in the tree for build 3, which built and
+> shipped, **so it is proven rather than assumed**."
+
+Both halves are wrong.
+
+1. **"the native module the SDK links is the right one" is backwards.**
+   Autolinking takes the hoisted copy, not the nested one. One command would
+   have shown that; I reasoned instead.
+2. **"built and shipped, so it is proven"** conflates *built* with *ran* — the
+   same error as D-062 rule 2, committed in the very file meant to catch
+   dependency problems.
+
+A check with an exemption written from a guess is worse than no check: it
+converts an open question into a settled one, and it did that for four days
+across two native builds.
+
+### The fixes
+
+**Native (needs build 6):** an `overrides` entry pinning `expo-font` to
+`55.0.8`. Verified locally: one copy installed, and autolinking now reports
+`packageVersion: "55.0.8"`.
+
+**JS (ships over the air, today):** `src/components/Icon.tsx` reaches Ionicons
+through a guarded require and falls back to text glyphs when the font module is
+absent. Deliberately self-healing — the moment a binary has a working
+`ExpoFontLoader`, the require succeeds and real icons return with no follow-up
+change to make or remember. Tested in Node against both binary states.
+
+**The guard:** `check-expo-pins.js` now fails on any package that autolinks a
+native module and is installed at more than one version. The old allowance list
+is empty and the comment explains why it must stay that way. Verified by
+running the check against build 5's actual shipped `package-lock.json`, where it
+fails naming `expo-font 55.0.8 and 57.0.1`, and against the fixed tree, where it
+passes.
+
+### The rules
+
+- **Duplication, not drift, is the native hazard.** A pin check compares the top
+  level against a pin. It cannot see the same package present twice at different
+  majors, which is the arrangement that actually breaks a binary.
+- **An exemption needs a device, not an argument.** "It built" is not evidence
+  that it runs. Before writing another entry in `ALLOWED`, name the device.

@@ -27,6 +27,25 @@ never gets far enough to apply one (D-067). Build 5 embeds js r26.
 launch**, so this is *built*, not shipped (D-062 rule 2), and build 5 is
 deliberately absent from `LIVE_BUILDS` until a device has run it.
 
+### js r28 — v1.0.0 (build 5) — 2026-08-31
+
+**The launch crash, found and worked around.** r27's diagnostic reported it on
+the first launch: `Cannot find native module 'ExpoFontLoader'` (D-072).
+
+- `@expo/vector-icons` pulls in `expo-font`, and npm hoisted **57.0.1** to the
+  top level while `expo` pins 55.0.8 nested. Autolinking compiles the hoisted
+  copy, so builds 4 and 5 carried expo-font 57's native code built against
+  expo-modules-core 55. It never registered, and the throw happened during
+  module evaluation — before any screen could render
+- **Icons now degrade instead of crashing.** `Icon.tsx` reaches Ionicons through
+  a guarded require and falls back to text glyphs. Self-healing: real icons
+  return by themselves once a binary has a working font module, with nothing to
+  revert
+- `overrides` pins expo-font to 55.0.8 — the real fix, and it **needs build 6**
+- `check-expo-pins.js` now fails on any autolinked native package installed at
+  two versions, and its allowance list is empty. That list is what hid this:
+  it claimed the SDK linked the nested copy, which is backwards
+
 ### js r27 — v1.0.0 (build 5) — 2026-08-31 — DIAGNOSTIC
 
 **Not a feature release.** Build 5 crashes on launch exactly as build 4 did, so

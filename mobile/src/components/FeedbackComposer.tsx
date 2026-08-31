@@ -13,7 +13,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from './Icon';
 import * as FileSystem from 'expo-file-system/legacy';
 import { styled, useTheme } from '../lib/theme';
 import type { Receipt } from '../lib/db';
@@ -157,7 +157,7 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
     on: boolean; onToggle: () => void; label: string; detail: string;
   }) => (
     <Pressable style={s.check} onPress={onToggle} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
-      <Ionicons
+      <Icon
         name={on ? 'checkbox' : 'square-outline'}
         size={22}
         color={on ? T.accent : T.muted2}

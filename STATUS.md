@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r26 — STILL CRASHING** | Tyler installed build 5 from TestFlight on 2026-08-31 and it crashes on launch, exactly as build 4 did. **This falsifies D-062 and D-067.** Build 5 embeds js r26, which contains no `GestureHandlerRootView` import and no Reanimated at all, so the cause is something both build 4 and build 5 share and build 3 does not. Diagnosis is open; do not act on the old theory. |
+| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r28** | **Crash found (D-072): `expo-font` 57.0.1 was autolinked against expo-modules-core 55, so `ExpoFontLoader` never registered.** r28 works around it over the air — icons fall back to text glyphs — so build 5 should now launch. The real fix is an `overrides` pin on expo-font and **needs build 6**; icons return by themselves when it lands. |
 
 ---
 

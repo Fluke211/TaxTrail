@@ -7,7 +7,7 @@
 // could find it.
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '../components/Icon';
 import { styled, useTheme } from '../lib/theme';
 import type { Receipt } from '../lib/db';
 import { isBusiness, allocationsOf } from '../lib/rows';
@@ -232,7 +232,7 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
                 wrong guess loses images. Tyler asked for these. */}
             <Pressable onPress={() => showHelp(key)} hitSlop={8} style={s.infoBtn}
               accessibilityLabel={`What is ${label}?`}>
-              <Ionicons name="information-circle-outline" size={20} color={T.muted} />
+              <Icon name="information-circle-outline" size={20} color={T.muted} />
             </Pressable>
           </View>
         ))}

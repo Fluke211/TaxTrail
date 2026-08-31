@@ -2,7 +2,7 @@
 // fewer native deps = safer single EAS build).
 import React, { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from './src/components/Icon';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { styled, useTheme } from './src/lib/theme';
@@ -106,7 +106,7 @@ function Root() {
           const active = tab === key;
           return (
             <Pressable key={key} style={s.tabBtn} onPress={() => { setTab(key); if (key !== 'capture') refresh(); }}>
-              <Ionicons
+              <Icon
                 name={active ? icon : (`${icon}-outline` as const)}
                 size={23}
                 color={active ? T.accent : T.muted2}
