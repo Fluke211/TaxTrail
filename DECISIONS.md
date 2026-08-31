@@ -3087,3 +3087,117 @@ pick — should go in the same build, because this is the one that has to happen
 embedded bundle is the binary's floor and only a build can raise it. Any time a
 crash is fixed over the air, the fix is a stopgap and the build is the repair —
 say so at the time, because "fixed" reads as finished.
+
+---
+
+## D-068
+
+**Moving trucks are Schedule C line 20a, and the line is drawn by purpose, not
+by wheels** (2026-08-31)
+
+### The question
+
+U-Haul, Penske and Ryder had been open since 2026-08-29 as "a vehicle rental by
+the letter of 20a but a travel cost in practice", and were left alone rather
+than moved on a coin flip.
+
+### What the research says
+
+The Schedule C instructions for line 20a are the whole answer, and they are not
+ambiguous: *"If you rented or leased vehicles, machinery, or equipment, enter on
+line 20a the business portion of your rental cost."* Line 24a is scoped to
+travel **away from home**, and Pub. 463's travel chapter is about trips, not
+about hiring a vehicle to do a job.
+
+So the distinction is **what the rental is for**, not what it has wheels on:
+
+- Hire a car while away from home on business → **24a Travel**. Hertz, Avis and
+  Enterprise stay exactly where they are.
+- Hire a vehicle to move inventory, equipment or materials → **20a**. A box
+  truck across town is not an overnight trip.
+
+Both rules come from the same principle, which is why this is not a coin flip
+and why the two merchant sets belong on different lines.
+
+### It was not "left where it lands" — it was being misfiled
+
+Checked rather than assumed, by reverting the change and re-running:
+
+- `U-HAUL … ENV COVERAGE` → **Insurance (line 15)**, on the word "coverage"
+- `PENSKE … 26FT BOX` → **Office Supplies**, on "box"
+- Ryder and Budget Truck → Uncategorized
+
+The roadmap recorded this as a tolerable ambiguity. It was actually two silent
+wrong answers on a tax line, which is worse than Uncategorized in every way.
+
+### Every brand keyword is scoped, because every brand has a sibling
+
+The first version used the bare brands and a code review caught what that
+breaks. Each of these is a real business that would be misfiled:
+
+| Bare keyword | What it would also catch | Correct line |
+|---|---|---|
+| `u-haul` | U-Haul **self-storage**, one of the largest US operators | 20b Rent & Lease |
+| `penske` | Penske **Automotive Group** dealerships | 9 Car & Truck |
+| `ryder` | Ryder fleet management and logistics | varies |
+| `budget` | Budget **Rent A Car** | 24a Travel |
+
+A merchant-name hit carries 3x weight, so a bare `u-haul` outscores
+`self storage` and moves a recurring storage bill onto the wrong line. All four
+are now scoped to the rental arm (`u-haul truck`, `u-haul moving`,
+`penske truck`, `ryder truck`, `budget truck`), with the generic operational
+terms (`moving truck`, `box truck`, `cargo van rental`) carrying the rest.
+
+The price is that a receipt whose OCR yields only "U-HAUL" lands Uncategorized.
+That is the right trade: the app asking is a known state, and filing a storage
+unit as equipment rental is a wrong answer delivered silently.
+
+### The rule worth keeping
+
+**A brand is not a category.** Large brands run several businesses on different
+Schedule C lines, so a keyword that is a company name needs the arm attached.
+The test file now pins the sibling case for each one.
+
+---
+
+## D-069
+
+**Capture screen: the rectangle is the button, and the meter is free-tier only**
+(2026-08-31)
+
+Tyler picked concept A with concept C's recent list, from the four mockups
+delivered 2026-08-30.
+
+- **One big dashed target, no second button.** The old screen had a tappable
+  hero *and* a "Scan Receipt" button doing the same thing, which made the large
+  one read as decoration. The rectangle is now the only scan control.
+- **A free-scan meter, for the free tier only.** `freeScanMeter()` in
+  `gates.js` returns `null` for Pro, deliberately rather than as an edge case —
+  a paying user has nothing to count and "3 of ∞" is a worse screen.
+- **The bar fills as the month is spent.** The first version filled it with the
+  fraction *remaining*, which made the exhausted bar 0% wide — the one state
+  the warning colour existed for was the one state it could not render.
+- **`exhausted` delegates to `isOverFreeLimit`** rather than restating the
+  boundary. Two copies of "when does the free tier end" is how a screen comes to
+  say "1 left" while the paywall fires.
+- **Recents sort by `createdAt`, not `date`.** `allReceipts()` orders by the
+  user-editable date field, so a receipt scanned now but dated last June sorts
+  to the bottom and never appears — which reads as a failed save.
+- Tapping a recent row **opens that receipt**, rather than dropping the user on
+  an unscrolled list.
+
+### GPS mileage: not now, but the room stays
+
+Tyler's call, and the reasoning is his: a GPS trip tracker "seems like a
+different app", though the TaxTrail name does lend itself to it eventually and
+the export machinery is the obvious dovetail.
+
+**So `expo-location` stays in build 5.** This is the one place D-066's
+"unjustified permission" finding is answered by keeping the module rather than
+dropping it: the whole value of leaving it compiled in is that mileage can then
+ship over the air, with no build, whenever it is wanted. That is a deliberate
+trade of one unused permission string for future optionality, made with the
+cost known.
+
+`expo-local-authentication` (Face ID) and `expo-camera` are **not** covered by
+that reasoning and remain open under D-066.

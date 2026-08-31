@@ -1,17 +1,18 @@
 // Capture flow: hero → camera/library → OCR → review form with the photo pinned
 // at the top (scan controls hidden until Save or Discard — same UX as PWA v5.5).
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable,
   ScrollView, Text, TextInput, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styled, useTheme } from '../lib/theme';
-import { addReceipt, countAll, countThisMonth, type Allocation } from '../lib/db';
+import { addReceipt, countAll, countThisMonth, type Allocation, type Receipt } from '../lib/db';
 import { processReceiptPages } from '../lib/ocr';
 import { memLookup, memLearn, taxMemLookup, taxMemLearn } from '../lib/memory';
 import { isPro, presentPaywall } from '../lib/purchases';
@@ -48,7 +49,15 @@ interface Pending {
   parsedSnapshot: string;
 }
 
-export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
+export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProChanged }: {
+  onSaved: () => void;
+  /** Opens the Receipts tab. With an id, that receipt's detail opens too. */
+  onSeeAll: (highlightId?: number) => void;
+  receipts: Receipt[];
+  pro: boolean;
+  /** Called after a paywall purchase so the meter stops showing the free tier. */
+  onProChanged: () => void;
+}) {
   const T = useTheme();
   const s = makeStyles(T);
   const [busy, setBusy] = useState(false);
@@ -63,14 +72,49 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
   const [showSplits, setShowSplits] = useState(false);
   const [showSplitCats, setShowSplitCats] = useState(false);
 
+  // Scans used this calendar month, for the free-tier meter. Recomputed
+  // whenever the receipt list changes, which is what a save does.
+  const [scansThisMonth, setScansThisMonth] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    countThisMonth().then((n) => { if (alive) setScansThisMonth(n); }).catch(() => {});
+    return () => { alive = false; };
+  }, [receipts.length]);
+
+  // null for Pro, and that is deliberate — the meter is a free-tier thing.
+  // Held back until the count arrives so the bar cannot flash a wrong width.
+  const meter = useMemo(
+    () => (scansThisMonth === null
+      ? null
+      : G.freeScanMeter({ isPro: pro, scansThisMonth, limit: FREE_SCANS_PER_MONTH })),
+    [pro, scansThisMonth],
+  );
+
+  // Sorted by createdAt, NOT by the list's own order. allReceipts() orders by
+  // `date`, which is a field the user can type into — so a receipt scanned just
+  // now but dated last June sorts to the bottom and never shows up here, which
+  // reads as a failed save. "Recent" means recently scanned.
+  const recents = useMemo(
+    () => receipts.slice()
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : (b.id ?? 0) - (a.id ?? 0)))
+      .slice(0, 4),
+    [receipts],
+  );
+
   const startScan = useCallback(async (fromLibrary: boolean) => {
     // Free-tier gate before the camera opens. The decision itself lives in
     // gates.js so the boundary is unit-tested rather than only reachable by
     // scanning eleven receipts on a phone.
-    const pro = await isPro();
-    if (G.isOverFreeLimit({ isPro: pro, scansThisMonth: await countThisMonth(), limit: FREE_SCANS_PER_MONTH })) {
+    // Re-read Pro live rather than trusting the `pro` prop: the prop is for
+    // display, this decides whether a paywall appears.
+    const proNow = await isPro();
+    if (G.isOverFreeLimit({ isPro: proNow, scansThisMonth: await countThisMonth(), limit: FREE_SCANS_PER_MONTH })) {
       const unlocked = await presentPaywall();
       if (!unlocked) return;
+      // Tell App.tsx to re-read entitlement. Without this the `pro` prop stays
+      // false and a user who just paid keeps looking at a full red meter that
+      // says they have no scans left.
+      onProChanged();
     }
     const perm = fromLibrary
       ? await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -149,7 +193,7 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [onProChanged]);
 
   const discard = useCallback(() => { setPending(null); }, []);
 
@@ -273,17 +317,67 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
     <ScrollView style={s.wrap} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
       {!pending && !busy && (
         <>
-          <Pressable style={s.hero} onPress={() => startScan(false)}>
-            <Text style={s.heroIcon}>📷</Text>
-            <Text style={s.heroTitle}>Scan a receipt</Text>
+          {/* Concept A: the rectangle IS the button. There is no second
+              "Scan Receipt" control below it any more — two buttons doing the
+              same thing made the big one look decorative. */}
+          <Pressable
+            style={({ pressed }) => [s.hero, pressed && s.heroPressed]}
+            onPress={() => startScan(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Scan a receipt with the camera"
+          >
+            <Ionicons name="scan-outline" size={56} color={T.accent} />
+            <Text style={s.heroTitle}>Tap to scan</Text>
             <Text style={s.heroSub}>Read &amp; categorized entirely on your phone — nothing uploaded.</Text>
           </Pressable>
-          <Pressable style={s.primaryBtn} onPress={() => startScan(false)}>
-            <Text style={s.primaryBtnText}>Scan Receipt</Text>
-          </Pressable>
+
+          {/* No accessibilityLabel on the container: the Text below IS the
+              label, and a second one there read a different sentence in the
+              exhausted state than the screen actually showed. */}
+          {meter && (
+            <View style={s.meter}>
+              <View style={s.meterTrack}>
+                <View
+                  style={[
+                    s.meterFill,
+                    { width: `${Math.round(meter.fill * 100)}%` },
+                    meter.exhausted && { backgroundColor: T.danger },
+                  ]}
+                />
+              </View>
+              <Text style={[s.meterText, meter.exhausted && { color: T.danger }]}>
+                {meter.exhausted ? 'No free scans left this month — Pro is unlimited' : meter.label}
+              </Text>
+            </View>
+          )}
+
           <Pressable style={s.linkBtn} onPress={() => startScan(true)}>
             <Text style={s.linkBtnText}>Choose from photo library</Text>
           </Pressable>
+
+          {recents.length > 0 && (
+            <View style={s.recents}>
+              <View style={s.recentsHead}>
+                <Text style={s.recentsTitle}>Recent</Text>
+                <Pressable onPress={() => onSeeAll()} hitSlop={8}>
+                  <Text style={s.recentsAll}>See all</Text>
+                </Pressable>
+              </View>
+              {recents.map((r) => (
+                <Pressable key={r.id} style={s.recentRow} onPress={() => onSeeAll(r.id)}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.recentMerchant} numberOfLines={1}>
+                      {r.merchant || 'Unnamed receipt'}
+                    </Text>
+                    <Text style={s.recentMeta} numberOfLines={1}>
+                      {r.date} · {r.category}
+                    </Text>
+                  </View>
+                  <Text style={s.recentAmt}>${r.total.toFixed(2)}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
           <View style={s.privacy}>
             <Text style={s.privacyText}>
               <Text style={{ color: T.text, fontWeight: '600' }}>Your data never leaves this device. </Text>
@@ -438,16 +532,46 @@ export default function CaptureScreen({ onSaved }: { onSaved: () => void }) {
 
 const makeStyles = styled((T) => ({
   wrap: { flex: 1, paddingHorizontal: 16 },
+  // The dashed border is doing real work: it reads as "put something here"
+  // rather than as a card that happens to be tappable.
   hero: {
-    marginTop: 14, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
-    borderRadius: T.radiusLg, alignItems: 'center', paddingVertical: 44, paddingHorizontal: 24,
+    marginTop: 14, backgroundColor: T.card, borderColor: T.accent, borderWidth: 2,
+    borderStyle: 'dashed', borderRadius: T.radiusLg, alignItems: 'center',
+    paddingVertical: 56, paddingHorizontal: 24, gap: 10,
   },
-  heroIcon: { fontSize: 40, marginBottom: 10 },
-  heroTitle: { color: T.text, fontSize: 19, fontWeight: '700' },
-  heroSub: { color: T.muted, fontSize: 13, marginTop: 5, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
+  heroPressed: { opacity: 0.7 },
+  heroTitle: { color: T.text, fontSize: 22, fontWeight: '700' },
+  heroSub: { color: T.muted, fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
+
+  meter: { marginTop: 12, gap: 6 },
+  meterTrack: { height: 4, borderRadius: 2, backgroundColor: T.line, overflow: 'hidden' },
+  meterFill: { height: 4, borderRadius: 2, backgroundColor: T.accent },
+  meterText: { color: T.muted, fontSize: 12, textAlign: 'center' },
+
+  recents: {
+    marginTop: 16, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
+    borderRadius: T.radius, paddingHorizontal: 14, paddingVertical: 4,
+  },
+  recentsHead: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 10, paddingBottom: 6,
+  },
+  recentsTitle: { color: T.muted, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
+  recentsAll: { color: T.accent, fontSize: 12.5, fontWeight: '600' },
+  recentRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 9, borderTopColor: T.line, borderTopWidth: 1,
+  },
+  recentMerchant: { color: T.text, fontSize: 14, fontWeight: '600' },
+  recentMeta: { color: T.muted, fontSize: 11.5, marginTop: 2 },
+  recentAmt: { color: T.text, fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
+
+  // Still used by "Save Receipt" in the review form. The capture hero no
+  // longer uses it — there the rectangle is the button.
   primaryBtn: {
     marginTop: 14, backgroundColor: T.accent, borderRadius: 12, paddingVertical: 16,
-    alignItems: 'center', shadowColor: T.accent, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
+    alignItems: 'center', shadowColor: T.accent, shadowOpacity: 0.4, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
   },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   linkBtn: { paddingVertical: 12, alignItems: 'center' },

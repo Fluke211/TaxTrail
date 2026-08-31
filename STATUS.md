@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r25** | r25 is **live on `production`** (published 2026-08-30, verified at the head of the branch). That fixes the installs that already exist — **not the next one**: build 4 embeds js r22, which crashes, so a fresh install still crashes on first launch until build 5 (D-067). Footer should read `(build 4) · js r25` after two launches |
+| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r25 live; r26 waiting on build 5** | **Tyler confirmed 2026-08-31 that it still crashes.** That is consistent with D-067 and not a new fault: build 4 embeds js r22, which aborts, and the recovery pipeline has five seconds to fetch a 5MB bundle before it gives up. r25 is live on `production` and cannot reach a binary that never gets that far. **Only build 5 fixes this.** |
 
 ---
 
@@ -37,6 +37,21 @@ Cleared in the earlier overnight session:
 **Shipped as js r17.** Everything above is JS-only and went out over the air;
 no native build was needed. The Summary footer should read
 `TaxTrail v1.0.0 (build 3) · js r17` once the app has restarted twice.
+
+### Build 5 is the whole critical path — it needs one word from Tyler
+
+The app on his phone does not open, and no amount of OTA work changes that
+(D-067). Build 5 is ready to cut:
+
+- Preflight passes; Apple holds builds 2-4, so `buildNumber` goes to **5**
+- Its embedded bundle would be **js r26**, which bundles clean at 752 modules
+  (the broken r22 was 1178)
+- It carries the capture redesign (D-069) and the line 20a truck fix (D-068)
+
+**One decision is still open and has to be settled before the build**, because
+it is baked into the binary: `expo-local-authentication` (Face ID) and
+`expo-camera` are compiled in with no feature behind them (D-066). Location is
+now settled — it **stays**, so GPS mileage can ship over the air later (D-069).
 
 ### Do not submit to the App Store before this is answered
 
