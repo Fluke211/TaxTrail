@@ -2,7 +2,7 @@
 // APP_VERSION/BUILD change only with a native build; JS_REVISION bumps with
 // every OTA (EAS Update) push so Tyler can verify which JS he's running.
 export const APP_VERSION = '1.0.0';
-export const APP_BUILD = 5;
+export const APP_BUILD = 6;
 export const JS_REVISION = 28;
 
 export function versionStamp(): string {
