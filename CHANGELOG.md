@@ -11,6 +11,17 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### v1.0.0 (build 5) — 2026-08-31
+
+**The build that makes the app launch again.** Build 4's embedded bundle was
+js r22, which aborts on evaluation, and an OTA cannot rescue a binary that
+never gets far enough to apply one (D-067). Build 5 embeds js r26.
+
+- `expo-camera` removed — its camera permission was already earned by
+  expo-image-picker and the document scanner, so it bought nothing (D-069)
+- `expo-local-authentication` and `expo-location` deliberately kept, so a Face
+  ID app lock and GPS mileage can ship over the air later with no build
+
 ### js r26 — v1.0.0 (build 5) — 2026-08-31
 
 **Not published to `production`.** It ships embedded in build 5 and goes out

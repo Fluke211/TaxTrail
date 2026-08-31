@@ -66,17 +66,21 @@ const PERMISSION_PLUGINS = {
  * are a standing to-do: D-066 is the decision, and whichever way it goes this
  * list gets shorter, never longer.
  *
- *   expo-local-authentication  no app lock exists
- *   expo-location              no mileage log exists
- *   expo-camera                the camera permission IS justified — by
- *                              expo-image-picker and the document scanner —
- *                              so this one is dead native weight rather than
- *                              an unexplained prompt. Still goes in build 5.
+ * Both entries are Tyler's deliberate call (D-069), not an oversight: keeping
+ * the modules compiled in is what lets an app lock and GPS mileage ship over
+ * the air later, with no build and no credit. The cost is a purpose string in
+ * the binary until then, paid knowingly.
+ *
+ *   expo-local-authentication  no app lock YET — kept so one can ship OTA
+ *   expo-location              no mileage log YET — same reason
+ *
+ * expo-camera was the third entry and is gone: its permission was already
+ * justified by expo-image-picker and the document scanner, so it was dead
+ * native weight rather than optionality. Removed in build 5.
  */
 const BASELINE = [
   'expo-local-authentication',
   'expo-location',
-  'expo-camera',
 ];
 
 /** Every .ts/.tsx/.js the app can actually reach at runtime. */
@@ -129,7 +133,7 @@ const fresh = unused.filter((n) => BASELINE.indexOf(n) === -1);
 const held = unused.filter((n) => BASELINE.indexOf(n) !== -1);
 
 for (const name of held) {
-  console.log(`  known ${name.padEnd(38)} baselined — asks for ${PERMISSION_PLUGINS[name]} (D-066)`);
+  console.log(`  known ${name.padEnd(38)} kept for a future OTA feature — asks for ${PERMISSION_PLUGINS[name]} (D-069)`);
 }
 
 /* A baseline entry that got fixed should leave the list, or it stops meaning
@@ -141,8 +145,8 @@ if (stale.length) {
 
 if (!fresh.length) {
   console.log(held.length
-    ? `\nNo new unjustified permissions. ${held.length} baselined and shipped in build 4;`
-      + ' D-066 decides whether they leave the binary or earn their keep.'
+    ? `\nNo new unjustified permissions. ${held.length} kept on purpose (D-069) so an`
+      + ' app lock and GPS mileage can ship over the air without a build.'
     : '\nEvery permission this app asks for has code behind it.');
   process.exit(0);
 }
