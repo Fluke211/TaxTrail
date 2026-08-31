@@ -3458,7 +3458,37 @@ message: Unknown error. See logs of the Install pods build phase for more inform
 Everything before it passed: expo-doctor, prebuild, credentials, and the
 build-number guard. It failed at CocoaPods.
 
-### Why the pin is the suspect
+### RESOLVED 2026-08-31: it was the CocoaPods CDN, not the pin
+
+Tyler pasted the Install pods log. The last lines before the failure:
+
+```
+Adding spec repo `trunk` with CDN `https://cdn.cocoapods.org/`
+[!] CDN: trunk URL couldn't be downloaded:
+    https://cdn.jsdelivr.net/cocoa/Specs/6/a/1/PurchasesHybridCommonUI/13.5.0/PurchasesHybridCommonUI.podspec.json
+    Response: 400 400: Bad Request
+pod install exited with non-zero code: 1
+```
+
+**jsDelivr returned a 400 for RevenueCat's podspec.** Infrastructure, not this
+diff. `PurchasesHybridCommonUI` comes from `react-native-purchases-ui`, which
+the change never touched — and pod install had already completed autolinking,
+codegen, and the React Native and Hermes artifact downloads before it reached
+the trunk spec repo. It was far past anything expo-font could affect.
+
+**The suspicion below was wrong. It is left standing rather than deleted,
+because being wrong in a named, checkable way is the point of writing it down.**
+The reasoning was sound as far as it went — the lockfile diff really was two
+lines, and CLAUDE.md really does warn that a version mismatch dies in Install
+pods. But "the only thing I changed is the only candidate" quietly ignores
+everything a build does that I did not change. **A generic error message plus a
+recent change of mine is not a causal link.**
+
+This is also the exact case the babysit rule carves out for a retry: an error
+naming a service the diff does not touch. One retry is the right response — and
+that only became knowable by reading the log instead of reasoning about it.
+
+### Why the pin looked like the suspect (superseded — see above)
 
 The lockfile diff against build 5 — which built, shipped and launched — is
 exactly two lines:
@@ -3485,7 +3515,7 @@ same source files as 57.0.1, and the same registered module names.
 the one host these sessions cannot reach** (CLAUDE.md). So the reason is
 written down in exactly the place the agent debugging it cannot look.
 
-### Decision
+### Decision (made, and carried out)
 
 **No second build until that log has been read.** Retrying on an
 `UNKNOWN_ERROR` is guessing, and guessing is what turned a one-line dependency
@@ -3502,8 +3532,13 @@ EAS records 9 builds this month, 4 ERRORED. Failed builds are not charged
 policy rather than something the CLI asserts, so it is worth a glance at the
 billing page rather than an assumption.
 
-### The rule
+### The rules
 
-**When the only copy of an error is somewhere you cannot read, stop and get it.**
-The alternative is a retry loop that spends credits to re-observe a message
-nobody has looked at.
+- **When the only copy of an error is somewhere you cannot read, stop and get
+  it.** The alternative is a retry loop that spends credits to re-observe a
+  message nobody has looked at. This worked: one paste ended a question two
+  builds could not have.
+- **Your own recent change is not evidence.** It is the first thing to check
+  and the easiest thing to over-weight. Suspecting it is fine; concluding it
+  without reading the error is how D-062 happened, and this came close to
+  repeating it.

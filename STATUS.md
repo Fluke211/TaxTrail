@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r28 — working; build 6 FAILED** | Build 5 launches on r28 and Tyler is using it. **Build 6 errored in `Install pods`** (`3625d12d`, UNKNOWN_ERROR) — the expo-font `overrides` pin is the only delta from build 5, which built fine, so the pin is the prime suspect. The pod error is only readable on expo.dev, which these sessions cannot reach. **Do not dispatch another build until that log has been read.** |
+| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r28 — working; build 6 retrying** | Build 5 launches on r28 and is in use. Build 6's first attempt failed in `Install pods` on a **CocoaPods CDN 400** for RevenueCat's podspec (D-073) — infrastructure, not the diff; the expo-font pin was wrongly suspected and is cleared. Retried 2026-08-31 with Tyler's go. |
 
 ---
 
