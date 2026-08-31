@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r26 — BUILT, not yet observed to launch** | Build 5 compiled and submitted to TestFlight 2026-08-31 (EAS build `eb6ad3c5`, real `.ipa`). It embeds js r26, and r26 is also at the head of `production` so the channel and the binary agree. **Tyler has not yet confirmed it opens** — until he does this says *built*, not shipped (D-062 rule 2), and build 5 is deliberately absent from `LIVE_BUILDS`. |
+| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r26 — STILL CRASHING** | Tyler installed build 5 from TestFlight on 2026-08-31 and it crashes on launch, exactly as build 4 did. **This falsifies D-062 and D-067.** Build 5 embeds js r26, which contains no `GestureHandlerRootView` import and no Reanimated at all, so the cause is something both build 4 and build 5 share and build 3 does not. Diagnosis is open; do not act on the old theory. |
 
 ---
 

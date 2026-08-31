@@ -3218,6 +3218,59 @@ run rather than calling them a baseline to be paid down.
 
 ---
 
+## D-070
+
+**Build 5 crashes too, which falsifies the build 4 diagnosis** (2026-08-31)
+
+### What happened
+
+Build 5 was cut specifically to fix the launch crash, on the reasoning in D-067:
+build 4 embedded js r22, r22 aborted on evaluation, and an OTA could not rescue
+a binary that never got far enough to apply one. Build 5 embeds js r26 instead.
+
+Tyler installed it. **It crashes exactly the same way.**
+
+### What that rules out
+
+- **Not the embedded bundle.** r26 was exported and inspected here: it bundles
+  clean at 752 modules, and a dev-mode export grepped for
+  `NativeReanimated`, `react-native-reanimated`, `react-native-worklets`,
+  `WorkletsModule`, `createSerializable` and `installValueUnpacker` returns
+  **zero matches for all six**. The JS carries no Reanimated at all.
+- **Not the `GestureHandlerRootView` import** (D-062's stated cause). It has not
+  existed in `main` since r23, and build 5 was compiled from a tree without it.
+- **Not a version mismatch.** `react-native-reanimated` 4.2.1,
+  `react-native-worklets` 0.7.4 and `react-native-gesture-handler` 2.30.1 all
+  match what Expo SDK 55's `bundledNativeModules.json` expects.
+- **Not the OTA.** r26 was published from commit `f49d6a6` — the same commit
+  build 5 was compiled from — so the embedded bundle and the channel head are
+  byte-identical JS.
+
+### Where that leaves it
+
+The cause is something **build 4 and build 5 share and build 3 does not**. The
+delta is four native modules added in build 4: `react-native-gesture-handler`,
+`react-native-reanimated`, `react-native-worklets` and `expo-mail-composer`.
+Three of those are still compiled into build 5 with nothing in the JS using
+them — Reanimated 4 and Worklets do native-side JSI installation at launch
+regardless of whether any JS imports them.
+
+That is a hypothesis, not a finding, and it is not to be acted on until a crash
+log says so. **The crash log is the only thing that has ever been conclusive
+here** (D-062), and the mistake being repeated is reasoning from a bundle that
+looks correct to a device that has not run it.
+
+### The mistake worth naming
+
+D-062 read a crash log correctly — a JS fatal during evaluation — and then
+attributed it to the one JS change that looked guilty. The fix was shipped as
+r23, r24 and r25, and **no device ever confirmed any of them**, because build 4
+could not get far enough to apply an update. Three revisions were called fixes
+on the strength of a smaller bundle and green unit tests.
+
+**A cause is not established by removing something and watching the tests pass.
+It is established by a device running the result.** D-062 rule 2 says exactly
+this about builds; it applies just as hard to a diagnosis.
 ## D-071
 
 **Make the app report the error instead of aborting** (2026-08-31)
