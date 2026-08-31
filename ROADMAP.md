@@ -127,16 +127,17 @@ what blocks what, not by size.
 
 - [x] **Cut build 4 before submitting** — done 2026-08-30, and it then crashed
       on launch (D-062), which turned this item into the one below
-- [ ] **Cut build 5 before submitting — build 4's embedded bundle does not
-      launch** (D-067). The mechanism is the same one written here for build 3:
-      a brand-new install runs the *embedded* bundle, and only picks up the OTA
-      on the second launch — `launchWaitMs` defaults to 0. For build 3 that
-      meant an old parser and was a shrug. Build 4 embeds js r22, the bundle
-      that crashes, so **every fresh install crashes on first launch**,
-      including every new TestFlight tester and the review device. Not
-      optional. **Costs one EAS build credit and needs Tyler's explicit go**
-      (CLAUDE.md); preflight is free and comes first
-
+- [x] **Build 5 cut** (2026-08-31) — and it crashed too, which falsified the
+      whole build-4 diagnosis (D-070). The real cause was found only after the
+      app was made to report its own startup error (D-071): `expo-font` 57.0.1
+      was autolinked against expo-modules-core 55, so `ExpoFontLoader` never
+      registered (D-072)
+- [ ] **Cut build 6 before submitting.** js r28 works around the crash over the
+      air by letting icons fall back to text glyphs, so build 5 launches — but
+      the actual fix is the `overrides` pin on expo-font, and a native module
+      can only be corrected by a build. Real icons return by themselves once it
+      lands; nothing to revert. **Costs one EAS build credit and needs Tyler's
+      explicit go** (CLAUDE.md); preflight is free and comes first
 - [ ] Screenshots — **screenshot 2 is the privacy-label comparison** against
       Keeper / QuickBooks / Wave; that contrast is the entire pitch
 - [ ] App Privacy questionnaire answers (drafted in `docs/APP_STORE_LISTING.md`)
