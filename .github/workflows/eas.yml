@@ -28,6 +28,7 @@ on:
           - asc-check
           - asc-bundle-id
           - asc-iap
+          - asc-builds
           - submit
       update_message:
         description: 'Message for the EAS Update (used by step: update)'
@@ -515,6 +516,95 @@ jobs:
       # complete, so "the paywall shows nothing" is usually a product-state
       # problem rather than a code problem — and the two look identical from
       # inside the app. Read-only and free.
+      # Did the binary we submitted actually finish processing, and can it be
+      # installed?
+      #
+      # `eas submit` reports that Apple ACCEPTED the upload, which is not the
+      # same thing. Apple then processes it, and processing can fail — invalid
+      # entitlements, a missing icon, a bad Info.plist — long after the submit
+      # step went green. Until this step existed the project had no way to ask,
+      # so the answer arrived as an email Tyler might miss, or as an app that
+      # never appeared in TestFlight. That is the same shape as the build 4
+      # crash: nothing found it but the person holding the phone (D-062).
+      #
+      # Read-only and free.
+      - name: Apple API — build processing state
+        if: inputs.step == 'asc-builds'
+        env:
+          ASC_APP_ID: "6797163508"
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_ASC_API_KEY_PATH:-}" ]; then
+            echo "::error::No Apple API key. Needs ASC_API_KEY_P8, ASC_KEY_ID and ASC_ISSUER_ID."
+            exit 1
+          fi
+          pip install --quiet "pyjwt[crypto]" >/dev/null
+          python3 - <<'PYEOF'
+          import json, os, time, urllib.request, urllib.error, jwt
+
+          KEY  = open(os.environ["EXPO_ASC_API_KEY_PATH"]).read()
+          KID  = os.environ["EXPO_ASC_KEY_ID"]
+          ISS  = os.environ["EXPO_ASC_ISSUER_ID"]
+          APP  = os.environ["ASC_APP_ID"]
+          BASE = "https://api.appstoreconnect.apple.com"
+
+          now = int(time.time())
+          token = jwt.encode(
+              {"iss": ISS, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+              KEY, algorithm="ES256", headers={"kid": KID, "typ": "JWT"})
+
+          def get(path):
+              req = urllib.request.Request(
+                  BASE + path, headers={"Authorization": f"Bearer {token}"})
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as r:
+                      return r.status, json.loads(r.read() or b"{}")
+              except urllib.error.HTTPError as e:
+                  raw = e.read()
+                  try: return e.code, json.loads(raw or b"{}")
+                  except Exception: return e.code, {"raw": raw[:300].decode("utf-8", "replace")}
+
+          code, data = get(f"/v1/builds?filter[app]={APP}&limit=10&sort=-version")
+          print(f"builds  HTTP {code}")
+          if code != 200:
+              print("::error::Could not read builds from App Store Connect.")
+              raise SystemExit(1)
+
+          rows = data.get("data", [])
+          if not rows:
+              print("No builds on App Store Connect for this app yet.")
+              raise SystemExit(0)
+
+          print("\n=== builds, newest first ===")
+          stuck = []
+          for b in rows:
+              at = b.get("attributes", {})
+              ver   = at.get("version")
+              state = at.get("processingState")
+              expired = at.get("expired")
+              uploaded = str(at.get("uploadedDate"))[:19]
+              note = ""
+              if state == "VALID" and not expired:
+                  note = "installable"
+              elif state == "PROCESSING":
+                  note = "still processing — not installable yet"
+                  stuck.append(ver)
+              elif state in ("FAILED", "INVALID"):
+                  note = "*** FAILED PROCESSING — this build can never be installed ***"
+                  stuck.append(ver)
+              elif expired:
+                  note = "expired"
+              print(f"  build {str(ver):<4} {str(state):<12} uploaded {uploaded}  {note}")
+
+          bad = [b for b in rows
+                 if b.get("attributes", {}).get("processingState") in ("FAILED", "INVALID")]
+          if bad:
+              print("\n::error::A build failed Apple's processing. It will never appear in "
+                    "TestFlight; the fix is a new build, not a resubmit of this one.")
+              raise SystemExit(1)
+          print("\nNo build has failed processing.")
+          PYEOF
+
       - name: Apple API — in-app purchase state
         if: inputs.step == 'asc-iap'
         run: |
