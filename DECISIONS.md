@@ -3327,9 +3327,20 @@ because a handler that throws while reporting a throw is worse than no handler.
 
 ### This is temporary
 
-It comes out the moment the fault is known. It is on `main` rather than a
-rescue branch because `main`'s JS currently does not launch at all, so a build
-that can describe its own failure is strictly the better state.
+It is on `main` rather than a rescue branch because `main`'s JS currently does
+not launch at all, so a build that can describe its own failure is strictly the
+better state.
+
+**Exit condition, corrected 2026-08-31 (D-072):** this originally said "it comes
+out the moment the fault is known". That is too early, and read literally it
+would have stripped the net the same day it earned its keep. The fault is now
+known — expo-font at the wrong major — but the *fix* for it is an `overrides`
+pin that needs **build 6**, and build 6 is a native change that could surprise
+us exactly as builds 4 and 5 did.
+
+So: **the net comes out once build 6 has been observed to launch on a device**,
+not before. Removing it earlier trades the only instrument we have against a
+class of failure that has now happened twice.
 
 ### The rule
 
