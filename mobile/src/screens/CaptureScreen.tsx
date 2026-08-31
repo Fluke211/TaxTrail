@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Icon from '../components/Icon';
 import * as Clipboard from 'expo-clipboard';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -326,7 +326,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
             accessibilityRole="button"
             accessibilityLabel="Scan a receipt with the camera"
           >
-            <Ionicons name="scan-outline" size={56} color={T.accent} />
+            <Icon name="scan-outline" size={56} color={T.accent} />
             <Text style={s.heroTitle}>Tap to scan</Text>
             <Text style={s.heroSub}>Read &amp; categorized entirely on your phone — nothing uploaded.</Text>
           </Pressable>

@@ -45,15 +45,72 @@ function satisfies(installed, range) {
  * A package listed here resolves outside the SDK's pin but has actually
  * shipped in a successful build, so failing on it would block every PR for a
  * condition we have proof is fine. Each entry needs that proof, not a hunch.
+ *
+ * EMPTY, AND THAT IS THE POINT. The one entry this ever held said expo-font
+ * 57.0.1 at top level was fine because "the native module the SDK links is the
+ * right one and 57 is only a JS consumer of the API". That was backwards:
+ * autolinking links the TOP-LEVEL copy, so builds 4 and 5 compiled expo-font 57
+ * against expo-modules-core 55, ExpoFontLoader never registered, and the app
+ * died on launch for four days (D-072).
+ *
+ * The entry also justified itself with "shipped in build 3, which built and
+ * shipped, so it is proven rather than assumed" — conflating *built* with
+ * *ran*. Before adding anything here, say which device ran it.
  */
 const ALLOWED = {
-  // @expo/vector-icons@15 depends on expo-font@57, which npm hoists to the top
-  // level; `expo` itself keeps its own nested copy at the pinned 55.0.8, so the
-  // native module the SDK links is the right one and 57 is only a JS consumer
-  // of the API. This exact arrangement was in the tree for build 3, which built
-  // and shipped, so it is proven rather than assumed.
-  'expo-font': 'nested 55.0.8 for expo itself; top-level 57.0.1 shipped in build 3',
 };
+
+/*
+ * A SECOND check, and the one that would have caught D-072 on day one.
+ *
+ * The pin check above compares the TOP-LEVEL install against the SDK's pin. It
+ * cannot see the real hazard, which is the same native package present TWICE at
+ * different majors — one hoisted to the top by a loose peer range, one nested
+ * under `expo` at the pinned version. Autolinking compiles exactly one of them,
+ * and it takes the hoisted one. So the app links a native module built for a
+ * different SDK, the build succeeds, and the module never registers at runtime.
+ *
+ * That is not a version-drift problem, it is a duplication problem, and nothing
+ * here was looking for duplication.
+ */
+function duplicatedNativePackages() {
+  const lockPath = path.join(ROOT, 'package-lock.json');
+  if (!fs.existsSync(lockPath)) return [];
+  const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+  const byName = new Map();
+  for (const [p, meta] of Object.entries(lock.packages || {})) {
+    if (!p.startsWith('node_modules/') || !meta.version) continue;
+    const name = p.slice(p.lastIndexOf('node_modules/') + 'node_modules/'.length);
+    if (!byName.has(name)) byName.set(name, new Set());
+    byName.get(name).add(meta.version);
+  }
+  const dupes = [];
+  for (const [name, versions] of byName) {
+    if (versions.size < 2) continue;
+    // Only native ones matter: a duplicated pure-JS package is wasteful, not fatal.
+    const autolinks = fs.existsSync(
+      path.join(ROOT, 'node_modules', name, 'expo-module.config.json'));
+    if (autolinks) dupes.push({ name, versions: [...versions].sort() });
+  }
+  return dupes;
+}
+
+const dupes = duplicatedNativePackages();
+if (dupes.length) {
+  console.error('\nA native package is installed at more than one version:\n');
+  for (const d of dupes) {
+    console.error(`  ${d.name}  ${d.versions.join('  and  ')}`);
+  }
+  console.error(`
+Autolinking compiles ONE of these — the hoisted top-level copy — so the binary
+gets a native module built for a different SDK. It links, it builds, and then
+the module is simply absent at runtime. That is D-072, and it cost four days.
+
+Fix it with an "overrides" entry in package.json pinning the package to the
+version this SDK expects, then re-run npm install.
+`);
+  process.exit(1);
+}
 
 const problems = [];
 const checked = [];
