@@ -51,6 +51,9 @@ rather than assumed:
 | Bundle | js r26, 752 modules — the bundle that crashed was 1178 |
 | Channel | r26 published to `production` (group `4c48a54a`), so the channel head and the embedded bundle are the same JS |
 
+**Apple has finished processing it — `step: asc-builds` reads build 5 as
+`VALID` / installable (2026-08-31). It is ready to install now.**
+
 **The one thing left is Tyler installing it from TestFlight and confirming the
 Summary footer reads `v1.0.0 (build 5) · js r26`.**
 
