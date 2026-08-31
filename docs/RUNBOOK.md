@@ -316,6 +316,40 @@ reporting the new build number — the D-039 drift, from the other direction.
 
 ---
 
+## An EAS build that dies in "Install pods"
+
+`eas build:list` reports this as `UNKNOWN_ERROR` with the message *"Unknown
+error. See logs of the Install pods build phase for more information."* That
+message is a category, not a diagnosis — it has had at least two different
+causes here:
+
+| date | real cause | fix |
+|---|---|---|
+| 2026-08-29 | `react-native-worklets` at a version SDK 55 was not built with | pin it; `test:pins` now catches it |
+| 2026-08-31 | **CocoaPods CDN 400** on `PurchasesHybridCommonUI.podspec.json` via jsDelivr | retry, nothing to fix |
+
+So the two look identical from the CLI and need opposite responses: one is a
+dependency bug, the other is somebody else's CDN having a bad minute.
+
+**The phase log is only on expo.dev, which these sessions cannot reach.** There
+is no CLI command that dumps it. So when a build dies here, the fastest route to
+truth is to ask Tyler for the log — the build URL is printed in the workflow
+output, opening it is one tap, and browser paste works fine on his phone.
+
+Read the last few lines before `pod install exited with non-zero code: 1`:
+
+- Names a **pod or spec repo the diff never touched** (a CDN URL, a 4xx/5xx, a
+  timeout) → infrastructure. Retry once.
+- Names a **module the change actually moved** → dependency mismatch. Fix the
+  version; do not retry.
+
+**Do not conclude from "the only thing I changed is the only candidate."** That
+was the reasoning on 2026-08-31 and it was wrong: pod install had already
+finished autolinking, codegen and the RN/Hermes downloads before it reached the
+failure, so the recent change was nowhere near it (D-073).
+
+---
+
 ## "Apple accepted the upload" is not "the build is installable"
 
 `eas submit` finishing green means Apple took the bytes. Processing happens

@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r28 — LAUNCHES** | Confirmed on device 2026-08-31 — the first binary since build 3 to run our JS. It runs because it fetched r28, which works around the `ExpoFontLoader` fault (D-072) by falling back to text glyphs. **Build 5 is still not submittable**: its embedded js r26 crashes, so a fresh install dies on first launch. Build 6 fixes both. |
+| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r28 — working; build 6 retrying** | Build 5 launches on r28 and is in use. Build 6's first attempt failed in `Install pods` on a **CocoaPods CDN 400** for RevenueCat's podspec (D-073) — infrastructure, not the diff; the expo-font pin was wrongly suspected and is cleared. Retried 2026-08-31 with Tyler's go. |
 
 ---
 

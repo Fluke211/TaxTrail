@@ -3438,3 +3438,107 @@ passes.
   majors, which is the arrangement that actually breaks a binary.
 - **An exemption needs a device, not an argument.** "It built" is not evidence
   that it runs. Before writing another entry in `ALLOWED`, name the device.
+
+---
+
+## D-073
+
+**Build 6 failed in Install pods; the expo-font pin is the suspect and the log
+is unreadable from here** (2026-08-31)
+
+### What happened
+
+Build 6 (`3625d12d`) errored 72 seconds in:
+
+```
+code:    UNKNOWN_ERROR
+message: Unknown error. See logs of the Install pods build phase for more information.
+```
+
+Everything before it passed: expo-doctor, prebuild, credentials, and the
+build-number guard. It failed at CocoaPods.
+
+### RESOLVED 2026-08-31: it was the CocoaPods CDN, not the pin
+
+Tyler pasted the Install pods log. The last lines before the failure:
+
+```
+Adding spec repo `trunk` with CDN `https://cdn.cocoapods.org/`
+[!] CDN: trunk URL couldn't be downloaded:
+    https://cdn.jsdelivr.net/cocoa/Specs/6/a/1/PurchasesHybridCommonUI/13.5.0/PurchasesHybridCommonUI.podspec.json
+    Response: 400 400: Bad Request
+pod install exited with non-zero code: 1
+```
+
+**jsDelivr returned a 400 for RevenueCat's podspec.** Infrastructure, not this
+diff. `PurchasesHybridCommonUI` comes from `react-native-purchases-ui`, which
+the change never touched — and pod install had already completed autolinking,
+codegen, and the React Native and Hermes artifact downloads before it reached
+the trunk spec repo. It was far past anything expo-font could affect.
+
+**The suspicion below was wrong. It is left standing rather than deleted,
+because being wrong in a named, checkable way is the point of writing it down.**
+The reasoning was sound as far as it went — the lockfile diff really was two
+lines, and CLAUDE.md really does warn that a version mismatch dies in Install
+pods. But "the only thing I changed is the only candidate" quietly ignores
+everything a build does that I did not change. **A generic error message plus a
+recent change of mine is not a causal link.**
+
+This is also the exact case the babysit rule carves out for a retry: an error
+naming a service the diff does not touch. One retry is the right response — and
+that only became knowable by reading the log instead of reasoning about it.
+
+### Why the pin looked like the suspect (superseded — see above)
+
+The lockfile diff against build 5 — which built, shipped and launched — is
+exactly two lines:
+
+```
+- node_modules/expo/node_modules/expo-font   55.0.8   (removed)
+~ node_modules/expo-font   57.0.1 -> 55.0.8
+```
+
+Nothing else moved. So the `overrides` pin is the only candidate, and CLAUDE.md
+already names this shape: "a native dependency at a version this Expo SDK was
+not built with is how a build dies in Install pods".
+
+### Why it is not yet proven
+
+The same generic message appears once before in the build list —
+`c5adc37f`, 2026-08-29 — and that one had a *different* cause (a
+`react-native-worklets` version npm pulled in, fixed by the pins check in #80).
+So "Install pods UNKNOWN_ERROR" is a category, not a diagnosis. The podspec
+itself looks ordinary: `s.dependency 'ExpoModulesCore'` with no constraint, the
+same source files as 57.0.1, and the same registered module names.
+
+**The actual error is in the Install pods phase log, which lives on expo.dev —
+the one host these sessions cannot reach** (CLAUDE.md). So the reason is
+written down in exactly the place the agent debugging it cannot look.
+
+### Decision (made, and carried out)
+
+**No second build until that log has been read.** Retrying on an
+`UNKNOWN_ERROR` is guessing, and guessing is what turned a one-line dependency
+fault into four days. Tyler opens the build URL; it is one tap and it ends the
+question.
+
+Build 5 with js r28 is working in the meantime, so nothing is on fire — the
+only cost of waiting is text glyphs instead of icons.
+
+### On the credit
+
+EAS records 9 builds this month, 4 ERRORED. Failed builds are not charged
+(D-015), so this attempt should not have consumed one — but that is EAS billing
+policy rather than something the CLI asserts, so it is worth a glance at the
+billing page rather than an assumption.
+
+### The rules
+
+- **When the only copy of an error is somewhere you cannot read, stop and get
+  it.** The alternative is a retry loop that spends credits to re-observe a
+  message nobody has looked at. This worked: one paste ended a question two
+  builds could not have.
+- **Your own recent change is not evidence.** It is the first thing to check
+  and the easiest thing to over-weight. Suspecting it is fine; concluding it
+  without reading the error is how D-062 happened, and this came close to
+  repeating it.
