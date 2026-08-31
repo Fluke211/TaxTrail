@@ -3215,3 +3215,71 @@ future feature — it was dead native weight. Removed from `app.json` and
 So D-066 is now closed. Two permission strings ship without a feature behind
 them, both deliberately, and `check-permissions.js` states the reason on every
 run rather than calling them a baseline to be paid down.
+
+---
+
+## D-071
+
+**Make the app report the error instead of aborting** (2026-08-31)
+
+### What the build 5 crash log establishes
+
+- `build_version: 5`, so it is the right binary. TestFlight agrees.
+- `EXC_CRASH / SIGABRT`, `abort() called`, on the
+  **`expo.controller.errorRecoveryQueue`** — expo-updates' `ErrorRecovery`
+  raising an uncaught NSException, which is its designed last resort.
+- **Alive for 361 ms.** That number matters: `RemoteLoadTimeoutMs` is 5000, so
+  the pipeline did not wait for a remote update. It asked, was told there is
+  nothing newer — correctly, because build 5 embeds r26 and r26 *is* the
+  channel head — dropped `launchNew`, found nothing cached on a fresh install,
+  and aborted. The mechanism is fully explained.
+- The `com.facebook.react.runtime.JavaScript` thread is parked in its run loop
+  and `hades` is alive, so Hermes started and the bundle evaluated.
+
+### What it does not establish
+
+**Nothing about what the error actually was.** The abort destroys the message.
+No JS revision since r21 has ever been observed to run on a device — the
+channel itself labels r21 "last bundle proven to run on device" — so r23, r24,
+r25 and r26 were all shipped as fixes for an error nobody has read (D-070).
+
+### The native surface was ruled out first
+
+Comparing every static import across the whole startup graph at r21 against
+HEAD, the only external module that appears is **`expo-mail-composer`**, and
+that is the guarded `require` inside a function in `FeedbackComposer`. The set
+of native modules reachable at startup is otherwise **identical** to the tree
+that is proven to run. So this is the app's own JavaScript, not a missing or
+newly added native dependency.
+
+### The change
+
+`index.tsx` (was `index.ts`) wraps startup in three nets, because the crash
+could come from three places and only one of them was previously catchable:
+
+1. **`require('./App')` in a try/catch** — a module-evaluation throw. `require`
+   rather than a static import on purpose: a static import is hoisted and would
+   run App's whole module graph before the try block exists.
+2. **An error boundary** — a throw during the first render.
+3. **`ErrorUtils.setGlobalHandler`** — an async rejection or native callback
+   after the first render. This is the one the evidence points at: a JS thread
+   parked in its run loop at 361 ms looks like a fatal raised *after* mount, and
+   neither of the other two nets can see it. The handler swallows fatals
+   deliberately — a broken app that can say why beats a dead one that cannot —
+   and passes non-fatals through to the previous handler.
+
+Each renders a full-screen, scrollable, selectable report. The formatter was
+tested against `Error`, a bare string, `null`, `undefined` and a plain object,
+because a handler that throws while reporting a throw is worse than no handler.
+
+### This is temporary
+
+It comes out the moment the fault is known. It is on `main` rather than a
+rescue branch because `main`'s JS currently does not launch at all, so a build
+that can describe its own failure is strictly the better state.
+
+### The rule
+
+**An app whose startup can fail needs a way to say why.** Three revisions were
+spent guessing at an error that the process was busy destroying. The cost of
+this net is a few dozen lines; the cost of not having it has been four days.

@@ -27,6 +27,18 @@ never gets far enough to apply one (D-067). Build 5 embeds js r26.
 launch**, so this is *built*, not shipped (D-062 rule 2), and build 5 is
 deliberately absent from `LIVE_BUILDS` until a device has run it.
 
+### js r27 — v1.0.0 (build 5) — 2026-08-31 — DIAGNOSTIC
+
+**Not a feature release.** Build 5 crashes on launch exactly as build 4 did, so
+D-062 and D-067 are both wrong (D-070). The crash log proves a JavaScript error
+was thrown and that expo-updates aborted the process — which destroys the error
+text. Nobody has ever read it.
+
+r27 is r26 plus a net that renders the error instead: a try/catch around the
+App require, an error boundary, and an `ErrorUtils` global handler for the async
+case the evidence actually points at. It comes out as soon as the fault is
+known (D-071).
+
 ### js r26 — v1.0.0 (build 5) — 2026-08-31
 
 **Live on `production` since 2026-08-31** (group `4c48a54a`), published after
