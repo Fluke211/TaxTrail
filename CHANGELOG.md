@@ -11,6 +11,28 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r26 — v1.0.0 (build 5) — 2026-08-31
+
+**Not published to `production`.** It ships embedded in build 5 and goes out
+over the air at the same time, so the channel head and the binary's own bundle
+say the same thing. Publishing it now would help nobody: build 4 cannot launch
+far enough to apply an update (D-067).
+
+- **Capture screen rebuilt to Tyler's pick** — concept A with concept C's
+  recent list (D-069). One big dashed tap target and no second "Scan Receipt"
+  button, a free-tier scan meter, and a compressed Recent list under the photo
+  library link. Tapping a recent row opens that receipt
+- **Moving trucks now file to Schedule C line 20a** (D-068). U-Haul, Penske,
+  Ryder and Budget Truck were not "landing in Travel" as the roadmap assumed —
+  they were landing on **Insurance** and **Office Supplies**, on the words
+  "coverage" and "box". Every brand keyword is scoped to the rental arm,
+  because U-Haul self-storage is line 20b and Penske Automotive is a car
+  dealership
+- The scan meter is free-tier only and its bar fills as the month is spent, so
+  the exhausted state has a bar to colour; `exhausted` delegates to the same
+  function the paywall uses rather than restating the boundary
+- Recents sort by scan time, not by the user-editable receipt date
+
 ### js r25 — v1.0.0 (build 4) — 2026-08-30
 
 **Live on `production` since 2026-08-30**, verified at the head of the branch

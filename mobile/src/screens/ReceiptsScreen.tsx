@@ -1,5 +1,5 @@
 // Receipts list + detail modal (image, fields, edit, delete, raw-text copy).
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
@@ -15,7 +15,14 @@ import { SC_BY_NAME, allocationsOf } from '../lib/rows';
 
 const CATEGORY_NAMES: string[] = (require('../lib/classifier.js').CATEGORIES as { name: string }[]).map((c) => c.name);
 
-export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Receipt[]; onChanged: () => void }) {
+export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }: {
+  receipts: Receipt[];
+  onChanged: () => void;
+  /** A receipt to open on arrival — set when the Capture tab's Recent list is tapped. */
+  openId?: number | null;
+  /** Called once the request has been honoured, so it cannot re-fire. */
+  onOpened?: () => void;
+}) {
   const T = useTheme();
   const s = makeStyles(T);
   const [selected, setSelected] = useState<Receipt | null>(null);
@@ -23,6 +30,15 @@ export default function ReceiptsScreen({ receipts, onChanged }: { receipts: Rece
   // The receipt being reported, or null. Held separately from `selected` so the
   // detail modal stays open behind it and comes back if the user cancels.
   const [reporting, setReporting] = useState<Receipt | null>(null);
+
+  // Arriving from the Capture tab's Recent list with a receipt to open. Cleared
+  // through onOpened so dismissing the modal does not immediately reopen it.
+  useEffect(() => {
+    if (openId == null) return;
+    const found = receipts.find((r) => r.id === openId);
+    if (found) setSelected({ ...found });
+    onOpened?.();
+  }, [openId, receipts, onOpened]);
 
   const remove = useCallback((r: Receipt) => {
     Alert.alert('Delete receipt?', `${r.merchant} — $${r.total.toFixed(2)}`, [

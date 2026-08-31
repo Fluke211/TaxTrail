@@ -34,6 +34,9 @@ function Root() {
 
   const [tab, setTab] = useState<Tab>('capture');
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  // Set when the Capture tab's Recent list is tapped, so the Receipts tab opens
+  // that receipt rather than just landing on an unscrolled list.
+  const [openReceiptId, setOpenReceiptId] = useState<number | null>(null);
   const [pro, setPro] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -82,8 +85,13 @@ function Root() {
       </View>
 
       <View style={{ flex: 1 }}>
-        {tab === 'capture' && <CaptureScreen onSaved={() => { refresh(); setTab('receipts'); }} />}
-        {tab === 'receipts' && <ReceiptsScreen receipts={receipts} onChanged={refresh} />}
+        {tab === 'capture' && <CaptureScreen
+          onSaved={() => { refresh(); setTab('receipts'); }}
+          onSeeAll={(id) => { setOpenReceiptId(id ?? null); setTab('receipts'); }}
+          receipts={receipts} pro={pro} onProChanged={refresh} />}
+        {tab === 'receipts' && <ReceiptsScreen
+          receipts={receipts} onChanged={refresh}
+          openId={openReceiptId} onOpened={() => setOpenReceiptId(null)} />}
         {tab === 'summary' && <SummaryScreen receipts={receipts} pro={pro} onChanged={refresh} />}
         {tab === 'settings' && <SettingsScreen receipts={receipts} pro={pro} onChanged={refresh} />}
       </View>

@@ -56,4 +56,46 @@ function shouldAskForReview(opts) {
   return scans >= after;
 }
 
-module.exports = { isOverFreeLimit, shouldAskForReview };
+/**
+ * The free-tier scan meter shown on the capture screen.
+ *
+ * Returns null for Pro, and that is the point rather than an edge case: Tyler
+ * asked for the counter "only for the free tier". A paying user has nothing to
+ * count and a meter reading "3 of ∞" is a worse screen, so the caller renders
+ * nothing at all rather than a disabled or infinite variant.
+ *
+ * `remaining` is clamped at zero. A user who somehow scanned past the limit
+ * (a month boundary, a restored archive) should see "0 left", never "-2 left".
+ */
+function freeScanMeter(opts) {
+  var o = opts || {};
+  if (o.isPro) return null;
+
+  var limit = Number(o.limit);
+  if (!isFinite(limit) || limit < 0) limit = 0;
+  var used = Number(o.scansThisMonth);
+  if (!isFinite(used) || used < 0) used = 0;
+  if (used > limit) used = limit;
+
+  var remaining = limit - used;
+  return {
+    used: used,
+    limit: limit,
+    remaining: remaining,
+    // Delegated, never restated. Two copies of "when does the free tier end"
+    // is how the screen comes to say "1 left" while the paywall fires.
+    exhausted: isOverFreeLimit(o),
+    // Phrased as what is LEFT, not what is spent. "7 of 10 free scans left"
+    // reads as headroom; "3 of 10 used" reads as a bill.
+    label: remaining === 1
+      ? '1 free scan left this month'
+      : remaining + ' of ' + limit + ' free scans left this month',
+    // 0..1, the fraction USED — the bar fills up as the month is spent, so the
+    // exhausted state is a full bar that can carry a warning colour. Filling it
+    // with the fraction remaining instead leaves 0% width at the limit, which
+    // is the one moment the colour needs to be visible.
+    fill: limit > 0 ? used / limit : 1,
+  };
+}
+
+module.exports = { isOverFreeLimit, shouldAskForReview, freeScanMeter };

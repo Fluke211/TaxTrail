@@ -161,10 +161,13 @@ what blocks what, not by size.
       (TXF 299). Four lines stay uncovered on purpose because they are not
       receipt-shaped: 12 depletion, 16a mortgage interest (Form 1098), 19
       pension plans, 27a Form 7205
-- [ ] **Decide where moving trucks belong** — U-Haul/Penske/Ryder are a
-      vehicle rental by the letter of line 20a but a travel cost in practice.
-      Left where they land today rather than moved on a coin flip; a keyword
-      addition either way
+- [x] **Decided: moving trucks are line 20a** (D-068). Not a coin flip — the
+      IRS draws the line by what the rental is FOR, so a car hired while away
+      from home is 24a and a truck hired to move inventory is 20a. "Left where
+      they land" was also wrong about where they landed: U-Haul was filing as
+      **Insurance** and Penske as **Office Supplies**. Every brand keyword is
+      scoped to the rental arm, because U-Haul self-storage is 20b and Penske
+      Automotive is a dealership
 
 ### Engineering hygiene
 

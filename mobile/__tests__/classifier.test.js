@@ -911,5 +911,101 @@ check('merchant: the second Costco dump too, from a different marker set',
 check('merchant: one shared marker is not a fingerprint — Safeway stays Safeway',
   sfw.merchant === 'Safeway', sfw.merchant);
 
+// ---- Moving trucks land on Schedule C line 20a, not Travel (D-068) ----
+//
+// The IRS line is what the rental is FOR, not what it has wheels on: 24a is
+// travel away from home overnight, 20a is "vehicles, machinery, or equipment"
+// rented to do a job. So Hertz and U-Haul go to different lines on purpose.
+
+const uhaul = C.classify(
+  'U-HAUL TRUCK RENTAL\n2211 Kalihi St\nHonolulu HI\n' +
+  'TRUCK 15FT   1 DAY\nMILEAGE 42 @ 0.99\nENV COVERAGE\nTOTAL  118.57',
+  'U-Haul');
+check('trucks: U-Haul is Equipment Rental (line 20a)',
+  uhaul.name === 'Equipment Rental', uhaul.name);
+
+const penske = C.classify('PENSKE TRUCK RENTAL\nRESERVATION 88213\n26FT BOX\nTOTAL 249.00',
+  'Penske Truck Rental');
+check('trucks: Penske too', penske.name === 'Equipment Rental', penske.name);
+
+const ryder = C.classify('RYDER TRUCK RENTAL\nUNIT 4471\nDAILY RATE\nTOTAL 310.00',
+  'Ryder Truck Rental');
+check('trucks: Ryder too', ryder.name === 'Equipment Rental', ryder.name);
+
+// Each truck brand has a sibling business that a bare brand keyword would
+// misfile. These are the cases that forced every keyword to be scoped.
+const storage = C.classify('U-HAUL SELF STORAGE\nUNIT 214\nMONTHLY RENT\nTOTAL 89.00', 'U-Haul');
+check('trucks: U-Haul SELF STORAGE stays on line 20b, not 20a',
+  storage.name === 'Rent & Lease', storage.name);
+
+const dealer = C.classify('PENSKE CHEVROLET\nOIL CHANGE\nTOTAL 79.00', 'Penske Chevrolet');
+check('trucks: a Penske DEALERSHIP is not a truck rental',
+  dealer.name !== 'Equipment Rental', dealer.name);
+
+// The collision this could easily have caused: Budget is two businesses.
+// Travel & Lodging owns "budget rent"; Equipment Rental owns "budget truck".
+const budgetCar = C.classify('BUDGET RENT A CAR\nLIHUE AIRPORT\nCOMPACT 3 DAYS\nTOTAL 187.44',
+  'Budget Rent A Car');
+check('trucks: a Budget CAR rental is still Travel (line 24a)',
+  budgetCar.name === 'Travel & Lodging', budgetCar.name);
+
+const budgetTruck = C.classify('BUDGET TRUCK RENTAL\n16FT TRUCK\nONE WAY\nTOTAL 232.10',
+  'Budget Truck Rental');
+check('trucks: a Budget TRUCK rental is Equipment Rental (line 20a)',
+  budgetTruck.name === 'Equipment Rental', budgetTruck.name);
+
+// Passenger-car rentals must not have been dragged along by the change.
+const hertz = C.classify('HERTZ\nRENTAL CAR\nMIDSIZE 2 DAYS\nTOTAL 143.88', 'Hertz');
+check('trucks: Hertz is untouched and still Travel',
+  hertz.name === 'Travel & Lodging', hertz.name);
+
+// And the line label the export depends on.
+check('trucks: the 20a label is what the exporter writes',
+  uhaul.scheduleC.indexOf('20a') !== -1, uhaul.scheduleC);
+
+// ---- Free-scan meter (capture screen, free tier only) ----
+
+check('meter: Pro sees no meter at all, by design',
+  G.freeScanMeter({ isPro: true, scansThisMonth: 3, limit: 10 }) === null, 'not null');
+
+const fresh = G.freeScanMeter({ isPro: false, scansThisMonth: 0, limit: 10 });
+check('meter: a fresh month is an empty bar and full headroom',
+  fresh.remaining === 10 && fresh.fill === 0 && !fresh.exhausted, JSON.stringify(fresh));
+
+const mid = G.freeScanMeter({ isPro: false, scansThisMonth: 3, limit: 10 });
+check('meter: counts what is LEFT, not what is spent',
+  mid.remaining === 7 && mid.label === '7 of 10 free scans left this month', mid.label);
+
+// The bar fills as the month is spent, so the warning colour at the limit has
+// a bar to be drawn on. Filling it with the fraction REMAINING made the
+// exhausted bar 0% wide — the one state the colour existed for.
+check('meter: the bar tracks what is used, so it is full when exhausted',
+  mid.fill === 0.3, String(mid.fill));
+
+const one = G.freeScanMeter({ isPro: false, scansThisMonth: 9, limit: 10 });
+check('meter: the last scan reads singular, not "1 of 10 free scans"',
+  one.label === '1 free scan left this month', one.label);
+
+const spent = G.freeScanMeter({ isPro: false, scansThisMonth: 10, limit: 10 });
+check('meter: at the limit it is exhausted, with a full bar',
+  spent.remaining === 0 && spent.exhausted && spent.fill === 1, JSON.stringify(spent));
+
+// The case that produces "-2 left" if nobody clamps: a restored archive or a
+// month boundary can put the count past the limit.
+const over = G.freeScanMeter({ isPro: false, scansThisMonth: 14, limit: 10 });
+check('meter: scanning past the limit still reads 0 left, never negative',
+  over.remaining === 0 && over.used === 10 && over.fill === 1, JSON.stringify(over));
+
+// `exhausted` delegates to isOverFreeLimit rather than restating it, so this
+// cannot drift. Asserted on both sides of the boundary anyway, because the
+// delegation is the thing worth pinning.
+check('meter: exhausted IS the gate, on both sides of the boundary',
+  G.freeScanMeter({ isPro: false, scansThisMonth: 9, limit: 10 }).exhausted ===
+    G.isOverFreeLimit({ isPro: false, scansThisMonth: 9, limit: 10 }) &&
+  G.freeScanMeter({ isPro: false, scansThisMonth: 10, limit: 10 }).exhausted ===
+    G.isOverFreeLimit({ isPro: false, scansThisMonth: 10, limit: 10 }) &&
+  G.freeScanMeter({ isPro: false, scansThisMonth: 10, limit: 10 }).exhausted === true,
+  'disagree');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

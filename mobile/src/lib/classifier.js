@@ -113,14 +113,42 @@
       //
       // Deliberately NOT claiming rental cars: a car rented while away from
       // home on business is a travel expense (24a), and those merchants stay
-      // in Travel & Lodging. Moving trucks are the genuinely ambiguous case
-      // and are left where they land today.
+      // in Travel & Lodging.
+      //
+      // MOVING TRUCKS DO belong here (D-068). The line the IRS draws is not
+      // "car vs truck", it is what the rental is FOR: 24a covers travel away
+      // from home overnight, while 20a is the plain case of the line's own
+      // wording — "If you rented or leased vehicles, machinery, or equipment,
+      // enter on line 20a the business portion of your rental cost." A U-Haul
+      // hired to move inventory across town is not an overnight trip; it is a
+      // vehicle rented to do a job. Hertz stays on 24a and U-Haul goes to 20a
+      // for the same reason, not opposite ones.
+      //
+      // EVERY truck brand here is scoped to its rental arm, and each one has a
+      // sibling business that would otherwise be misfiled:
+      //
+      //   budget truck  — Travel & Lodging owns "budget rent" (Budget Rent A Car)
+      //   penske truck  — Penske Automotive Group is a large dealer chain, so a
+      //                   bare "penske" would file an oil change on 20a
+      //   ryder truck   — Ryder also sells fleet management and logistics
+      //   u-haul truck / u-haul moving — U-Haul is one of the biggest US
+      //                   SELF-STORAGE operators, and storage is line 20b
+      //                   (Rent & Lease), not 20a. A bare "u-haul" outranks the
+      //                   storage keywords on the 3x merchant weight and moves a
+      //                   recurring storage bill to the wrong Schedule C line.
+      //
+      // The cost of scoping is that a receipt whose OCR yields only "U-HAUL"
+      // lands Uncategorized. That is the right trade: the app asks, rather than
+      // filing a storage unit as equipment rental and saying nothing.
       name: 'Equipment Rental', group: 'Facilities',
       scheduleC: 'Line 20a — Rent/lease: vehicles, machinery, equipment',
       keywords: ['equipment rental', 'tool rental', 'rental yard', 'sunbelt rentals',
         'united rentals', 'herc rentals', 'equipment lease', 'machinery rental',
         'scissor lift', 'boom lift', 'skid steer', 'excavator rental',
-        'generator rental', 'rented equipment', 'rental return', 'day rate rental']
+        'generator rental', 'rented equipment', 'rental return', 'day rate rental',
+        'u-haul truck', 'uhaul truck', 'u-haul moving', 'uhaul moving',
+        'penske truck', 'ryder truck', 'budget truck',
+        'moving truck', 'box truck', 'cargo van rental']
     },
     {
       name: 'Repairs & Maintenance', group: 'Facilities',
