@@ -29,6 +29,19 @@ deliberately absent from `LIVE_BUILDS` until a device has run it.
 
 ### js r28 — v1.0.0 (build 5) — 2026-08-31
 
+**Confirmed running on device 2026-08-31.** The first JS revision since r21 that
+a phone has actually executed — r22 through r27 were all published without one.
+Build 5 is now in `LIVE_BUILDS` (D-062 rule 2).
+
+Two things this does NOT mean:
+
+- **Build 5 is not submittable.** Its embedded bundle is js r26, which still
+  carries the unguarded Ionicons import and still dies on `ExpoFontLoader`. It
+  only runs because it fetched r28 afterwards, so a *fresh* install still
+  crashes on first launch.
+- **The binary is not fixed.** It still links expo-font 57.0.1. r28 works
+  around that; the `overrides` pin needs build 6.
+
 **The launch crash, found and worked around.** r27's diagnostic reported it on
 the first launch: `Cannot find native module 'ExpoFontLoader'` (D-072).
 

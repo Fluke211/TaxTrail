@@ -78,6 +78,25 @@ const LIVE_BUILDS = [
       'react-native-safe-area-context', 'react-native-worklets',
     ],
   },
+  {
+    build: 5,
+    commit: 'f49d6a6',
+    note: 'TestFlight. **Observed to launch on device 2026-08-31** — the first '
+      + 'binary since build 3 to run our JS (D-062 rule 2 satisfied). Drops '
+      + 'expo-camera. Its embedded js r26 still crashes on ExpoFontLoader '
+      + '(D-072), so it only runs once it has fetched r28 or later: a FRESH '
+      + 'install still dies on first launch. Build 6 fixes that.',
+    modules: [
+      '@react-native-async-storage/async-storage', 'expo-clipboard',
+      'expo-dev-client', 'expo-document-picker', 'expo-file-system', 'expo-haptics',
+      'expo-image-manipulator', 'expo-image-picker', 'expo-local-authentication',
+      'expo-location', 'expo-mail-composer', 'expo-print', 'expo-sharing', 'expo-sqlite',
+      'expo-status-bar', 'expo-store-review', 'expo-text-extractor', 'expo-updates',
+      'react-native-document-scanner-plugin', 'react-native-gesture-handler',
+      'react-native-purchases', 'react-native-purchases-ui', 'react-native-reanimated',
+      'react-native-safe-area-context', 'react-native-worklets',
+    ],
+  },
 ];
 
 /* Packages that ship no native code, so every binary can run them whatever it

@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r28** | **Crash found (D-072): `expo-font` 57.0.1 was autolinked against expo-modules-core 55, so `ExpoFontLoader` never registered.** r28 works around it over the air — icons fall back to text glyphs — so build 5 should now launch. The real fix is an `overrides` pin on expo-font and **needs build 6**; icons return by themselves when it lands. |
+| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r28 — LAUNCHES** | Confirmed on device 2026-08-31 — the first binary since build 3 to run our JS. It runs because it fetched r28, which works around the `ExpoFontLoader` fault (D-072) by falling back to text glyphs. **Build 5 is still not submittable**: its embedded js r26 crashes, so a fresh install dies on first launch. Build 6 fixes both. |
 
 ---
 
