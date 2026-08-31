@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 4) · js r25 live; r26 waiting on build 5** | **Tyler confirmed 2026-08-31 that it still crashes.** That is consistent with D-067 and not a new fault: build 4 embeds js r22, which aborts, and the recovery pipeline has five seconds to fetch a 5MB bundle before it gives up. r25 is live on `production` and cannot reach a binary that never gets that far. **Only build 5 fixes this.** |
+| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r26 — BUILT, not yet observed to launch** | Build 5 compiled and submitted to TestFlight 2026-08-31 (EAS build `eb6ad3c5`, real `.ipa`). It embeds js r26, and r26 is also at the head of `production` so the channel and the binary agree. **Tyler has not yet confirmed it opens** — until he does this says *built*, not shipped (D-062 rule 2), and build 5 is deliberately absent from `LIVE_BUILDS`. |
 
 ---
 
@@ -38,20 +38,31 @@ Cleared in the earlier overnight session:
 no native build was needed. The Summary footer should read
 `TaxTrail v1.0.0 (build 3) · js r17` once the app has restarted twice.
 
-### Build 5 is the whole critical path — it needs one word from Tyler
+### Build 5 is built and submitted — waiting on one install
 
-The app on his phone does not open, and no amount of OTA work changes that
-(D-067). Build 5 is ready to cut:
+Cut 2026-08-31 with Tyler's explicit go, one EAS credit. Verified end to end
+rather than assumed:
 
-- Preflight passes; Apple holds builds 2-4, so `buildNumber` goes to **5**
-- Its embedded bundle would be **js r26**, which bundles clean at 752 modules
-  (the broken r22 was 1178)
-- It carries the capture redesign (D-069) and the line 20a truck fix (D-068)
+| | |
+|---|---|
+| Build | EAS `eb6ad3c5`, `✔ Build finished` with a real `.ipa` — it waited for completion, it did not just queue |
+| Preflight | expo-doctor and prebuild passed; the build-number guard confirmed 5 was free |
+| `Info.plist` | Inspected from a local prebuild (D-007's rule, since a config plugin was removed). Camera and photo-library strings present, **microphone and always-on location still absent**, `CFBundleVersion` 5 |
+| Bundle | js r26, 752 modules — the bundle that crashed was 1178 |
+| Channel | r26 published to `production` (group `4c48a54a`), so the channel head and the embedded bundle are the same JS |
 
-**One decision is still open and has to be settled before the build**, because
-it is baked into the binary: `expo-local-authentication` (Face ID) and
-`expo-camera` are compiled in with no feature behind them (D-066). Location is
-now settled — it **stays**, so GPS mileage can ship over the air later (D-069).
+**The one thing left is Tyler installing it from TestFlight and confirming the
+Summary footer reads `v1.0.0 (build 5) · js r26`.**
+
+Until he does:
+
+- This is **built**, not shipped. Build 4 was called shipped before a device had
+  run it, and that is how a crash reached him (D-062 rule 2).
+- **Build 5 is deliberately NOT in `LIVE_BUILDS`** in
+  `mobile/scripts/check-ota-safety.js`. It goes in only once observed to launch.
+- So swipe-to-delete still cannot come back yet: it needs gesture-handler
+  statically imported, and the OTA check holds that until the manifest is
+  updated.
 
 ### Do not submit to the App Store before this is answered
 

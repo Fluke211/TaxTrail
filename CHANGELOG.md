@@ -22,12 +22,17 @@ never gets far enough to apply one (D-067). Build 5 embeds js r26.
 - `expo-local-authentication` and `expo-location` deliberately kept, so a Face
   ID app lock and GPS mileage can ship over the air later with no build
 
+**Built and submitted to TestFlight 2026-08-31** — EAS build `eb6ad3c5`, real
+`.ipa`, uploaded and accepted by App Store Connect. **Not yet observed to
+launch**, so this is *built*, not shipped (D-062 rule 2), and build 5 is
+deliberately absent from `LIVE_BUILDS` until a device has run it.
+
 ### js r26 — v1.0.0 (build 5) — 2026-08-31
 
-**Not published to `production`.** It ships embedded in build 5 and goes out
-over the air at the same time, so the channel head and the binary's own bundle
-say the same thing. Publishing it now would help nobody: build 4 cannot launch
-far enough to apply an update (D-067).
+**Live on `production` since 2026-08-31** (group `4c48a54a`), published after
+build 5 was built rather than before, so the channel head and the binary's own
+embedded bundle are the same JS. Publishing it earlier would have helped
+nobody: build 4 cannot launch far enough to apply an update (D-067).
 
 - **Capture screen rebuilt to Tyler's pick** — concept A with concept C's
   recent list (D-069). One big dashed tap target and no second "Scan Receipt"
