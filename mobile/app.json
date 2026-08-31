@@ -17,7 +17,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.tylerthornbrue.taxtrail",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -41,13 +41,6 @@
         }
       ],
       "expo-sqlite",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "TaxTrail uses the camera to photograph receipts. Photos are processed entirely on this device and never uploaded.",
-          "microphonePermission": false
-        }
-      ],
       [
         "react-native-document-scanner-plugin",
         {

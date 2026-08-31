@@ -3199,5 +3199,19 @@ ship over the air, with no build, whenever it is wanted. That is a deliberate
 trade of one unused permission string for future optionality, made with the
 cost known.
 
-`expo-local-authentication` (Face ID) and `expo-camera` are **not** covered by
-that reasoning and remain open under D-066.
+### Face ID stays; expo-camera goes (resolved 2026-08-31)
+
+Tyler applied the same reasoning to **Face ID**: `expo-local-authentication`
+stays compiled in, so an app lock can ship over the air later. A privacy-first
+receipt app with a lock screen is on-brand, and the module being present is the
+whole difference between "an OTA away" and "a build away".
+
+**`expo-camera` is removed in build 5.** It is the one of the three that
+optionality does not justify: the camera permission it asks for is already
+earned by `expo-image-picker` and the document scanner, so keeping it buys no
+future feature — it was dead native weight. Removed from `app.json` and
+`package.json`.
+
+So D-066 is now closed. Two permission strings ship without a feature behind
+them, both deliberately, and `check-permissions.js` states the reason on every
+run rather than calling them a baseline to be paid down.
