@@ -316,6 +316,40 @@ reporting the new build number — the D-039 drift, from the other direction.
 
 ---
 
+## "Apple accepted the upload" is not "the build is installable"
+
+`eas submit` finishing green means Apple took the bytes. Processing happens
+afterwards and can still fail — invalid entitlements, a missing icon, a bad
+`Info.plist` — and when it does, the build simply never appears in TestFlight.
+The only signal is an email.
+
+```bash
+# GitHub Actions -> EAS -> Run workflow -> step: asc-builds
+```
+
+Read-only and free. It prints every build's `processingState` and whether it is
+installable, and **fails the run if any build is FAILED or INVALID**. First real
+run, 2026-08-31, immediately after build 5 was submitted:
+
+```
+build 5    VALID    installable
+build 4    VALID    installable
+```
+
+`VALID` is the answer you want: Apple finished processing and the build can be
+installed. `PROCESSING` means wait. `FAILED`/`INVALID` means **cut a new build**
+— a resubmit of the same binary cannot fix it.
+
+One gotcha: the `uploadedDate` Apple returns is not UTC. Build 5 was submitted
+at 03:12 UTC and reads `2026-08-30T20:12:57`. Compare builds to each other, not
+to your own clock.
+
+This exists because the project had no way to ask. Build 4's crash was found by
+Tyler, not by tooling (D-062), and a processing failure would have reached him
+the same way.
+
+---
+
 ## A permission needs a feature behind it
 
 A config plugin writes a purpose string into the shipped `Info.plist` whether or
