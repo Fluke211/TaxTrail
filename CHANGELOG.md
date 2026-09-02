@@ -13,6 +13,9 @@ visible version, and it gets recorded here.
 
 ### js r30 — v1.0.0 (build 6) — 2026-09-02
 
+**Live on `production` since 2026-09-02** (group `859ae2fc`), runtime version
+1.0.0. Published, not yet observed on a device (D-062 rule 2).
+
 **Receipt photographs are back.** They were never gone: iOS relocated the app's
 Data container between build 5 and build 6, and every row held an absolute path
 under the old container UUID, so the Receipts tab was looking for the images at

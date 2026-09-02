@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 6) · js r29 observed on device; r30 next** | Build 6 opens on Tyler's phone with real icons, which confirms the expo-font pin (D-072). It is the first binary whose **embedded** bundle runs, so the first that is submittable. Build 6 is in `LIVE_BUILDS` (D-074). r29 confirmed running on device 2026-09-02. r30 fixes receipt photographs, which stopped rendering because iOS moved the app's Data container (D-075). |
+| iOS app (`mobile/`) | **v1.0.0 (build 6) · js r30 published; r29 observed on device** | Build 6 opens on Tyler's phone with real icons, which confirms the expo-font pin (D-072). It is the first binary whose **embedded** bundle runs, so the first that is submittable. Build 6 is in `LIVE_BUILDS` (D-074). r29 confirmed running on device 2026-09-02. r30 (live 2026-09-02, group `859ae2fc`) fixes receipt photographs, which stopped rendering because iOS moved the app's Data container (D-075). |
 
 ---
 
@@ -117,27 +117,37 @@ Two ways out, and it is a product question rather than a cleanup:
   modules are already in build 4, the Face ID app lock and **GPS mileage are
   OTA-shippable today**, with no build and no credit.
 
-### Blocked on Tyler — none of it is code
+### Blocked on Tyler, updated 2026-09-02
 
-1. **Confirm the app launches** and the Summary footer reads
-   `v1.0.0 (build 4) · js r25`. Everything else waits behind this.
-2. **Pick a capture-screen concept** — four mockups delivered
-   2026-08-30, rendered in the app's real palette:
-   https://claude.ai/code/artifact/62ca2334-2775-4813-afff-ad63dbafebb2
-   Recommendation is A with C's recent list. Implementation is one JS change.
-3. **Decide the five dark-theme contrast ratios** that sit below the WCAG
-   target and have shipped for months — white-on-accent is 3.71:1 on the
-   primary button. Baselined rather than changed unilaterally (D-061).
-4. **Moving trucks** (U-Haul, Penske, Ryder) — Schedule C line 20a, or stay in
-   Travel? Open since 2026-08-29.
-5. **Read D-064** — the cloud-AI question is answered (no, and why), and it
-   names the one piece of "continuous learning" still missing: a routine for
-   getting diagnostics exports into `__tests__/corpus/`. Needs no cloud and no
-   decision, only receipts.
-6. **Sandbox purchase test** — monthly, annual, lifetime, and Restore. All
-   three products read `READY_TO_SUBMIT`.
-7. **Screenshots**, six of them. Needs a Mac; see `docs/MAC_SETUP.md`. Slot 2
-   is the privacy-label comparison, which is the entire pitch.
+Cleared since this list was written: the app launches (build 6), the capture
+screen is concept A with the recent list (js r26 and r29), and moving trucks are
+line 20a (D-068).
+
+What is left, and none of it is code:
+
+1. **Decide the permission question (D-066).** The app still requests **Face ID
+   and Location** with no feature behind either. D-069 kept both modules on
+   purpose so an app lock and manual mileage can ship over the air, but the
+   prompts exist now and the privacy label is the pitch. Either ship the
+   features or drop the plugins, which needs a build. **This is the one open
+   item that blocks submission on its own.**
+2. **Sandbox purchase test** — monthly, annual, lifetime, and Restore. All
+   three products read `READY_TO_SUBMIT`; the Paid Applications agreement is
+   active, so nothing is in the way but the testing.
+3. **Screenshots**, six of them. Needs a Mac; see `docs/MAC_SETUP.md`. Slot 2 is
+   the privacy-label comparison, which is the entire pitch.
+4. **App Privacy questionnaire answers** in App Store Connect. Drafted in
+   `docs/APP_STORE_LISTING.md`; they need entering.
+5. **Decide the five dark-theme contrast ratios** that sit below the WCAG
+   target and have shipped for months. White-on-accent is 3.71:1 on the primary
+   button. Baselined rather than changed unilaterally (D-061).
+6. **Real receipts for the corpus.** Scan, then Summary -> *Parser diagnostics*.
+   Still the only on-distribution data there is (D-064). The parser sits at 6
+   clean of 9 on the real corpus.
+7. **Small Business Program acceptance** — applied, and Apple quotes over a
+   month. Pure waiting.
+8. **Import a `.txf` into real tax software** to close the loop on the export
+   audit.
 8. **Import one export into real tax software.** The whole audit is
    spec-reading; nobody has fed a `.txf` to TurboTax. Still the largest
    remaining unknown in the product.
