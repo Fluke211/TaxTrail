@@ -19,6 +19,30 @@
 const path = require('path');
 const fs = require('fs');
 
+/*
+ * The crash screen carries its own palette.
+ *
+ * `index.tsx` deliberately does not import `src/lib/theme.ts` — the theme is app
+ * code, and app code is what just failed — so it hardcodes four colours per
+ * scheme. Review caught that this put them outside the one script that checks
+ * such things, with their ratios asserted in a comment instead. Parsed here so
+ * the assertion is a check.
+ */
+function readCrashPalette() {
+  const src = fs.readFileSync(path.join(__dirname, '../index.tsx'), 'utf8');
+  const start = src.indexOf('const PALETTE = {');
+  if (start === -1) throw new Error('PALETTE literal not found in index.tsx');
+  const body = src.slice(start, src.indexOf('};', start));
+  const out = {};
+  for (const m of body.matchAll(/^\s*(dark|light):\s*\{([^}]*)\}/gm)) {
+    const p = {};
+    for (const t of m[2].matchAll(/([a-zA-Z0-9]+):\s*'([^']+)'/g)) p[t[1]] = t[2];
+    out[`CRASH SCREEN (${m[1]})`] = p;
+  }
+  if (Object.keys(out).length !== 2) throw new Error('expected a dark and a light crash palette');
+  return out;
+}
+
 /** Pull the two palette literals out of theme.ts without needing a TS runtime. */
 function readPalettes() {
   const src = fs.readFileSync(path.join(__dirname, '../src/lib/theme.ts'), 'utf8');
@@ -147,17 +171,28 @@ const BASELINE = {
 // Floating-point noise, not a regression.
 const EPSILON = 0.02;
 
-const palettes = readPalettes();
+/* The crash screen renders three things: a title, body copy, and one link-like
+ * control. Body text to AA, the rest to the same thresholds as everything else. */
+const CRASH_PAIRS = [
+  ['text', 'bg', 4.5, 'the crash-screen headline'],
+  ['muted', 'bg', 4.5, 'crash-screen body copy'],
+  ['accent', 'bg', 4.5, 'Show technical details'],
+];
+
+const palettes = { ...readPalettes(), ...readCrashPalette() };
 let failures = 0;
 let belowTarget = 0;
 
 for (const [name, p] of Object.entries(palettes)) {
   console.log(`\n${name}`);
   const base = BASELINE[name] || {};
-  const rows = [
-    ...PAIRS.map(([f, b, min, what]) => [p[f], p[b], min, `${f} on ${b}`, what]),
-    ...ON_SOLID.map(([f, b, min, what]) => [f, p[b], min, `#fff on ${b}`, what]),
-  ];
+  const isCrash = name.startsWith('CRASH SCREEN');
+  const rows = isCrash
+    ? CRASH_PAIRS.map(([f, b, min, what]) => [p[f], p[b], min, `${f} on ${b}`, what])
+    : [
+      ...PAIRS.map(([f, b, min, what]) => [p[f], p[b], min, `${f} on ${b}`, what]),
+      ...ON_SOLID.map(([f, b, min, what]) => [f, p[b], min, `#fff on ${b}`, what]),
+    ];
   for (const [fg, bg, min, label, what] of rows) {
     if (!fg || !bg) {
       console.log(`  ::error::${name}: ${label} — a token in this pairing is missing from the palette`);

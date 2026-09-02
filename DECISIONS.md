@@ -3542,3 +3542,166 @@ billing page rather than an assumption.
   and the easiest thing to over-weight. Suspecting it is fine; concluding it
   without reading the error is how D-062 happened, and this came close to
   repeating it.
+
+---
+
+## D-074
+
+**Build 6 launches. The startup net stays, as a product surface** (2026-09-02)
+
+### Build 6 is the first binary that launches unaided
+
+Tyler installed build 6 from TestFlight and it opened: footer reads
+`js r28`, and the icons are real Ionicons rather than the text-glyph fallback.
+That is the end-to-end confirmation of D-072 — the `overrides` pin makes
+autolinking compile expo-font at the SDK 55 major, so `ExpoFontLoader` registers
+and `@expo/vector-icons` imports cleanly.
+
+It also makes build 6 the first binary since build 3 whose **embedded** bundle
+runs. Builds 4 and 5 needed an OTA to become usable, which meant a fresh install
+died before it could fetch one. Build 6 is therefore the first submittable
+binary.
+
+Build 6 is now in `LIVE_BUILDS` (commit `4676b73`, same module set as build 5),
+satisfying D-062 rule 2.
+
+### `check-ota-safety.js` had three holes, and its own configuration was two
+
+**It was not reading the entry point.** Its file list said `index.ts`; D-071
+renamed that file to `index.tsx` and nothing updated the list, so for four
+commits the one file that runs *first* was the one file the check skipped.
+Nothing had slipped through, but the check could not have known that. It now
+walks the project and names what it EXCLUDES — the same skip set as
+`check-permissions.js`, which never had this bug because it was written that way
+round. Anything added from here on is included by default.
+
+**`PURE_JS` was not true.** The list is documented as "packages that ship no
+native code", and it contained `expo` — which *is* the native SDK — and
+`@expo/vector-icons`, which depends on expo-font, **the very module whose native
+half took builds 4 and 5 down**. A static `import … from '@expo/vector-icons'`
+in a new screen would have been waved straight through by the guard whose job is
+to catch exactly that. Both are now listed as present in every live binary,
+which is the honest way to say it and keeps the list meaning what it claims.
+
+With it comes a limit worth stating: **this check answers presence, not
+correctness.** Build 5 had expo-font in the binary and still crashed on it,
+because it was the wrong major. `npm run test:pins` is the check for that; the
+two are not interchangeable.
+
+**`export … from 'pkg'` was invisible.** The pattern matched a leading `import`
+only, so a re-export in a barrel file — hoisted and evaluated identically —
+never reached the comparison. Both forms are caught now, and `import type` is
+skipped, since it is erased before the bundle exists.
+
+The first attempt at that widening was itself wrong, and review caught it with a
+reproduction rather than an opinion: a lazy `[\s\S]*?` between the keyword and
+`from` wanders across lines, so `export type Foo = …` sitting two lines above an
+import **swallowed that import** and was then discarded as a type — a real
+native import, gone, check still green. The same wander read
+`// pulled from 'somewhere'` as an import and failed CI on a code comment. The
+middle is now newline-, semicolon- and quote-free, braces are flattened first so
+multi-line named imports still match, and comments are stripped before any of it
+runs. Four probe cases were run against the real script to prove each one.
+
+**The lesson inside the lesson:** the fix for a guard that was too narrow made it
+too wide, in a way that fails silently in one direction and noisily in the
+other. A guard change needs its own reproduction, not a reading.
+
+The lesson is the usual one: **a check that silently narrows its own input still
+reports green.** This is the second time in three days that a guard's own
+configuration was the hole (the other was the pins-check allowance list, D-072),
+and both times the configuration asserted something that was simply not true.
+
+### The net stays, and stops being a diagnostic
+
+D-071's exit condition — "the net comes out once build 6 has been observed to
+launch" — is now met. It is not being taken out.
+
+The reason to remove it was that a full-screen stack trace is not something to
+put in front of a stranger. That is an argument about the *presentation*, not
+about the nets. So the presentation changed instead:
+
+- Plain headline, `TaxTrail couldn't start`, and a sentence that says the
+  receipts are safe on the device and to force-quit and reopen. Someone who has
+  never seen a stack trace can act on that.
+- The trace, `when`, and the version stamp live behind **Show technical
+  details** — still selectable, still complete.
+- The stamp is read through a guarded require and deliberately carries **no
+  build number**. It was hardcoded as `build 5 · js r27`; the obvious fix was
+  `versionStamp()`, and that is wrong for a subtler reason — `APP_BUILD` is a JS
+  constant, so an OTA pushes it to every live binary and a build-5 phone would
+  report "build 6". A bundle can only tell the truth about its own JS revision.
+  Guarded, not imported, because a static import in this file would run outside
+  the very nets the file exists to provide.
+- `when` and the stamp stay **visible** rather than moving behind the toggle.
+  The likeliest thing a non-technical user does is screenshot the screen, and a
+  screenshot without those two is the report that cost four days.
+- The headline reads `TaxTrail hit an error` on the post-startup path. "Couldn't
+  start" is a lie after ten minutes of scanning.
+
+### The bug the rework found
+
+The `ErrorUtils` handler raised the full-screen report for **non-fatal** errors
+too. Its own comment said non-fatals "behave normally", and the code did pass
+them to the previous handler — but it also fired the crash screen, unmounting a
+healthy app. Any library reporting a soft exception could have replaced a live
+session, taking an unsaved scan in the review form with it.
+
+That was survivable while the net was a two-day diagnostic on Tyler's phone.
+D-074 makes it permanent and ships it to strangers, so it had to be fixed:
+non-fatals now go to the default handler and nowhere else. **Making something
+permanent is the moment to re-read it as if it were new** — the standard it was
+written to was "tell me what crashed tonight", not "be in the App Store".
+
+### The price of keeping the message, and what pays it
+
+Not re-throwing a fatal is not free, and it is worth naming rather than
+discovering later. `previous` is the chain that reaches expo-updates'
+`ErrorRecovery`, which is what rolls a crashing binary back to its last good
+bundle. Swallowing the fatal to render it gives that up: a bad OTA would leave
+every phone on the crash screen rather than automatically reverting.
+
+Keeping the message is still the right trade — the rollback needs a cached good
+bundle to exist, which a fresh install does not have (that is exactly how D-067
+became terminal), and four days say what an unreadable crash costs. But the
+recovery is now offered instead of merely lost:
+
+- **A "Check for an update" button** on the crash screen: `checkForUpdateAsync`,
+  `fetchUpdateAsync`, `reloadAsync`, through a guarded require, with a plain
+  sentence for "nothing new yet" and for "couldn't reach the service".
+- It is a shortcut, not the main instruction. `checkAutomatically` is ON_LOAD,
+  so force-quit-and-reopen already fetches a fix on one launch and applies it on
+  the next. The button turns two launches into one tap.
+
+**Known limit, accepted:** a fatal still unmounts the app, so a scanned receipt
+sitting unsaved in the review form is lost. Keeping a tree that just threw
+mounted underneath an overlay risks a re-throw loop, and the window is narrow.
+If it ever needs fixing, persist `pending` rather than keeping the tree alive.
+
+The three nets themselves are unchanged, and they are cheap: a try/catch, an
+error boundary, and an `ErrorUtils` handler. What they buy is not hypothetical —
+their first launch produced the message that ended a four-day crash. Shipping to
+the App Store is precisely when startup failures stop being observable, because
+the person holding the phone is not Tyler and will not send a crash log.
+
+**New exit condition: none.** This is permanent. If it ever needs to go, that is
+a fresh decision with its own reason.
+
+### Two smaller things review found in the same pass
+
+- **The photo-library button could be double-fired.** `startScan` awaits the Pro
+  check, the paywall and the picker before `busy` hides the controls, so two
+  taps meant two paywalls or two pickers. It mattered less when the control was
+  13pt of muted text; it is a 48pt button now. Guarded with a ref.
+- **The crash screen's palette was outside `check-contrast.js`.** It hardcodes
+  its own colours (the theme is app code, and app code is what just failed), and
+  the ratios were asserted in a comment. The script parses that literal now, so
+  the assertion is a check — and it reported the real figures, which the comment
+  had understated.
+
+### The rule
+
+**An app whose startup can fail needs a way to say why — and the way it says it
+is a product decision, not a debugging one.** A diagnostic that is only fit for
+its author gets deleted before launch, which is exactly when it is worth most.
+Make it fit for a stranger and it survives.

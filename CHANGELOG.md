@@ -11,6 +11,72 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r29 — v1.0.0 (build 6) — 2026-09-02
+
+Capture screen, from Tyler's notes on build 6:
+
+- **Recent list is 3 rows**, not 4 (`RECENT_ROWS` in `CaptureScreen.tsx`). This
+  screen is for scanning; the Receipts tab is where a list belongs
+- **"Choose from photo library" is a button now.** As plain text under a big
+  dashed rectangle it did not read as tappable. Filled inset, hairline border,
+  photo icon, pressed state — obviously pressable, still clearly secondary to
+  the hero
+
+Startup net (D-074) — now permanent, so rewritten for someone who is not Tyler:
+
+- **Non-fatal errors no longer take over the screen.** The `ErrorUtils` handler
+  raised the full-screen report for soft exceptions too, so any library
+  reporting one could replace a healthy app — and lose an unsaved scan sitting
+  in the review form. Fatals only
+- Plain headline, the support address inline, and the stack trace behind **Show
+  technical details**; `when` and the version stay visible, because a
+  screenshot without them is the report that cost four days
+- The stamp carries **no build number**: `APP_BUILD` is a JS constant that an
+  OTA pushes to every binary, so it would have told a build-5 phone it was
+  build 6. Read through a guarded require, like everything else in that file
+- Follows the system light/dark setting, with its own two palettes — the theme
+  module is app code, and app code is what just failed. `npm run test:contrast`
+  reads that literal now, so its ratios are checked rather than asserted
+- **"Check for an update" button.** Rendering a fatal instead of re-throwing
+  gives up expo-updates' automatic rollback, so the recovery is offered as a tap
+  — check, fetch, restart — rather than quietly lost (D-074)
+
+Guards:
+
+- Build 6 added to `LIVE_BUILDS` — observed to launch on device
+- `check-ota-safety.js` had three holes. It scanned `index.ts`, renamed to
+  `index.tsx` in D-071, so **the entry point was the file it skipped** — it
+  walks the project and names its exclusions now. `PURE_JS` claimed `expo` and
+  `@expo/vector-icons` ship no native code, which would have waved through the
+  exact import that caused D-072 — both are listed per build instead, verified
+  against each build's own `package.json`. And `export … from 'pkg'` was
+  invisible to it
+- The scanner is regex-free of the two ways that widening goes wrong: it cannot
+  wander across lines (an `export type` above an import used to **swallow that
+  import**) and it cannot read a comment as an import. Four probe cases run
+  against the real script
+
+Capture flow:
+
+- **One scan at a time.** `startScan` awaits the Pro check, the paywall and the
+  picker before `busy` hides the controls, so the newly prominent upload button
+  could be double-tapped into two pickers or two paywalls
+
+### v1.0.0 (build 6) — 2026-09-02
+
+**The first binary that launches on its own.** Confirmed on Tyler's device: the
+footer reads `js r28` and the icons are real Ionicons, so the `overrides` pin
+did what D-072 said it would — autolinking compiles expo-font at the SDK 55
+major, `ExpoFontLoader` registers, and `@expo/vector-icons` imports cleanly.
+
+Builds 4 and 5 only became usable after fetching an OTA, which a fresh install
+never got far enough to do. Build 6's **embedded** bundle (js r28) runs, so this
+is the first submittable binary.
+
+- Built from `4676b73` after the first attempt died on a CocoaPods CDN 400
+  (D-073) — infrastructure, not the diff
+- No module changes from build 5; the only difference is the lockfile pin
+
 ### v1.0.0 (build 5) — 2026-08-31
 
 **The build that makes the app launch again.** Build 4's embedded bundle was
