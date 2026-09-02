@@ -13,6 +13,10 @@ visible version, and it gets recorded here.
 
 ### js r29 — v1.0.0 (build 6) — 2026-09-02
 
+**Live on `production` since 2026-09-02** (group `d2679345`), runtime version
+1.0.0, so every live binary receives it. **Not yet observed on a device** —
+D-062 rule 2 — until the Summary footer reads `js r29`.
+
 Capture screen, from Tyler's notes on build 6:
 
 - **Recent list is 3 rows**, not 4 (`RECENT_ROWS` in `CaptureScreen.tsx`). This
