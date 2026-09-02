@@ -131,7 +131,7 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
     Alert.alert(
       `Delete all ${n} receipt${n === 1 ? '' : 's'}?`,
       'This removes every receipt and every photograph from this device. '
-      + 'It cannot be undone — TaxTrail has no servers, so there is no copy to '
+      + 'It cannot be undone. TaxTrail has no servers, so there is no copy to '
       + 'restore from.\n\n'
       + 'If you have not exported a receipt archive (.zip), cancel and do that first.',
       [
@@ -255,7 +255,7 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
           } tone="accent" onPress={checkForUpdate} />
           <Row label="Turn off developer options" onPress={disableDev} />
           <Text style={s.note}>
-            Channel {String(Updates.channel ?? 'none')} · runtime {String(Updates.runtimeVersion ?? '—')}
+            Channel {String(Updates.channel ?? 'none')} · runtime {String(Updates.runtimeVersion ?? 'unknown')}
           </Text>
         </View>
       )}

@@ -32,6 +32,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { sourceFiles } = require('./lib/source-files');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -141,38 +142,6 @@ const PURE_JS = new Set([
  * expo-modules-core 55 and crashed with the module right there in the binary.
  * `npm run test:pins` is the check for that. */
 
-/*
- * Every file the app bundle can reach.
- *
- * This used to walk `src/` plus a hardcoded `['App.tsx', 'index.ts']`. D-071
- * renamed the entry point to `index.tsx` and nobody updated the list, so for
- * four commits the file that runs FIRST was the one file this check skipped —
- * and it still printed green. Same shape as the pins-check allowance that hid
- * D-072: a guard that quietly narrows its own input reports success either way.
- *
- * So: walk the project, name what is EXCLUDED, and let anything new be included
- * by default. Same skip set as check-permissions.js, which never had the bug.
- */
-function sourceFiles() {
-  const out = [];
-  // Top-level only. Matching these names at every depth would drop a future
-  // `src/lib/android/` or `src/screens/scripts/` and still print green, which
-  // is the bug this rewrite exists to remove, one directory further down.
-  const skip = new Set(['node_modules', 'ios', 'android', '__tests__', 'scripts', '.expo']);
-  (function walk(dir) {
-    // withFileTypes: one syscall per entry, and a dangling symlink is reported
-    // as a symlink rather than throwing ENOENT out of statSync.
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (e.name.startsWith('.')) continue;
-      if (dir === ROOT && skip.has(e.name)) continue;
-      const full = path.join(dir, e.name);
-      if (e.isDirectory()) { walk(full); continue; }
-      if (!e.isFile()) continue;
-      if (/\.(ts|tsx|js|jsx)$/.test(e.name) && !/\.d\.ts$/.test(e.name)) out.push(full);
-    }
-  })(ROOT);
-  return out;
-}
 
 /** The package a specifier belongs to: 'expo-file-system/legacy' -> 'expo-file-system',
  *  '@scope/pkg/sub' -> '@scope/pkg'. Relative paths return null. */
@@ -224,7 +193,7 @@ function importedSpecifiers(src) {
   return out;
 }
 
-const files = sourceFiles();
+const files = sourceFiles(ROOT);
 const findings = [];
 const seen = new Map();      // package -> [files]
 

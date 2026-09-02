@@ -3705,3 +3705,132 @@ a fresh decision with its own reason.
 is a product decision, not a debugging one.** A diagnostic that is only fit for
 its author gets deleted before launch, which is exactly when it is worth most.
 Make it fit for a stranger and it survives.
+
+---
+
+## D-075
+
+**Receipt photographs are stored by relative path** (2026-09-02)
+
+### The bug
+
+Tyler installed build 6, and the Receipts tab showed every receipt with no
+photograph. Nothing had been deleted, and the change that shipped alongside it
+touched no image code.
+
+iOS gives an app a Data container whose path contains a UUID:
+
+```
+file:///var/mobile/Containers/Data/Application/<UUID>/Documents/receipts/x.jpg
+```
+
+**That UUID is not stable.** Apple's File System Programming Guide says the
+container may be relocated between launches, and installing a new build is the
+common way it happens. The files move with the container; only the path
+changes. Every receipt row held the absolute path under the *previous*
+container, so the app was looking for the photographs at last week's address.
+
+This has been latent since the first build that stored an image. It was
+invisible while there was only ever one install.
+
+### The fix
+
+- **A stored path is a fact about the app; an absolute path is a fact about
+  this launch**, and the two must not be confused. `receipts/x.jpg` is the
+  right thing to store, and r30 reads it.
+- **r30 still writes the absolute form**, deliberately. See below.
+- `src/lib/paths.js` holds the rules, pure and unit-tested in node, the same
+  split as classifier.js and gates.js. `src/lib/images.ts` is the two lines of
+  it that need `documentDirectory`.
+- **`resolveImage()` repairs a stale absolute path at the moment of use**, so
+  Tyler's existing receipts render again on the first launch of r30. Nothing
+  has to migrate first.
+- Every read site goes through it: both screens, the archive export, and
+  `deleteReceiptFiles` — that last one matters, because deleting a stale path
+  silently leaves the real file on the device while telling the user it is
+  gone, which for this app is the worst thing to be wrong about.
+
+### The migration that is deliberately NOT here
+
+The obvious companion change is a migration that rewrites every row to the
+relative form. It was written, and then taken out before shipping — and with it,
+the switch to writing relative paths for newly scanned receipts, which review
+caught as setting exactly the same trap for every receipt scanned from now on.
+
+An OTA reaches binaries that can fall back to an older bundle. Build 6 embeds
+js r28, which has no `resolveImage` — hand it `receipts/x.jpg` and it renders
+blank thumbnails and, worse, `deleteReceiptFiles` deletes nothing while
+reporting success. So a one-way data change that only the newest JS can read is
+a trap set for the exact recovery path this project has already used twice
+(D-062, D-067).
+
+And it buys nothing urgent: the resolver already fixes what Tyler can see.
+**The rewrite waits until r30 has been observed on a device and a binary embeds
+it** — the same rule as `LIVE_BUILDS` (D-062 rule 2), applied to data instead of
+native modules.
+
+`check-ota-safety.js` does not cover this. It answers "can the old bundle find
+the native module", not "can the old bundle read the new data". That gap is
+worth naming: **an OTA can break an older bundle through the database, not just
+through imports.**
+
+So r30 reads both forms and writes the old one. It is not the end state, it is
+the state that is safe while three bundles are live. `ROADMAP.md` carries the
+follow-up with its unblocking condition: a binary that embeds r30.
+
+### What made it hard to see
+
+The failure looks like data loss and is not. Nothing in the diff that shipped
+with the build was near it, so the natural next move — read the change and find
+the mistake — had nothing to find. What identified it was the one fact that
+was different about that launch: a new container.
+
+### Found by review, not by testing
+
+Two more sites were wrong and neither would have raised an error:
+
+- **FeedbackComposer was left behind.** It passed a stored path to
+  `getInfoAsync` and to the attachment list, so every scan-problem report would
+  have arrived with no photographs while telling the user it attached them. That
+  is the feature's entire purpose.
+- **`storedPath` guessed.** A path outside the receipts directory came back as
+  `receipts/<basename>`, naming a file that does not exist. It returns null now:
+  refusing is better than a confident wrong answer, especially for the caller
+  that deletes.
+
+`npm run test:paths` exists because of the first one. Both forms are `string`,
+so TypeScript cannot tell them apart, and the failure is always silent.
+
+### The rule
+
+**Never persist an absolute path on iOS.** Store what is stable, resolve at
+use. If a path in a database contains a UUID, it is already broken; it just has
+not been reinstalled yet.
+
+---
+
+## D-076
+
+**No em dashes in anything the user reads** (2026-09-02)
+
+Tyler's rule, in his words: an em dash is fine "in lists and things like that"
+and nowhere else. He counted two on the capture screen and does not want to see
+them in the app at all.
+
+Every user-facing sentence is rewritten with a full stop or a comma; a label
+and its value are separated by `·`, which the app already used for the version
+stamp and the receipt subtitle.
+
+**Two structural exemptions, and they are not a matter of taste:**
+
+- The `scheduleC` labels in classifier.js are the IRS's own line names in a data
+  table (`Line 24a — Travel`) — the label case the rule allows. They are also
+  copied onto every receipt row and into every CSV, XLSX and TXF export, so
+  rewording them is a data migration rather than a copy edit.
+- `exporters.js`'s `ascii()` names the characters because its job is to strip
+  them.
+
+`npm run test:prose` enforces it, in CI. A wording preference is exactly the
+kind of rule that decays: the next screen gets written from memory, and nobody
+notices until Tyler does. Comments are not scanned, deliberately — they are
+written for whoever maintains this, not for the user.

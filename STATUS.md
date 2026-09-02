@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 6) · js r28 observed on device; r29 published** | Build 6 opens on Tyler's phone with real icons, which confirms the expo-font pin (D-072). It is the first binary whose **embedded** bundle runs, so the first that is submittable. Build 6 is in `LIVE_BUILDS` (D-074). r29 published to `production` 2026-09-02 (group `d2679345`), **not yet observed on a device** (D-062 rule 2). |
+| iOS app (`mobile/`) | **v1.0.0 (build 6) · js r29 observed on device; r30 next** | Build 6 opens on Tyler's phone with real icons, which confirms the expo-font pin (D-072). It is the first binary whose **embedded** bundle runs, so the first that is submittable. Build 6 is in `LIVE_BUILDS` (D-074). r29 confirmed running on device 2026-09-02. r30 fixes receipt photographs, which stopped rendering because iOS moved the app's Data container (D-075). |
 
 ---
 

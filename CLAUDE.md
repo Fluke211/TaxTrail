@@ -55,6 +55,10 @@ Two artifacts:
   shows it on the home screen; the Expo app shows it in the Summary footer via
   `src/lib/version.ts`. Bump `JS_REVISION` on every OTA update, `APP_BUILD` on
   every native build — and TELL Tyler which version you're handing him, every time.
+- **No em dashes in anything Tyler reads** (D-076). Not in the app, not in a
+  reply. A sentence takes a full stop or a comma; a label and its value take
+  `·`. Lists and data tables may keep one. `npm run test:prose` enforces it for
+  the app's own strings; nothing enforces it in chat, so watch it there.
 - **Verify before recommending.** Never propose a path you haven't confirmed is
   technically possible. Dead ends burn his limited time. Check `--help` output,
   inspect package internals, run `prebuild` and read what it generated. This has

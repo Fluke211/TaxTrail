@@ -31,8 +31,8 @@ and "Tax-ready by April 15" (21).
 ## Promotional text (170 max, editable without review)
 
 ```
-Scan a receipt, get the right IRS Schedule C line. No account, no cloud —
-your receipts never leave your phone.
+Scan a receipt, get the right IRS Schedule C line. No account, no cloud.
+Your receipts never leave your phone.
 ```
 
 Because this field updates without a review cycle, use it for seasonal pushes:
@@ -41,7 +41,7 @@ January "Tax season is here", April "Deadline in two weeks".
 ## Description
 
 ```
-TaxTrail turns a photo of a receipt into a categorized, tax-ready expense —
+TaxTrail turns a photo of a receipt into a categorized, tax-ready expense,
 without sending it anywhere.
 
 Everything happens on your iPhone. The text recognition, the categorization, the
@@ -49,13 +49,13 @@ math. There is no account to create, no cloud to sync with, and no server that
 receives your receipts. Your financial records stay yours.
 
 SORTED FOR YOUR TAX RETURN
-Every receipt is filed to one of 28 categories mapped to real IRS lines —
+Every receipt is filed to one of 28 categories mapped to real IRS lines:
 Schedule C, plus Schedule A, Form 8829, Form 4562, and cost of goods sold.
 When a purchase is partly personal, split it: the sales tax splits with it.
 
 BUILT FOR REAL RECEIPTS
 Apple's document scanner finds the receipt's edges, flattens it, and sharpens
-the print before anything is read — so faded thermal paper and crumpled corners
+the print before anything is read, so faded thermal paper and crumpled corners
 still work. Long receipts are captured across multiple pages and read as one.
 
 EXPORTS YOUR ACCOUNTANT WILL ACCEPT
@@ -93,7 +93,7 @@ those separately, so spending keyword characters on them is waste.
 
 ```
 First release. Scan receipts, get them filed to the right IRS line, export for
-your accountant — all on your device.
+your accountant, all on your device.
 ```
 
 ## URLs

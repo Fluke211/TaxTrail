@@ -750,6 +750,43 @@ reason to measure both instead of fixing the one you assumed.
 
 ---
 
+## Wording and image paths, checked in CI
+
+Two checks added 2026-09-02, both because the failure they catch is silent.
+
+```bash
+npm run test:prose    # no em or en dashes in user-facing text (D-076)
+npm run test:paths    # a stored image path never reaches a consumer (D-075)
+```
+
+**`test:prose`** scans source under `src/`, the entry point, and the string
+values in `app.json` (the iOS permission prompts there are shown verbatim in a
+system alert). Comments are not scanned: they are written for whoever maintains
+this, not for Tyler.
+
+Its exemptions are structural, and adding one is not the way to make it pass:
+
+| Exempt | Why |
+|---|---|
+| `scheduleC:` lines in `classifier.js` | IRS line labels in a data table. They are also copied onto every receipt row and into every export, so rewording them is a data migration |
+| the dash class in `exporters.js` | `ascii()` names those characters because it strips them |
+
+**Rewrite the sentence instead.** A full stop or a comma for prose; `·` between
+a label and a value, which the app already used for the version stamp.
+
+The comment stripper inside it is a character scanner, not a regex, and it
+knows about regex literals. Both of those cost a round: a regex stripper blanked
+half of `classifier.js` the first time, and reading `return /[",\n]/` as
+division desynced the rest of `exporters.js`. If it ever reports a comment as
+user-facing text, that is the bug, not the comment.
+
+**`test:paths`** catches a stored path (`receipts/x.jpg`) passed straight to
+`<Image>`, `getInfoAsync`, `deleteAsync` and friends without `resolveImage()`.
+It only sees the one-line form; a path put in a variable first is the correct
+shape and is not chased. It is a guard, not a proof.
+
+---
+
 ## Recovering a lost project
 
 If `mobile/` is ever missing, `setup-receiptsnap-mobile.sh` reconstructs it from

@@ -79,6 +79,19 @@ jobs:
       - name: Permissions have features behind them
         run: npm run test:perms
 
+      # An em dash in a sentence is Tyler's rule, and a wording rule kept in
+      # someone's head is a wording rule that comes back. Labels and data tables
+      # are exempt structurally; sentences are not.
+      - name: No em or en dashes in user-facing text
+        run: npm run test:prose
+
+      # A stored image path handed straight to <Image> or FileSystem fails
+      # silently: a blank thumbnail, or a delete that reports success and leaves
+      # the photograph on the device (D-075). Both forms are `string`, so
+      # TypeScript cannot see it. Review found one such site already.
+      - name: Image paths are resolved before use
+        run: npm run test:paths
+
       - name: TypeScript
         run: npx tsc --noEmit
 

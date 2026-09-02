@@ -98,7 +98,7 @@ function buildBody(opts) {
 
 /** Subject line. Kept stable and prefixed so support mail can be filtered. */
 function buildSubject(kind, version) {
-  var v = version ? ' — ' + version : '';
+  var v = version ? ' · ' + version : '';
   return (kind === 'scan' ? 'TaxTrail: scanning problem' : 'TaxTrail feedback') + v;
 }
 

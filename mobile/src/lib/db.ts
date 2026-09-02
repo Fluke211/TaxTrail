@@ -2,7 +2,7 @@
 // under the app's documents directory.
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
-import { RECEIPTS_DIR } from './ocr';
+import { RECEIPTS_DIR } from './images';
 const C = require('./classifier.js');
 
 export interface Allocation {
@@ -120,6 +120,7 @@ const MIGRATIONS: ((db: SQLite.SQLiteDatabase) => Promise<void>)[] = [
       await db.execAsync('ALTER TABLE receipts ADD COLUMN parsedSnapshot TEXT');
     }
   },
+
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -193,8 +194,15 @@ export async function deleteAllData(): Promise<{ receipts: number; imagesRemoved
 
   let imagesRemoved = false;
   try {
-    const info = await FileSystem.getInfoAsync(RECEIPTS_DIR);
-    if (info.exists) await FileSystem.deleteAsync(RECEIPTS_DIR, { idempotent: true });
+    // RECEIPTS_DIR is null only where there is no documents directory at all,
+    // so there are no photographs and "removed" is the accurate answer. It must
+    // never become a path built from the string "null". Throwing here would
+    // tell the user image files survived a Delete All, on the one screen where
+    // being wrong about deletion matters most.
+    if (RECEIPTS_DIR) {
+      const info = await FileSystem.getInfoAsync(RECEIPTS_DIR);
+      if (info.exists) await FileSystem.deleteAsync(RECEIPTS_DIR, { idempotent: true });
+    }
     imagesRemoved = true;
   } catch (e) {
     console.warn('deleteAllData: image directory not removed', e);

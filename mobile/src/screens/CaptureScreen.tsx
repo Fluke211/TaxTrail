@@ -22,6 +22,7 @@ const G = require('../lib/gates.js');
 // Namespaced like the other stored keys (see memory.ts).
 const REVIEW_ASKED_KEY = 'rs.reviewAsked.v1';
 import { SC_BY_NAME } from '../lib/rows';
+import { resolveImage } from '../lib/images';
 import { ZoomableImage } from '../components/ZoomableImage';
 import { CategoryPicker } from '../components/CategoryPicker';
 const C = require('../lib/classifier.js');
@@ -193,7 +194,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
       setNotes(''); setAllocs([]); setShowRaw(false); setShowSplits(false);
     } catch (e) {
       console.warn(e);
-      Alert.alert('Scan failed', 'Could not read that photo — try again with more light and the receipt flat.');
+      Alert.alert('Scan failed', 'Could not read that photo. Try again with more light and the receipt flat.');
     } finally {
       setBusy(false);
     }
@@ -258,7 +259,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
     await taxMemLearn(pending.city, pending.taxRate);
     setPending(null);
     onSaved();
-    Alert.alert('Saved ✓', learned ? `I'll remember this store as "${merchant}"` : `${merchant} — $${total.toFixed(2)}`);
+    Alert.alert('Saved ✓', learned ? `I'll remember this store as "${merchant}"` : `${merchant} · $${total.toFixed(2)}`);
     // Ratings flywheel: ask once, ever, after the Nth successful scan. Keyed on
     // the LIFETIME count with a persisted flag — the old `countThisMonth() === 3`
     // re-fired every month and could be skipped entirely (see gates.js).
@@ -327,6 +328,10 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
     setSplitAmt('');
   }, [pending, splitAmt, splitCat, splitTax, allocated, totalNum]);
 
+  // Resolved once. A stored path is not openable and `resolveImage` can return
+  // null, so the render branches on the result rather than on the row's field.
+  const pinnedUri = pending ? resolveImage(pending.imagePath) : null;
+
   const splitPreview = useMemo(() => {
     const amt = parseFloat(splitAmt);
     if (!pending || !amt || amt <= 0) return null;
@@ -352,7 +357,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
           >
             <Icon name="scan-outline" size={56} color={T.accent} />
             <Text style={s.heroTitle}>Tap to scan</Text>
-            <Text style={s.heroSub}>Read &amp; categorized entirely on your phone — nothing uploaded.</Text>
+            <Text style={s.heroSub}>Read and categorized entirely on your phone. Nothing is uploaded.</Text>
           </Pressable>
 
           {/* No accessibilityLabel on the container: the Text below IS the
@@ -370,7 +375,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
                 />
               </View>
               <Text style={[s.meterText, meter.exhausted && { color: T.danger }]}>
-                {meter.exhausted ? 'No free scans left this month — Pro is unlimited' : meter.label}
+                {meter.exhausted ? 'No free scans left this month. Pro is unlimited.' : meter.label}
               </Text>
             </View>
           )}
@@ -415,10 +420,13 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
               ))}
             </View>
           )}
+          {/* Two lines on an iPhone 14, deliberately. It sits at the bottom of
+              the screen, and a third line was enough to make the whole page
+              scroll. What it says that the hero does not: no account, no ads. */}
           <View style={s.privacy}>
             <Text style={s.privacyText}>
               <Text style={{ color: T.text, fontWeight: '600' }}>Your data never leaves this device. </Text>
-              OCR runs on-device (Apple Vision) and receipts are stored locally — no upload, no account.
+              No account, no ads, no tracking.
             </Text>
           </View>
         </>
@@ -434,14 +442,14 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
       {pending && !busy && (
         <>
           {/* Snapped photo stays pinned at top until Save or Discard */}
-          <ZoomableImage uri={pending.imagePath} style={s.pinned} />
+          {pinnedUri && <ZoomableImage uri={pinnedUri} style={s.pinned} />}
           <View style={s.review}>
             <Text style={s.h3}>Check the details</Text>
             <Text style={[s.conf, pending.merchantRemembered && { color: T.good }]}>
               {pending.merchantRemembered
                 ? `★ Merchant remembered from a previous visit`
                 : pending.category === 'Uncategorized'
-                ? '⚠️ Couldn’t auto-categorize — please pick a category'
+                ? '⚠️ Couldn’t auto-categorize. Please pick a category.'
                 : `Auto-categorized as “${pending.category}” (${pending.confidence} confidence)`}
             </Text>
 
@@ -466,7 +474,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
                   onChangeText={(v) => setPending({ ...pending, salesTax: v })} placeholder="0.00" placeholderTextColor={T.muted2} />
               </View>
             </View>
-            <Text style={s.hint}>Tax rate: {pending.taxRate ? `${(pending.taxRate * 100).toFixed(3).replace(/\.?0+$/, '')}%` : '—'} ({pending.rateSource})</Text>
+            <Text style={s.hint}>Tax rate: {pending.taxRate ? `${(pending.taxRate * 100).toFixed(3).replace(/\.?0+$/, '')}%` : 'unknown'} ({pending.rateSource})</Text>
 
             <Text style={s.label}>MAIN TAX CATEGORY</Text>
             <Pressable style={s.input} onPress={() => setShowCats(!showCats)}>
