@@ -46,6 +46,7 @@ const GLYPH: Record<string, string> = {
   'stats-chart': '▰', 'stats-chart-outline': '▱',
   settings: '⚙', 'settings-outline': '⚙',
   'scan-outline': '⬚',
+  'images-outline': '⧉',
   'information-circle-outline': 'ⓘ',
   checkbox: '☑', 'square-outline': '☐',
 };

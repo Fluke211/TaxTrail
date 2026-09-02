@@ -132,12 +132,11 @@ what blocks what, not by size.
       app was made to report its own startup error (D-071): `expo-font` 57.0.1
       was autolinked against expo-modules-core 55, so `ExpoFontLoader` never
       registered (D-072)
-- [ ] **Cut build 6 before submitting.** js r28 works around the crash over the
-      air by letting icons fall back to text glyphs, so build 5 launches — but
-      the actual fix is the `overrides` pin on expo-font, and a native module
-      can only be corrected by a build. Real icons return by themselves once it
-      lands; nothing to revert. **Costs one EAS build credit and needs Tyler's
-      explicit go** (CLAUDE.md); preflight is free and comes first
+- [x] **Build 6 cut, and it launches** (2026-09-02) — confirmed on Tyler's
+      phone with real Ionicons, which is the `overrides` pin on expo-font
+      working as D-072 predicted. First binary whose embedded bundle runs
+      unaided, so the first that is submittable (D-074). Its first attempt died
+      on a CocoaPods CDN 400, not the diff (D-073)
 - [ ] Screenshots — **screenshot 2 is the privacy-label comparison** against
       Keeper / QuickBooks / Wave; that contrast is the entire pitch
 - [ ] App Privacy questionnaire answers (drafted in `docs/APP_STORE_LISTING.md`)

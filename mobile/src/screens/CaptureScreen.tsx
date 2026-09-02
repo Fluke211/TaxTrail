@@ -1,6 +1,6 @@
 // Capture flow: hero → camera/library → OCR → review form with the photo pinned
 // at the top (scan controls hidden until Save or Discard — same UX as PWA v5.5).
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable,
   ScrollView, Text, TextInput, View,
@@ -28,6 +28,10 @@ const C = require('../lib/classifier.js');
 const E = require('../lib/edited.js');
 
 const CATEGORY_NAMES: string[] = (C.CATEGORIES as { name: string }[]).map((c) => c.name);
+
+/* Rows in the capture screen's Recent list. Short on purpose: this screen is
+ * for scanning, and the Receipts tab is where a list belongs. */
+const RECENT_ROWS = 3;
 
 interface Pending {
   imagePath: string;
@@ -97,11 +101,11 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
   const recents = useMemo(
     () => receipts.slice()
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : (b.id ?? 0) - (a.id ?? 0)))
-      .slice(0, 4),
+      .slice(0, RECENT_ROWS),
     [receipts],
   );
 
-  const startScan = useCallback(async (fromLibrary: boolean) => {
+  const runScan = useCallback(async (fromLibrary: boolean) => {
     // Free-tier gate before the camera opens. The decision itself lives in
     // gates.js so the boundary is unit-tested rather than only reachable by
     // scanning eleven receipts on a phone.
@@ -194,6 +198,26 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
       setBusy(false);
     }
   }, [onProChanged]);
+
+  /*
+   * One scan at a time.
+   *
+   * `busy` is what hides the controls, and it is not set until the paywall and
+   * the picker have both resolved — several seconds during which the hero and
+   * the library button are still live. Two taps meant two paywalls, or two
+   * pickers. It mattered less when the library control was 13pt of muted text;
+   * it is a 48pt button now.
+   */
+  const scanning = useRef(false);
+  const startScan = useCallback(async (fromLibrary: boolean) => {
+    if (scanning.current) return;
+    scanning.current = true;
+    try {
+      await runScan(fromLibrary);
+    } finally {
+      scanning.current = false;
+    }
+  }, [runScan]);
 
   const discard = useCallback(() => { setPending(null); }, []);
 
@@ -351,8 +375,21 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
             </View>
           )}
 
-          <Pressable style={s.linkBtn} onPress={() => startScan(true)}>
-            <Text style={s.linkBtnText}>Choose from photo library</Text>
+          {/* Secondary, but still a button. As plain text under a big dashed
+              rectangle it did not read as tappable at all. Filled inset +
+              hairline border, so it is obviously pressable while staying
+              clearly below the hero. */}
+          <Pressable
+            style={({ pressed }) => [s.uploadBtn, pressed && s.uploadBtnPressed]}
+            onPress={() => startScan(true)}
+            accessibilityRole="button"
+            // Exactly the visible text, not a nicer sentence: Voice Control
+            // matches on the label, so "Tap Choose from photo library" has to
+            // hit. It is here at all only to keep the icon glyph out of it.
+            accessibilityLabel="Choose from photo library"
+          >
+            <Icon name="images-outline" size={18} color={T.text} />
+            <Text style={s.uploadBtnText}>Choose from photo library</Text>
           </Pressable>
 
           {recents.length > 0 && (
@@ -574,8 +611,13 @@ const makeStyles = styled((T) => ({
     shadowOffset: { width: 0, height: 6 },
   },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  linkBtn: { paddingVertical: 12, alignItems: 'center' },
-  linkBtnText: { color: T.muted, fontSize: 13 },
+  uploadBtn: {
+    marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, backgroundColor: T.card2, borderColor: T.line, borderWidth: 1,
+    borderRadius: 12, paddingVertical: 14,
+  },
+  uploadBtnPressed: { opacity: 0.7 },
+  uploadBtnText: { color: T.text, fontSize: 15, fontWeight: '600' },
   privacy: {
     marginTop: 18, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
     borderRadius: T.radius, padding: 14,

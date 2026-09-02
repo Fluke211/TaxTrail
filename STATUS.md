@@ -1,13 +1,41 @@
 # Status
 
-**Last updated:** 2026-08-30 · Update this file at the end of every working session.
+**Last updated:** 2026-09-02 · Update this file at the end of every working session.
 
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 5) · js r28 — working; build 6 retrying** | Build 5 launches on r28 and is in use. Build 6's first attempt failed in `Install pods` on a **CocoaPods CDN 400** for RevenueCat's podspec (D-073) — infrastructure, not the diff; the expo-font pin was wrongly suspected and is cleared. Retried 2026-08-31 with Tyler's go. |
+| iOS app (`mobile/`) | **v1.0.0 (build 6) · js r28 observed on device; r29 published** | Build 6 opens on Tyler's phone with real icons, which confirms the expo-font pin (D-072). It is the first binary whose **embedded** bundle runs, so the first that is submittable. Build 6 is in `LIVE_BUILDS` (D-074). r29 is published, **not yet observed on a device** (D-062 rule 2). |
 
 ---
+
+## Where things stand — 2026-09-02
+
+**The launch crash is over, and there is now a submittable binary.**
+
+Build 6 is installed on Tyler's phone and opens: footer `js r28`, real
+Ionicons. That confirms D-072 end to end — the `overrides` pin makes autolinking
+compile expo-font at the SDK 55 major, so `ExpoFontLoader` registers. Builds 4
+and 5 needed an OTA before they were usable, which a fresh install could never
+fetch in time; build 6 does not.
+
+| | |
+|---|---|
+| `LIVE_BUILDS` | Build 6 added (commit `4676b73`), so D-062 rule 2 is satisfied for it |
+| Startup net | Stays permanently, with a presentation fit for a stranger — plain headline, stack trace behind a toggle (D-074) |
+| OTA guard | `check-ota-safety.js` had been scanning `index.ts`, renamed to `index.tsx` in D-071 — the entry point was the one file it skipped. Fixed |
+| Capture screen | Recent list trimmed to 3 rows; the photo-library option is a real button now (js r29) |
+
+**Swipe-to-delete is still blocked, and the blocker is build 3.** It needs
+`react-native-gesture-handler` statically imported, and build 3 — commit
+`0b00b937`, still installable from TestFlight — was compiled without it. Builds
+4, 5 and 6 all have it. So the gate is no longer a missing observation: it is
+build 3 being reachable at all, and it lifts when that binary expires (90 days
+from its upload) or when nobody can still be running it. `npm run test:ota`
+enforces this; do not add the import before then.
+
+**Next:** submit build 6 for review, once the remaining Tyler-only items below
+are done.
 
 ## Where things stand — 2026-08-30
 
@@ -38,7 +66,7 @@ Cleared in the earlier overnight session:
 no native build was needed. The Summary footer should read
 `TaxTrail v1.0.0 (build 3) · js r17` once the app has restarted twice.
 
-### Build 5 is built and submitted — waiting on one install
+### Build 5 is built and submitted — waiting on one install *(superseded 2026-09-02: build 5 launched, then build 6 replaced it)*
 
 Cut 2026-08-31 with Tyler's explicit go, one EAS credit. Verified end to end
 rather than assumed:
