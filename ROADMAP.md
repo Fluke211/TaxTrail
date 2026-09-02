@@ -339,7 +339,10 @@ build, one credit, one TestFlight round.
 - [ ] **`userInterfaceStyle: "automatic"`** — already committed, and it is what
       makes the appearance switch's "System" option follow the phone (D-077).
       Light and Dark already work over the air.
-- [ ] **Write receipt image paths relative, and migrate the rows** (see below).
+Not in the batch, though it is easy to think it is: **writing receipt image
+paths relative** unblocks *after* build 7 ships, not inside it. It needs a
+binary that already embeds r30 or later, which is what build 7 will be. It stays
+under "Parked, deliberately" below until then.
 
 ## Parked, deliberately
 

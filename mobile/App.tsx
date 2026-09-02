@@ -1,13 +1,13 @@
 // TaxTrail — root component. Custom four-tab shell (no navigation library:
 // fewer native deps = safer single EAS build).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Linking, Pressable, Text, View } from 'react-native';
+import { AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from './src/components/Icon';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { DARK, styled, useTheme } from './src/lib/theme';
 import { loadThemeChoice } from './src/lib/appearance';
-import { authenticate, isLockAvailable, isLockEnabled } from './src/lib/appLockNative';
+import { authenticate, primeLock, readLock, subscribeLock } from './src/lib/appLockNative';
 import { LockScreen } from './src/components/LockScreen';
 import { allReceipts, type Receipt } from './src/lib/db';
 import { initPurchases, isPro, registerFallbackPaywall } from './src/lib/purchases';
@@ -25,54 +25,66 @@ type Tab = 'capture' | 'receipts' | 'summary' | 'settings';
 /*
  * The Face ID gate (D-079).
  *
- * Three states, and the difference between them is the whole design:
+ * The state machine is `appLock.js`'s reducer, so every transition is a
+ * fixture rather than something verified by unlocking a phone. This hook is
+ * only the wiring: read the preference, feed AppState in, run the prompt.
  *
- *  - **locked**: authentication is required. The lock screen shows and prompts.
- *  - **covered**: the app has resigned active, so iOS is about to take the
- *    snapshot it shows in the app switcher. Content is hidden, nothing is
- *    asked. Without this the switcher shows the receipt list to anyone holding
- *    the phone, unlocked, which is the thing the feature exists to prevent.
- *  - neither: the app is in use.
+ * Two things it must get right, both found by review rather than by testing:
  *
- * **`inactive` is not `background`.** iOS fires `inactive` for the Face ID
- * prompt itself, for Control Centre, and for a notification banner. It covers,
- * because a snapshot may follow; it never starts the clock. Only a real
- * `background` does, and the clock is consumed on the way back so an
- * inactive/active blip can never be read as time away. Getting this wrong locks
- * the app again the instant the prompt it raised is dismissed, which is a loop
- * with no way out.
+ *  - The lock decision on resume is SYNCHRONOUS, from values already in hand.
+ *    Awaiting AsyncStorage first meant the receipt list painted for a few
+ *    frames before the lock screen, which is the leak the feature exists to
+ *    prevent. The async re-read still happens, to catch a preference the
+ *    Settings screen changed, but it refines a decision rather than making it.
+ *  - The preference is subscribed to, not sampled once. Turning the lock back
+ *    on and immediately swiping to the app switcher used to photograph the
+ *    receipt list, because this had never heard about the change.
  */
 function useAppLock() {
   const [ready, setReady] = useState(false);
-  const [locked, setLocked] = useState(false);
-  const [covered, setCovered] = useState(false);
+  const [lock, setLock] = useState<import('./src/lib/appLock').LockState>(AL.INITIAL);
   const [busy, setBusy] = useState(false);
-  const backgroundedAt = useRef<number | null>(null);
-  // Refs, not state: the AppState handler reads them, nothing renders them.
-  const enabled = useRef(false);
-  const available = useRef(false);
+  // Refs, not state: the AppState handler reads them and nothing renders them.
+  const ctx = useRef({ enabled: false, available: false });
+
+  const readPreference = useCallback(async () => {
+    ctx.current = await readLock();
+    return ctx.current;
+  }, []);
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [on, can] = await Promise.all([isLockEnabled(), isLockAvailable()]);
+      const c = await readPreference();
       if (!alive) return;
-      enabled.current = on;
-      available.current = can;
+      setLock((prev) => AL.reduce(prev, { type: 'start', now: Date.now() }, c));
       setReady(true);
-      // A cold start: no previous foreground to lean on, which shouldLock reads
-      // as "ask".
-      setLocked(AL.shouldLock({ enabled: on, available: can, backgroundedAt: null, now: Date.now() }));
     })();
-    return () => { alive = false; };
-  }, []);
+
+    /*
+     * A deadline, because `ready` gates the whole app.
+     *
+     * Both reads catch their own throws, but neither can catch a promise that
+     * never settles: a wedged AsyncStorage or a native call that does not
+     * return would leave a permanently blank screen that index.tsx's crash net
+     * cannot report, which is the class of failure that cost builds 4 and 5.
+     * Falling through leaves the app usable and unlocked, which is the same
+     * place a user who turned the lock off is in.
+     */
+    const deadline = setTimeout(() => { if (alive) setReady(true); }, 3000);
+
+    // Settings writes the preference; this is how that reaches the AppState
+    // handler before the next foreground.
+    const stop = subscribeLock(() => { void readPreference(); });
+
+    return () => { alive = false; clearTimeout(deadline); stop(); };
+  }, [readPreference]);
 
   const unlock = useCallback(async () => {
     setBusy(true);
     try {
       if (await authenticate()) {
-        backgroundedAt.current = null;
-        setLocked(false);
+        setLock((prev) => AL.reduce(prev, { type: 'unlocked', now: Date.now() }, ctx.current));
       }
     } finally {
       setBusy(false);
@@ -81,43 +93,32 @@ function useAppLock() {
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
-      if (next === 'inactive' || next === 'background') {
-        if (enabled.current && available.current) setCovered(true);
-        if (next === 'background') backgroundedAt.current = Date.now();
-        return;
-      }
-      if (next !== 'active') return;
-      setCovered(false);
-
-      // Nothing to judge unless the app actually left. An inactive/active blip
-      // leaves this null, and reading null here as a cold start is the loop.
-      const wasAway = backgroundedAt.current;
-      backgroundedAt.current = null;
-      if (wasAway == null) return;
-
-      // Re-read the preference: Settings may have just changed it.
-      (async () => {
-        const [on, can] = await Promise.all([isLockEnabled(), isLockAvailable()]);
-        enabled.current = on;
-        available.current = can;
-        if (AL.shouldLock({ enabled: on, available: can, backgroundedAt: wasAway, now: Date.now() })) {
-          setLocked(true);
-        }
-      })();
+      if (next !== 'active' && next !== 'inactive' && next !== 'background') return;
+      // Decided from what is already known, so the cover comes off in the same
+      // commit as the lock going on, never a few frames earlier.
+      setLock((prev) => AL.reduce(prev, { type: next, now: Date.now() }, ctx.current));
+      // Then refresh, in case Settings changed the preference while away. This
+      // cannot un-decide the transition above; it only corrects the next one.
+      if (next === 'active') void readPreference();
     });
     return () => sub.remove();
-  }, []);
+  }, [readPreference]);
 
-  // Prompt as soon as the lock screen appears, and again whenever it re-locks,
-  // so the normal case is one glance rather than a tap and then a glance.
+  /*
+   * Prompt whenever the app newly needs asking.
+   *
+   * Keyed on `prompts`, not on `locked`: a user who cancels stays locked, so
+   * the next lock event leaves the boolean unchanged and no prompt would ever
+   * appear again.
+   */
   useEffect(() => {
-    if (locked && !busy) void unlock();
+    if (lock.locked && !busy) void unlock();
     // `busy` is deliberately absent: including it re-prompts the moment a
     // cancelled attempt finishes, which is a loop the user cannot escape.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locked, unlock]);
+  }, [lock.prompts, lock.locked, unlock]);
 
-  return { ready, locked, covered, busy, unlock };
+  return { ready, locked: lock.locked, covered: lock.covered, busy, unlock };
 }
 
 function Root() {
@@ -171,17 +172,18 @@ function Root() {
   }, []);
 
   /*
-   * Nothing of the app renders while locked or covered, and nothing renders
-   * before the preference is known either: a frame of the receipt list before
-   * the lock appears is the whole feature defeated, and it is a real risk
-   * because the preference comes from AsyncStorage.
+   * Nothing of the app renders while locked, and nothing renders before the
+   * preference is known: a frame of the receipt list before the lock appears is
+   * the whole feature defeated.
    *
-   * Each branch carries its own StatusBar. Without it the clock and battery
-   * keep the previous style, and on the one screen a user is forced to look at
-   * they can end up black on black.
+   * The StatusBar is built once and rendered by whichever branch wins. Without
+   * it on the lock screen the clock and battery keep the previous style, which
+   * can be black on black.
    */
   const bar = <StatusBar style={T.scheme === 'light' ? 'dark' : 'light'} />;
-  if (!lock.ready) return <View style={{ flex: 1, backgroundColor: T.bg }}>{bar}</View>;
+  const blank = <View style={{ flex: 1, backgroundColor: T.bg }}>{bar}</View>;
+
+  if (!lock.ready) return blank;
   if (lock.locked) {
     return (
       <View style={{ flex: 1 }}>
@@ -190,9 +192,6 @@ function Root() {
       </View>
     );
   }
-  // Covered, not locked: the app switcher's snapshot must not carry the receipt
-  // list. No prompt here, because resigning active is not the user leaving.
-  if (lock.covered) return <View style={{ flex: 1, backgroundColor: T.bg }}>{bar}</View>;
 
   return (
     <View style={[s.app, { paddingTop: insets.top }]}>
@@ -245,23 +244,44 @@ function Root() {
           );
         })}
       </View>
+      {/*
+        The cover is an OVERLAY, not a replacement for the tree.
+        Returning early for it unmounted whichever screen was showing, and
+        CaptureScreen holds a scanned receipt, its typed corrections and its
+        splits in local state until Save. A notification banner would have
+        thrown all of that away, along with orphaning the JPEG on disk.
+
+        iOS photographs the screen when the app resigns active, and that
+        photograph is what the app switcher shows. This is what it photographs
+        instead.
+      */}
+      {lock.covered && <View style={s.cover} />}
       {/* "light" means light CONTENT — white clock and battery — which is right
           on the dark ground and unreadable on the light one. Driven off the
           palette rather than hardcoded, or light mode ships with an invisible
           status bar. */}
-      <StatusBar style={T.scheme === 'light' ? 'dark' : 'light'} />
+      {bar}
     </View>
   );
 }
 
 export default function App() {
   /*
-   * The stored theme choice, read before the first paint. Without the gate a
-   * light-mode user gets a dark frame first, which looks like a flash of the
-   * wrong app (D-077).
+   * The stored theme choice, read before the first paint.
+   *
+   * What the gate buys is precise: no CONTENT is painted in the wrong palette.
+   * It cannot avoid the ground being wrong for a light-mode user during the
+   * read, because the choice is in AsyncStorage and there is nothing to read it
+   * from synchronously. Dark is the ground either way, as useTheme says.
+   *
+   * The lock preference is started in the same breath rather than after this
+   * resolves, so the two reads overlap instead of queueing.
    */
   const [themeReady, setThemeReady] = useState(false);
-  useEffect(() => { loadThemeChoice().finally(() => setThemeReady(true)); }, []);
+  useEffect(() => {
+    primeLock();
+    loadThemeChoice().finally(() => setThemeReady(true));
+  }, []);
 
   /*
    * No GestureHandlerRootView here, deliberately.
@@ -279,8 +299,8 @@ export default function App() {
   return (
     <SafeAreaProvider>
       {/* A themed ground rather than null: the platform default is white, and a
-          white flash is the wrong-appearance flash this gate exists to avoid,
-          just inverted. Dark is the safer default, as useTheme says. */}
+          white flash is worse than a dark one on an app that is dark by
+          default. */}
       {themeReady ? <Root /> : <View style={{ flex: 1, backgroundColor: DARK.bg }} />}
     </SafeAreaProvider>
   );
@@ -288,6 +308,7 @@ export default function App() {
 
 const makeStyles = styled((T) => ({
   app: { flex: 1, backgroundColor: T.bg },
+  cover: { ...StyleSheet.absoluteFillObject, backgroundColor: T.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,

@@ -28,11 +28,30 @@ export async function isLockEnabled(): Promise<boolean> {
   }
 }
 
+/*
+ * Who else needs to know when this changes.
+ *
+ * App.tsx keeps the preference in a ref, because the AppState handler reads it
+ * on every transition and nothing renders it. Without this it only learned
+ * about a change on the next foreground, so turning the lock back on and
+ * immediately swiping to the app switcher photographed the receipt list.
+ */
+const listeners = new Set<() => void>();
+
+export function subscribeLock(l: () => void): () => void {
+  listeners.add(l);
+  return () => { listeners.delete(l); };
+}
+
 export async function setLockEnabled(on: boolean): Promise<void> {
   try {
     await AsyncStorage.setItem(KEY, on ? '1' : '0');
   } catch {
     // Nothing useful to do. The toggle already moved on screen.
+  } finally {
+    // Told either way: the toggle has moved, and a listener re-reading storage
+    // is how it finds out what actually stuck.
+    for (const l of listeners) l();
   }
 }
 
@@ -51,6 +70,39 @@ export async function isLockAvailable(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/*
+ * Start the startup read early, so it runs alongside the theme read instead of
+ * after it.
+ *
+ * Both are AsyncStorage round trips, plus a native call for the enrolment
+ * level, and the app paints nothing until both are in. Serialising them made
+ * the launch that already has the slowest first frame slower still.
+ *
+ * The primed answer is consumed once. Every later read is fresh, because the
+ * Settings toggle can have changed it.
+ */
+export interface LockPreference { enabled: boolean; available: boolean; }
+
+let primed: Promise<LockPreference> | null = null;
+
+async function read(): Promise<LockPreference> {
+  const [enabled, available] = await Promise.all([isLockEnabled(), isLockAvailable()]);
+  return { enabled, available };
+}
+
+export function primeLock(): void {
+  if (!primed) primed = read();
+}
+
+export function readLock(): Promise<LockPreference> {
+  if (primed) {
+    const p = primed;
+    primed = null;
+    return p;
+  }
+  return read();
 }
 
 /** True if the user got in. A cancel is a false, not an error. */

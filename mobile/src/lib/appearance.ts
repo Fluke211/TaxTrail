@@ -19,8 +19,14 @@
  * `userInterfaceStyle: "dark"`, which pins the window's trait collection, so
  * `useColorScheme()` returns 'dark' on a phone set to Light. The value is
  * changed to "automatic" in the same commit as this file, and it takes a native
- * build to reach a binary. Light and Dark work immediately, because an explicit
- * override beats the plist.
+ * build to reach a binary.
+ *
+ * **Light and Dark on build 6 are expected to work, and are NOT verified.**
+ * `RCTAppearance.mm` sets `window.overrideUserInterfaceStyle`, and a window
+ * override is documented to win over the app-level `UIUserInterfaceStyle`, so
+ * the reasoning is sound. But how UIKit resolves that pair is not something
+ * this environment can run, and CLAUDE.md is explicit that reasoning is not
+ * verification. Tyler can settle it in five seconds by tapping Light.
  */
 import { useSyncExternalStore } from 'react';
 import { Appearance } from 'react-native';

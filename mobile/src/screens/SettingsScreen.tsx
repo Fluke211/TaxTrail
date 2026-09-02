@@ -14,7 +14,7 @@ import { styled, useTheme } from '../lib/theme';
 import { deleteAllData, type Receipt } from '../lib/db';
 import { manageSubscription, presentPaywall, restorePurchases } from '../lib/purchases';
 import { exportBackup, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
-import { versionStamp } from '../lib/version';
+import { APP_BUILD, versionStamp } from '../lib/version';
 import { setThemeChoice, useThemeChoice, type ThemeChoice } from '../lib/appearance';
 import { isLockAvailable, isLockEnabled, setLockEnabled } from '../lib/appLockNative';
 import Icon from '../components/Icon';
@@ -43,8 +43,10 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
   const [lockAvailable, setLockAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem(DEV_MODE_KEY).then((v) => setDev(v === '1')).catch(() => {});
     let alive = true;
+    AsyncStorage.getItem(DEV_MODE_KEY)
+      .then((v) => { if (alive) setDev(v === '1'); })
+      .catch(() => {});
     Promise.all([isLockEnabled(), isLockAvailable()])
       .then(([on, can]) => { if (alive) { setLockOn(on); setLockAvailable(can); } })
       .catch(() => {});
@@ -66,6 +68,9 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
     const next = DM.tap(tapState, Date.now());
     setTapState({ count: next.count, lastAt: next.lastAt });
     setHint(next.message);
+    // Clears itself. Nothing else ever resets it, so it used to sit under the
+    // version stamp for the rest of the visit, next to the card it announced.
+    if (next.message) setTimeout(() => setHint(null), 4000);
     if (next.unlocked) {
       setDev(true);
       AsyncStorage.setItem(DEV_MODE_KEY, '1').catch(() => {});
@@ -251,14 +256,17 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
           })}
         </View>
         <Text style={s.note}>
-          System follows your phone's Light or Dark setting.
+          {APP_BUILD >= 7
+            ? "System follows your phone's Light or Dark setting."
+            : "Light and Dark work now. System will follow your phone's setting"
+              + ' after the next app update from the App Store.'}
         </Text>
       </View>
 
       <View style={s.card}>
         <Text style={s.title}>PRIVACY</Text>
         <Pressable
-          style={s.toggleRow}
+          style={[s.row, s.toggleRow]}
           onPress={() => {
             if (!lockAvailable || lockOn == null) return;
             const next = !lockOn;
@@ -280,9 +288,11 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
           />
         </Pressable>
         <Text style={s.note}>
-          {lockAvailable === false
-            ? 'Unavailable: this phone has no Face ID, Touch ID or passcode set, so there would be no way back in.'
-            : 'Face ID, Touch ID or your passcode is needed to open the app, and again after a minute away. Your receipts are on this device, so this is the only thing between them and whoever picks up your phone.'}
+          {lockAvailable == null
+            ? 'Checking what this phone can use.'
+            : lockAvailable
+              ? 'Face ID, Touch ID or your passcode is needed to open the app, and again after a minute away. Your receipts are on this device, so this is the only thing between them and whoever picks up your phone.'
+              : 'Unavailable: this phone has no Face ID, Touch ID or passcode set, so there would be no way back in.'}
         </Text>
       </View>
 
@@ -376,8 +386,11 @@ const makeStyles = styled((T) => ({
     paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
   },
   note: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginTop: 4 },
+  // card2, not bg2: LIGHT.bg2 and LIGHT.card are both #ffffff, so an inset
+  // drawn with bg2 vanishes into the card it sits on. card2 is the inset
+  // colour in both palettes.
   segment: {
-    flexDirection: 'row', gap: 6, backgroundColor: T.bg2, borderRadius: 10,
+    flexDirection: 'row', gap: 6, backgroundColor: T.card2, borderRadius: 10,
     borderColor: T.line, borderWidth: 1, padding: 4,
   },
   segmentBtn: {
@@ -386,12 +399,8 @@ const makeStyles = styled((T) => ({
   },
   segmentBtnOn: { backgroundColor: T.accentSoft, borderColor: T.accentLine },
   segmentText: { color: T.muted, fontSize: 13.5, fontWeight: '600' },
-  // `row` has no flexDirection, so a label and a control laid out with it stack
-  // vertically. Same shape as FeedbackComposer's check row.
-  toggleRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
-    paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
-  },
+  // Composed with `row`, which has no flexDirection, so a label and a control
+  // laid out with it alone stack vertically. Only the difference lives here.
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   version: { color: T.muted2, fontSize: 11, textAlign: 'center', marginTop: 14, letterSpacing: 0.3 },
 }));

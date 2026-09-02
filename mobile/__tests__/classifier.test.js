@@ -1100,5 +1100,61 @@ check('applock: a backwards clock locks rather than unlocking',
 
 check('applock: no options does not throw', AL.shouldLock() === false);
 
+// The state machine, not only the predicate. The bug that review caught before
+// r31 shipped lived entirely here: `active` judged against a mark no unlock
+// cleared, so the Face ID prompt's own dismissal re-locked the app.
+const ON = { enabled: true, available: true };
+const OFF = { enabled: false, available: true };
+
+let L = AL.reduce(null, { type: 'start', now: 0 }, ON);
+check('lock machine: a cold start locks and asks once',
+  L.locked === true && L.prompts === 1, JSON.stringify(L));
+
+// THE LOOP. iOS fires inactive then active around the Face ID sheet. Neither
+// may be read as time away.
+L = AL.reduce(L, { type: 'inactive', now: 10 }, ON);
+L = AL.reduce(L, { type: 'unlocked', now: 20 }, ON);
+const afterPrompt = AL.reduce(L, { type: 'active', now: 30 }, ON);
+check('lock machine: the prompt dismissal does not re-lock',
+  afterPrompt.locked === false && afterPrompt.covered === false, JSON.stringify(afterPrompt));
+
+// A notification banner covers, so the snapshot cannot carry the receipt list,
+// and uncovers on the way back without asking for anything.
+let banner = AL.reduce({ ...AL.INITIAL }, { type: 'inactive', now: 100 }, ON);
+check('lock machine: resigning active covers without asking',
+  banner.covered === true && banner.locked === false, JSON.stringify(banner));
+banner = AL.reduce(banner, { type: 'active', now: 200 }, ON);
+check('lock machine: coming back uncovers', banner.covered === false && banner.locked === false);
+
+// A real trip away, inside the grace period.
+let quick = AL.reduce({ ...AL.INITIAL }, { type: 'background', now: 1000 }, ON);
+check('lock machine: backgrounding covers', quick.covered === true);
+quick = AL.reduce(quick, { type: 'active', now: 1000 + AL.GRACE_MS - 1 }, ON);
+check('lock machine: a short trip does not lock',
+  quick.locked === false && quick.covered === false && quick.backgroundedAt === null, JSON.stringify(quick));
+
+// The same trip, past the grace period.
+let long = AL.reduce({ ...AL.INITIAL }, { type: 'background', now: 1000 }, ON);
+long = AL.reduce(long, { type: 'active', now: 1000 + AL.GRACE_MS }, ON);
+check('lock machine: a long trip locks and asks',
+  long.locked === true && long.prompts === 1, JSON.stringify(long));
+
+// A cancelled prompt leaves `locked` true, so a boolean cannot re-arm the ask.
+let cancelled = AL.reduce({ ...AL.INITIAL }, { type: 'start', now: 0 }, ON);
+cancelled = AL.reduce(cancelled, { type: 'background', now: 1000 }, ON);
+const reasked = AL.reduce(cancelled, { type: 'active', now: 1000 + AL.GRACE_MS }, ON);
+check('lock machine: a still-locked app asks again after another trip away',
+  reasked.locked === true && reasked.prompts === cancelled.prompts + 1,
+  reasked.prompts + ' vs ' + cancelled.prompts);
+
+// Lock off: no cover, no lock, nothing.
+let off = AL.reduce({ ...AL.INITIAL }, { type: 'start', now: 0 }, OFF);
+off = AL.reduce(off, { type: 'inactive', now: 10 }, OFF);
+check('lock machine: with the lock off nothing covers and nothing locks',
+  off.locked === false && off.covered === false, JSON.stringify(off));
+
+check('lock machine: an unknown event changes nothing',
+  AL.reduce(AL.INITIAL, { type: 'nonsense', now: 1 }, ON) === AL.INITIAL);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

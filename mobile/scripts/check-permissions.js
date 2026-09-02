@@ -147,11 +147,11 @@ if (stale.length) {
 
 if (!fresh.length) {
   console.log(held.length
-    ? `\nNo new unjustified permissions, but ${held.length} still has no feature behind`
-      + ' it. The Face ID lock shipped (D-079), so that one came off this list.'
-      + ' Location is the one left: GPS mileage is ruled out, so it can never be'
-      + ' justified and the plugin has to come out in the next native build.'
-      + ' That is the open half of D-066.'
+    // Count-neutral. The per-permission story is on the `known` lines above;
+    // encoding today's single entry into this sentence is how it goes stale.
+    ? `\nNo new unjustified permissions. ${held.length} still ${held.length === 1 ? 'has' : 'have'}`
+      + ' no feature behind it, which is the open part of D-066: ship the feature'
+      + ' or drop the plugin, and dropping one needs a native build.'
     : '\nEvery permission this app asks for has code behind it.');
   process.exit(0);
 }

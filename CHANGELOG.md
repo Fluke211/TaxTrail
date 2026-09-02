@@ -28,11 +28,13 @@ feature that did not exist. This is the feature.
   the app resigns active, and that photograph is visible without unlocking
 - Rules in `src/lib/appLock.js`, pure and unit-tested, 7 new cases
 
-**Appearance: System, Light or Dark** (D-077), in Settings. Light and Dark work
-today; **System is dark until the next native build**, because `app.json` pinned
-`userInterfaceStyle` to dark and that is a plist fact no OTA can change. The
-value is now `automatic`, ready for build 7. `Appearance.setColorScheme()` moves
-the system surfaces too, so a light-mode app does not raise black alert dialogs.
+**Appearance: System, Light or Dark** (D-077), in Settings. **System is dark
+until the next native build**, because `app.json` pinned `userInterfaceStyle` to
+dark and that is a plist fact no OTA can change; the value is now `automatic`,
+ready for build 7, and the Settings copy says so until then. Light and Dark are
+window-level overrides and are *expected* to work on build 6, which is reasoning
+rather than a device observation. `Appearance.setColorScheme()` moves the system
+surfaces too, so a light-mode app does not raise black alert dialogs.
 
 **Brighter greys in dark mode** (D-078), Tyler reads in low light: `muted`
 6.5:1 -> 7.9:1, `muted2` 3.3:1 -> 5.1:1 against the app background. One of the

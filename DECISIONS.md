@@ -3869,8 +3869,14 @@ the trait collection, and `setColorScheme` writes `overrideUserInterfaceStyle`,
 which is why Light and Dark work immediately and System does not.
 
 The value is now `"automatic"`, and it reaches a device with the next native
-build. Until then, choosing System gives dark. Light and Dark are explicit
-overrides and work today, on build 6, over the air.
+build. Until then, choosing System gives dark, and the Settings copy says so
+rather than promising something the running binary cannot do.
+
+**Light and Dark on build 6 are expected to work and are not verified.** A
+window-level `overrideUserInterfaceStyle` is documented to win over the
+app-level plist value, and that is the whole basis for the claim. UIKit trait
+resolution is not something this environment can run, and CLAUDE.md is explicit
+that reasoning is not verification. It is one tap for Tyler to settle.
 
 ### The rule
 
@@ -3938,11 +3944,14 @@ people pick up.
   frame of the receipt list before the lock appears is a real risk and would
   defeat the whole feature.
 
-- **The app switcher's snapshot is covered.** iOS photographs the screen when
-  the app resigns active, and that photograph is visible in the switcher to
-  anyone holding the phone. Locking on the way back is not enough: the content
-  has to be gone before the snapshot. So `inactive` covers, and only a real
-  `background` starts the clock.
+- **The app switcher's snapshot is covered**, by an overlay ON TOP of the
+  screen rather than instead of it. iOS photographs the screen when the app
+  resigns active, and that photograph is visible in the switcher to anyone
+  holding the phone, so the content has to be gone before the snapshot. The
+  first attempt returned early instead, which unmounted whichever screen was
+  showing: a notification banner would have thrown away a scanned receipt, its
+  typed corrections and its splits, none of which are in the database until
+  Save. `inactive` covers; only a real `background` starts the clock.
 
 The decision rules are in `src/lib/appLock.js`, pure and unit-tested, so "does a
 two-second trip to the share sheet demand Face ID again" is a test rather than
@@ -3960,7 +3969,26 @@ their first launch of r31.
 The fix is to consume the timestamp: `active` only judges when the app actually
 backgrounded, and clears the mark either way. The general shape is worth
 keeping: **`inactive` is not `background`, and a state machine driven by
-AppState needs to say which transitions it ignores**, not only which it acts on. `expo-local-authentication`
+AppState needs to say which transitions it ignores**, not only which it acts on.
+
+A second review pass found three more of the same kind, which is what settled
+the design:
+
+- **The cover was a replacement, not an overlay** (above), and would have
+  discarded an unsaved scan.
+- **The resume decision was asynchronous**, so the receipt list painted for a
+  few frames before the lock screen. It is computed synchronously now, from
+  values already in hand; the storage re-read refines the next decision rather
+  than making this one.
+- **A cancelled prompt was never re-asked.** `locked` stays true after a cancel,
+  so the next lock event changed no boolean and no prompt could fire again. The
+  state carries a `prompts` counter for exactly that.
+
+So the whole gate is a reducer in `appLock.js` now, and every transition is a
+fixture: the prompt-dismissal loop, the notification banner, both sides of the
+grace period, and the cancelled-then-away case. **Pure rules with an untested
+state machine wrapped around them is not a tested feature** — that split is what
+let four bugs through in one file. `expo-local-authentication`
 now comes off the `check-permissions.js` baseline.
 
 ### What this leaves
