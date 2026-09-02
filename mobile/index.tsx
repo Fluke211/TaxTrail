@@ -150,8 +150,8 @@ function CrashScreen({ phase, when, detail }: {
       </Text>
       <Text selectable style={{ color: C.muted, fontSize: 14, lineHeight: 21, marginBottom: 4 }}>
         {atLaunch
-          ? 'Your receipts are safe — they live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'
-          : 'Every receipt you have saved is safe — they live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'}
+          ? 'Your receipts are safe. They live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'
+          : 'Every receipt you have saved is safe. They live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'}
         {' If it keeps happening, email '}
         <Text style={{ color: C.text, fontWeight: '600' }}>{SUPPORT_EMAIL}</Text>
         {' with the details below.'}

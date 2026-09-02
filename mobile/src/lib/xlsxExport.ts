@@ -60,7 +60,7 @@ export function buildXlsxBase64(rows: ExportRow[], yearLabel: string): string {
   });
 
   const summary: (string | number)[][] = [
-    [`TaxTrail — ${yearLabel}`], [],
+    [`TaxTrail ${yearLabel}`], [],
     ['Category', 'Tax Form', 'Entries', 'Total'],
   ];
   let currentForm = '';
@@ -79,7 +79,7 @@ export function buildXlsxBase64(rows: ExportRow[], yearLabel: string): string {
   summary.push([], ['SALES TAX PAID'],
     ['On business purchases', '', '', Math.round(stBiz * 100) / 100],
     ['On personal purchases (Schedule A line 5a)', '', '', Math.round(stPersonal * 100) / 100]);
-  summary.push([], ['Import tip: FreeTaxUSA/TurboTax — enter each Schedule C line total directly.']);
+  summary.push([], ['Import tip: in FreeTaxUSA or TurboTax, enter each Schedule C line total directly.']);
 
   const wsSummary = XLSX.utils.aoa_to_sheet(summary);
   wsSummary['!cols'] = [{ wch: 42 }, { wch: 46 }, { wch: 9 }, { wch: 14 }];

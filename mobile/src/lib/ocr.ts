@@ -4,19 +4,24 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { extractTextFromImage } from 'expo-text-extractor';
 import * as FileSystem from 'expo-file-system/legacy';
+import { RECEIPTS_DIR, resolveImage } from './images';
 
-const DIR = `${FileSystem.documentDirectory}receipts/`;
-
-// Exported so "Delete all data" can remove the photographs too, not merely the
-// rows that point at them. Deleting the rows alone would leave every receipt
-// image on the device while telling the user their data was gone — which for an
-// app whose whole claim is "it never leaves your phone" is the worst possible
-// thing to be wrong about.
-export const RECEIPTS_DIR = DIR;
+/*
+ * Absolute, and only ever used to WRITE a file in this launch. What goes into
+ * the database is the relative form. See paths.js.
+ *
+ * Reading it throws off-device rather than producing a path built from the
+ * string "null". This module cannot do its job without a documents directory,
+ * and an app that scans receipts has one.
+ */
+function dir(): string {
+  if (!RECEIPTS_DIR) throw new Error('No documents directory on this platform');
+  return RECEIPTS_DIR;
+}
 
 async function ensureDir(): Promise<void> {
-  const info = await FileSystem.getInfoAsync(DIR);
-  if (!info.exists) await FileSystem.makeDirectoryAsync(DIR, { intermediates: true });
+  const info = await FileSystem.getInfoAsync(dir());
+  if (!info.exists) await FileSystem.makeDirectoryAsync(dir(), { intermediates: true });
 }
 
 async function resizeTo(uri: string, width: number, compress: number): Promise<string> {
@@ -57,11 +62,23 @@ export async function processReceiptPages(sourceUris: string[]): Promise<OcrResu
   const storedUri = await resizeTo(primary, 1200, 0.85);
   const thumbUri = await resizeTo(primary, 200, 0.7);
 
-  const imagePath = `${DIR}${stamp}.jpg`;
-  const thumbPath = `${DIR}${stamp}-thumb.jpg`;
+  const imagePath = `${dir()}${stamp}.jpg`;
+  const thumbPath = `${dir()}${stamp}-thumb.jpg`;
   await FileSystem.copyAsync({ from: storedUri, to: imagePath });
   await FileSystem.copyAsync({ from: thumbUri, to: thumbPath });
 
+  /*
+   * The ABSOLUTE path goes into the database, deliberately, for now.
+   *
+   * The relative form is the right end state, and `resolveImage` already reads
+   * both — but it is the newest JS that understands it, and expo-updates can
+   * drop a phone back onto build 6's embedded r28, which cannot. Writing the
+   * old form keeps every live bundle able to read what this one wrote, at no
+   * cost: a stale absolute path is repaired on the way out.
+   *
+   * Writes switch to `storeImage()` once a binary embeds r30 or later. See
+   * D-075 and ROADMAP.
+   */
   return { text, imagePath, thumbPath };
 }
 
@@ -77,24 +94,28 @@ export async function processReceiptPhoto(sourceUri: string): Promise<OcrResult>
 export async function saveRestoredImage(base64: string, seq: number): Promise<{ imagePath: string; thumbPath: string }> {
   await ensureDir();
   const stamp = `${Date.now()}-${String(seq).padStart(4, '0')}`;
-  const imagePath = `${DIR}${stamp}.jpg`;
+  const imagePath = `${dir()}${stamp}.jpg`;
   await FileSystem.writeAsStringAsync(imagePath, base64, { encoding: FileSystem.EncodingType.Base64 });
 
   let thumbPath = imagePath;
   try {
     const thumbUri = await resizeTo(imagePath, 200, 0.7);
-    thumbPath = `${DIR}${stamp}-thumb.jpg`;
+    thumbPath = `${dir()}${stamp}-thumb.jpg`;
     await FileSystem.copyAsync({ from: thumbUri, to: thumbPath });
   } catch {
     // A thumbnail that will not render is not worth losing the receipt over;
     // fall back to the full image, which the list can still display.
     thumbPath = imagePath;
   }
+  // Absolute, for the reason given in processReceiptPages.
   return { imagePath, thumbPath };
 }
 
 export async function deleteReceiptFiles(r: { imagePath: string | null; thumbPath: string | null }): Promise<void> {
-  for (const p of [r.imagePath, r.thumbPath]) {
+  // Resolved, not used as stored: a row written before build 6 holds a path
+  // under a container that no longer exists, and deleting that would silently
+  // leave the real file behind.
+  for (const p of [resolveImage(r.imagePath), resolveImage(r.thumbPath)]) {
     if (p) { try { await FileSystem.deleteAsync(p, { idempotent: true }); } catch {} }
   }
 }

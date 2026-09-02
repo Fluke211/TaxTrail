@@ -1007,5 +1007,62 @@ check('meter: exhausted IS the gate, on both sides of the boundary',
   G.freeScanMeter({ isPro: false, scansThisMonth: 10, limit: 10 }).exhausted === true,
   'disagree');
 
+// ---------------------------------------------------------------------------
+// paths.js — receipt photographs survive the container path changing.
+//
+// The bug these pin: iOS moved the app's Data container between build 5 and
+// build 6, every row still held a path under the old container UUID, and the
+// Receipts tab showed receipts with no photographs. The files had not moved
+// relative to the container; the stored string had gone stale.
+const P = require('../src/lib/paths.js');
+
+const OLD = 'file:///var/mobile/Containers/Data/Application/AAAA-1111/Documents/receipts/2026-01-02.jpg';
+const NEW_DIR = 'file:///var/mobile/Containers/Data/Application/BBBB-2222/Documents/';
+
+check('paths: an absolute URI stores as a relative one',
+  P.storedPath(OLD) === 'receipts/2026-01-02.jpg', P.storedPath(OLD));
+
+check('paths: an already-stored path is left alone',
+  P.storedPath('receipts/x.jpg') === 'receipts/x.jpg', P.storedPath('receipts/x.jpg'));
+
+check('paths: a bare file name is refused too, for the same reason',
+  P.storedPath('x.jpg') === null, P.storedPath('x.jpg'));
+
+// Guessing here would be worse than refusing: relocating a path from some
+// other directory names a file that does not exist, and whatever deletes it
+// then reports success while the real photograph stays on the device.
+check('paths: a path outside the receipts directory is refused, not relocated',
+  P.storedPath('file:///var/tmp/ImageManipulator/ABC.jpg') === null,
+  P.storedPath('file:///var/tmp/ImageManipulator/ABC.jpg'));
+
+check('paths: no documentDirectory means no path, never a relative one',
+  P.absolutePath('receipts/x.jpg', null) === null, P.absolutePath('receipts/x.jpg', null));
+
+check('paths: the write directory and the read path are joined the same way',
+  P.dirPath('file:///docs') === 'file:///docs/receipts/'
+    && P.dirPath('file:///docs/') === 'file:///docs/receipts/'
+    && P.dirPath(null) === null,
+  P.dirPath('file:///docs'));
+
+check('paths: null in, null out', P.storedPath(null) === null && P.absolutePath(null, NEW_DIR) === null, 'not null');
+
+// The whole point: a row written under the OLD container resolves against the
+// NEW one without any migration having run.
+check('paths: a stale absolute row still resolves to today\'s container',
+  P.absolutePath(OLD, NEW_DIR) === NEW_DIR + 'receipts/2026-01-02.jpg', P.absolutePath(OLD, NEW_DIR));
+
+check('paths: a stored path resolves to today\'s container',
+  P.absolutePath('receipts/x.jpg', NEW_DIR) === NEW_DIR + 'receipts/x.jpg',
+  P.absolutePath('receipts/x.jpg', NEW_DIR));
+
+check('paths: a documentDirectory without a trailing slash still joins cleanly',
+  P.absolutePath('receipts/x.jpg', 'file:///docs') === 'file:///docs/receipts/x.jpg',
+  P.absolutePath('receipts/x.jpg', 'file:///docs'));
+
+// `receipts` appearing in the container path must not fool the split.
+const TRICKY = 'file:///var/receipts/Data/AAAA/Documents/receipts/y.jpg';
+check('paths: the LAST /receipts/ wins, not the first',
+  P.storedPath(TRICKY) === 'receipts/y.jpg', P.storedPath(TRICKY));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -11,6 +11,44 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r30 — v1.0.0 (build 6) — 2026-09-02
+
+**Receipt photographs are back.** They were never gone: iOS relocated the app's
+Data container between build 5 and build 6, and every row held an absolute path
+under the old container UUID, so the Receipts tab was looking for the images at
+last week's address (D-075).
+
+- Paths are stored relative (`receipts/x.jpg`) and resolved against
+  `documentDirectory` at the moment of use
+- **Existing receipts render again on the first launch of r30.** `resolveImage()`
+  repairs a stale path in place, so nothing has to migrate first. The row
+  rewrite is deliberately held back: build 6 embeds r28, which cannot read the
+  new form, and an OTA can break an older bundle through the database as easily
+  as through an import
+- `deleteReceiptFiles` and the feedback attachments resolve too. Deleting a
+  stale path would have left the real photograph on the device while reporting
+  it deleted; the feedback composer would have sent scan reports with no
+  pictures while saying it attached them
+- `src/lib/paths.js` is pure and unit-tested, 12 new cases. A path outside the
+  receipts directory is refused rather than relocated
+- `npm run test:paths` fails on a stored path handed straight to `<Image>` or
+  FileSystem. Both forms are `string`, so TypeScript cannot see it
+
+**No em or en dashes in user-facing text** (D-076), Tyler's rule. Sentences take
+a full stop or a comma; a label and its value take `·`. Every user-facing
+sentence in the app was swept, along with the copy blocks in
+`docs/APP_STORE_LISTING.md`, which are pasted verbatim into App Store Connect. The IRS Schedule C line labels keep theirs, structurally:
+they are a data table and they flow into every export. `npm run test:prose`
+enforces it in CI, including the iOS permission prompts in `app.json`, which are
+read aloud by the system permission alert. A list item keeps its dash, which is
+the case the rule allows.
+
+Capture screen:
+
+- The privacy line at the bottom is two lines now, not three, so the page fits
+  an iPhone 14 without scrolling. It says what the hero does not: no account,
+  no ads, no tracking
+
 ### js r29 — v1.0.0 (build 6) — 2026-09-02
 
 **Live on `production` since 2026-09-02** (group `d2679345`), runtime version

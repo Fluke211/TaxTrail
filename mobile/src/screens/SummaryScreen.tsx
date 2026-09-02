@@ -47,7 +47,7 @@ const EXPORT_HELP: Record<string, { title: string; body: string }> = {
     body: 'The interchange format TurboTax, H&R Block and TaxAct import '
       + 'directly, so category totals land on the right Schedule C lines '
       + 'without retyping.\n\n'
-      + 'It carries totals, not individual receipts — keep the archive for '
+      + 'It carries totals, not individual receipts. Keep the archive for '
       + 'substantiation.',
   },
   qbo: {
@@ -66,7 +66,7 @@ const EXPORT_HELP: Record<string, { title: string; body: string }> = {
       + 'This is the one that lets you throw away the paper. The IRS accepts '
       + 'electronic records provided you can produce legible copies on demand, '
       + 'which means the images have to be able to leave the phone.\n\n'
-      + 'It is also the only export TaxTrail can read back in — Settings → '
+      + 'It is also the only export TaxTrail can read back in, from Settings → '
       + 'Restore from a receipt archive.',
   },
 };
@@ -208,9 +208,9 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
           })}
         </View>
         <Text style={s.rangeNote}>
-          {range.label} — {scoped.receipts.length} receipt{scoped.receipts.length === 1 ? '' : 's'}
+          {range.label} · {scoped.receipts.length} receipt{scoped.receipts.length === 1 ? '' : 's'}
           {scoped.undated.length > 0
-            ? `. ${scoped.undated.length} undated receipt${scoped.undated.length === 1 ? '' : 's'} cannot be placed in a date range and ${scoped.undated.length === 1 ? 'is' : 'are'} left out — choose All to include ${scoped.undated.length === 1 ? 'it' : 'them'}.`
+            ? `. ${scoped.undated.length} undated receipt${scoped.undated.length === 1 ? '' : 's'} cannot be placed in a date range and ${scoped.undated.length === 1 ? 'is' : 'are'} left out. Choose All to include ${scoped.undated.length === 1 ? 'it' : 'them'}.`
             : '.'}
         </Text>
 
@@ -219,7 +219,7 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
           ['xlsx', 'Excel workbook (.xlsx)' + (pro ? '' : '  ·  PRO'), true, (r: ExportRange) => exportXLSX(receipts, r)],
           ['txf', 'TXF for tax software' + (pro ? '' : '  ·  PRO'), true, (r: ExportRange) => exportTXF(receipts, r)],
           ['qbo', 'QuickBooks Online (3-column CSV)' + (pro ? '' : '  ·  PRO'), true, (r: ExportRange) => exportQBO(receipts, r)],
-          ['archive', 'Receipt archive (.zip — images + data)', false, (r: ExportRange) => exportArchive(receipts, r)],
+          ['archive', 'Receipt archive (.zip: images and data)', false, (r: ExportRange) => exportArchive(receipts, r)],
         ] as [string, string, boolean, (r: ExportRange) => Promise<void>][]).map(([key, label, needsPro, fn]) => (
           <View key={key} style={s.exportLine}>
             <Pressable style={[s.exportBtn, { flex: 1, marginBottom: 0 }]} disabled={busyExport != null}

@@ -33,7 +33,7 @@ export function ZoomableImage({ uri, style, hint = true }: Props) {
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="imagebutton"
-        accessibilityLabel="Receipt photo — tap to zoom"
+        accessibilityLabel="Receipt photo, tap to zoom"
       >
         <Image source={{ uri }} style={style} resizeMode="contain" />
         {hint && (

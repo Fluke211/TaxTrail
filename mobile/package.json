@@ -13,7 +13,9 @@
     "test:synth": "node scripts/score-synthetic.js",
     "test:contrast": "node scripts/check-contrast.js",
     "test:ota": "node scripts/check-ota-safety.js",
-    "test:perms": "node scripts/check-permissions.js"
+    "test:perms": "node scripts/check-permissions.js",
+    "test:prose": "node scripts/check-prose.js",
+    "test:paths": "node scripts/check-image-paths.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

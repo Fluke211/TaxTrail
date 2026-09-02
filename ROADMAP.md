@@ -330,6 +330,15 @@ that touches `Info.plist` or entitlements should ride along in the same one.
 
 ## Parked, deliberately
 
+- **Store receipt image paths relative, and migrate the existing rows.** r30
+  reads both forms, and repairs a stale absolute path at the moment of use, but
+  it still WRITES the absolute one on purpose: expo-updates can drop a phone
+  back onto build 6's embedded js r28, which cannot read a relative path and
+  would delete nothing while reporting success (D-075). **Unblocks when a
+  binary embeds r30 or later** — then switch `processReceiptPages` and
+  `saveRestoredImage` to `storeImage()` and add the migration that rewrites
+  existing rows. Small, and entirely JS.
+
 - **Siri / App Intents / a native Control Center control** — "Hey Siri, scan a
   receipt", and a control with our own icon that needs no user setup. Verified
   possible on our SDK via `@bacons/apple-targets@5.0.0` (`widget` / `app-intent`

@@ -3,6 +3,7 @@
 // XLSX is built with SheetJS (pure JS, Hermes-safe) — see xlsxExport.ts.
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import { resolveImage } from './images';
 import { addReceipt, allReceipts, type Receipt } from './db';
 import { exportRows } from './rows';
 import { buildXlsxBase64 } from './xlsxExport';
@@ -189,9 +190,10 @@ export async function exportArchive(receipts: Receipt[], range: ExportRange = AL
   let withImages = 0;
   const manifest = await Promise.all(scoped.map(async (r, i) => {
     let imageFile: string | null = null;
-    if (r.imagePath) {
+    const uri = resolveImage(r.imagePath);
+    if (uri) {
       try {
-        const b64 = await FileSystem.readAsStringAsync(r.imagePath, { encoding: FileSystem.EncodingType.Base64 });
+        const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
         imageFile = imageFileName(r, i);
         images.file(imageFile, b64, { base64: true, compression: 'STORE' });
         withImages += 1;
@@ -212,7 +214,7 @@ export async function exportArchive(receipts: Receipt[], range: ExportRange = AL
   }, null, 1));
   zip.file('receipts.csv', X.buildCpaCSV(exportRows(scoped)));
   zip.file('README.txt',
-    `TaxTrail archive — ${stamp}\n\n` +
+    `TaxTrail archive: ${stamp}\n\n` +
     `Covers: ${range.label}\n` +
     `${manifest.length} receipts, ${withImages} images.\n\n` +
     `images/     the receipt photographs\n` +
@@ -223,7 +225,7 @@ export async function exportArchive(receipts: Receipt[], range: ExportRange = AL
         `For everything on the device, export an archive with the range set to\n` +
         `"All receipts".\n\n`
       : ``) +
-    `Everything in it was produced on your device — TaxTrail has no servers\n` +
+    `Everything in it was produced on your device. TaxTrail has no servers\n` +
     `and never uploaded any of it.\n`);
 
   const b64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
@@ -304,7 +306,7 @@ export async function restoreArchive(): Promise<RestoreResult | null> {
 
   const entry = zip.file('backup.json');
   if (!entry) {
-    throw new Error("That zip has no backup.json — it is not a TaxTrail archive.");
+    throw new Error("That zip has no backup.json, so it is not a TaxTrail archive.");
   }
   const payload = JSON.parse(await entry.async('string'));
   const rows: any[] = Array.isArray(payload?.receipts) ? payload.receipts : [];

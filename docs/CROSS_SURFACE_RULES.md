@@ -19,7 +19,7 @@ Two things worth knowing before relying on it:
 - It is **guidance, not enforcement**. It shapes behaviour; it cannot guarantee
   it. For anything that must happen every time, use a hook or a CI check.
 - **Keep it short.** Adherence drops as it grows; ~500 words is the working
-  ceiling. The block below is about 150.
+  ceiling. The block below is about 180.
 
 ## The block to paste
 
@@ -48,7 +48,17 @@ Verification rules — these apply to every kind of work, not just code.
 
 5. Tell me which version, build, or revision of a thing you are handing
    me, every time.
+
+6. Do not use em dashes or en dashes in normal sentences, anywhere:
+   not in what you write to me, not in anything you write for other
+   people to read. Use a full stop or a comma instead. They are fine in
+   a list or between a label and its value.
 ```
+
+**Rule 6 was added 2026-09-02** (D-076). It is here rather than only in
+`CLAUDE.md` because Tyler asked for it about text he reads, and most of the
+text he reads is not in this repo. Nothing enforces it in chat; the app's own
+strings are covered by `npm run test:prose`.
 
 ## What stays in `CLAUDE.md` instead
 

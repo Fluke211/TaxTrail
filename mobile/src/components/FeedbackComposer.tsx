@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import Icon from './Icon';
 import * as FileSystem from 'expo-file-system/legacy';
+import { resolveImage } from '../lib/images';
 import { styled, useTheme } from '../lib/theme';
 import type { Receipt } from '../lib/db';
 import { writeDiagnosticsFile } from '../lib/exportShare';
@@ -99,21 +100,30 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
 
       let attachedImages = 0;
       let skippedImages = 0;
+      let missingImages = 0;
       if (withImages) {
         // Sizes have to be read before choosing, because the cap is in bytes.
+        // `resolveImage` first: a row holds `receipts/x.jpg`, which has no
+        // scheme, so getInfoAsync reports it missing and every photograph is
+        // silently dropped from a report that still says it attached them.
         const sized = await Promise.all(
           receipts.filter((r) => r.imagePath).map(async (r) => {
+            const uri = resolveImage(r.imagePath);
             try {
-              const info = await FileSystem.getInfoAsync(r.imagePath as string);
-              return { ...r, size: info.exists ? (info.size ?? 0) : 0 };
+              const info = uri ? await FileSystem.getInfoAsync(uri) : null;
+              return { ...r, uri, size: info?.exists ? (info.size ?? 0) : 0 };
             } catch {
-              return { ...r, size: 0 };
+              return { ...r, uri, size: 0 };
             }
           }),
         );
         const picked = F.selectImages(sized);
-        for (const r of picked.chosen) attachments.push(r.imagePath as string);
+        for (const r of picked.chosen) if (r.uri) attachments.push(r.uri);
         attachedImages = picked.chosen.length;
+        // A file that could not be found is a drop too. selectImages only
+        // counts what the size cap removed, so without this the report says
+        // "Sent." while quietly carrying fewer pictures than were ticked.
+        missingImages = sized.filter((r) => r.size === 0).length;
         skippedImages = picked.skipped;
       }
 
@@ -135,12 +145,14 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
       // cancel — the composer is the last gate, and the user is allowed to
       // change their mind there. Only say something on a real send.
       if (result.status === 'sent') {
-        Alert.alert(
-          'Thank you',
-          skippedImages > 0
-            ? `Sent. ${skippedImages} image${skippedImages === 1 ? ' was' : 's were'} left out to keep the email under the size most mail providers accept.`
-            : 'Sent.',
-        );
+        const notes = [];
+        if (skippedImages > 0) {
+          notes.push(`${skippedImages} image${skippedImages === 1 ? ' was' : 's were'} left out to keep the email under the size most mail providers accept.`);
+        }
+        if (missingImages > 0) {
+          notes.push(`${missingImages} photograph${missingImages === 1 ? ' could' : 's could'} not be found on this device and ${missingImages === 1 ? 'was' : 'were'} not attached.`);
+        }
+        Alert.alert('Thank you', ['Sent.', ...notes].join(' '));
         reset();
       } else {
         onClose();
@@ -204,7 +216,7 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
           on={withImages}
           onToggle={() => setWithImages(!withImages)}
           label={F.ATTACHMENT_LABELS.images}
-          detail={`${imageCount} photo${imageCount === 1 ? '' : 's'}. Only useful for a scanning problem — the picture usually shows why a receipt read badly when the text alone does not.`}
+          detail={`${imageCount} photo${imageCount === 1 ? '' : 's'}. Only useful for a scanning problem. The picture usually shows why a receipt read badly when the text alone does not.`}
         />
 
         {/*
@@ -213,7 +225,7 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
         */}
         <Text style={s.privacy}>
           Nothing is attached unless you tick it, and nothing is sent until you
-          tap Send in the Mail app — where you will see your own address, the
+          tap Send in the Mail app, where you will see your own address, the
           message, and every attachment. TaxTrail has no servers and uploads
           nothing on its own.
         </Text>

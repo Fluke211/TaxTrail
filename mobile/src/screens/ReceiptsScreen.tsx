@@ -6,6 +6,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { styled, useTheme } from '../lib/theme';
 import MoneyInput from '../components/MoneyInput';
+import { resolveImage } from '../lib/images';
 import { ZoomableImage } from '../components/ZoomableImage';
 import { CategoryPicker } from '../components/CategoryPicker';
 import FeedbackComposer, { isFeedbackAvailable } from '../components/FeedbackComposer';
@@ -41,7 +42,7 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
   }, [openId, receipts, onOpened]);
 
   const remove = useCallback((r: Receipt) => {
-    Alert.alert('Delete receipt?', `${r.merchant} — $${r.total.toFixed(2)}`, [
+    Alert.alert('Delete receipt?', `${r.merchant} · $${r.total.toFixed(2)}`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
@@ -54,6 +55,10 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
       },
     ]);
   }, [onChanged]);
+
+  // Resolved once, and the render branches on the result: a row can hold a path
+  // this launch cannot open.
+  const detailUri = selected ? resolveImage(selected.imagePath) : null;
 
   const saveEdits = useCallback(async () => {
     if (!selected) return;
@@ -70,15 +75,19 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
         contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
         ListEmptyComponent={
           <Text style={{ color: T.muted, textAlign: 'center', marginTop: 60 }}>
-            No receipts yet — scan your first one on the Capture tab.
+            No receipts yet. Scan your first one on the Capture tab.
           </Text>
         }
         renderItem={({ item }) => {
           const allocs = allocationsOf(item);
+          // Branch on the RESOLVED path, not the stored one: a row can hold a
+          // path this launch cannot open, and the placeholder is the honest
+          // answer to that.
+          const thumb = resolveImage(item.thumbPath);
           return (
             <Pressable style={s.card} onPress={() => setSelected({ ...item })}>
-              {item.thumbPath
-                ? <Image source={{ uri: item.thumbPath }} style={s.thumb} />
+              {thumb
+                ? <Image source={{ uri: thumb }} style={s.thumb} />
                 : <View style={[s.thumb, { alignItems: 'center', justifyContent: 'center' }]}><Text>🧾</Text></View>}
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.cardM} numberOfLines={1}>{item.merchant}</Text>
@@ -101,9 +110,7 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
                 <Text style={{ color: T.muted, fontSize: 22 }}>✕</Text>
               </Pressable>
             </View>
-            {selected.imagePath && (
-              <ZoomableImage uri={selected.imagePath} style={s.detailImg} />
-            )}
+            {detailUri && <ZoomableImage uri={detailUri} style={s.detailImg} />}
             <Text style={s.label}>MERCHANT</Text>
             <TextInput style={s.input} value={selected.merchant}
               onChangeText={(v) => setSelected({ ...selected, merchant: v })} />
