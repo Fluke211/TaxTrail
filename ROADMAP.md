@@ -328,6 +328,19 @@ that touches `Info.plist` or entitlements should ride along in the same one.
 
 ---
 
+## Build 7 — the batch that needs a binary
+
+Each of these is inert until a native build reaches a device. Batch them; one
+build, one credit, one TestFlight round.
+
+- [ ] **Drop `expo-location` from `app.json`.** GPS mileage is ruled out, so the
+      permission can never be justified. Last open half of D-066, and the one
+      thing still blocking submission on its own.
+- [ ] **`userInterfaceStyle: "automatic"`** — already committed, and it is what
+      makes the appearance switch's "System" option follow the phone (D-077).
+      Light and Dark already work over the air.
+- [ ] **Write receipt image paths relative, and migrate the rows** (see below).
+
 ## Parked, deliberately
 
 - **Store receipt image paths relative, and migrate the existing rows.** r30

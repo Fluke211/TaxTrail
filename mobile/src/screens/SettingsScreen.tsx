@@ -15,6 +15,9 @@ import { deleteAllData, type Receipt } from '../lib/db';
 import { manageSubscription, presentPaywall, restorePurchases } from '../lib/purchases';
 import { exportBackup, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
 import { versionStamp } from '../lib/version';
+import { setThemeChoice, useThemeChoice, type ThemeChoice } from '../lib/appearance';
+import { isLockAvailable, isLockEnabled, setLockEnabled } from '../lib/appLockNative';
+import Icon from '../components/Icon';
 import FeedbackComposer, { isFeedbackAvailable } from '../components/FeedbackComposer';
 const DM = require('../lib/devMode.js');
 
@@ -35,9 +38,17 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
   const [hint, setHint] = useState<string | null>(null);
   const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'none' | 'error'>('idle');
   const [feedback, setFeedback] = useState(false);
+  const theme = useThemeChoice();
+  const [lockOn, setLockOn] = useState<boolean | null>(null);
+  const [lockAvailable, setLockAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(DEV_MODE_KEY).then((v) => setDev(v === '1')).catch(() => {});
+    let alive = true;
+    Promise.all([isLockEnabled(), isLockAvailable()])
+      .then(([on, can]) => { if (alive) { setLockOn(on); setLockAvailable(can); } })
+      .catch(() => {});
+    return () => { alive = false; };
   }, []);
 
   const run = useCallback(async (key: string, fn: () => Promise<unknown>) => {
@@ -213,6 +224,69 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
       )}
 
       <View style={s.card}>
+        <Text style={s.title}>APPEARANCE</Text>
+        <View style={s.segment}>
+          {([
+            ['system', 'System'],
+            ['light', 'Light'],
+            ['dark', 'Dark'],
+          ] as [ThemeChoice, string][]).map(([value, label]) => {
+            const on = theme === value;
+            return (
+              <Pressable
+                key={value}
+                style={[s.segmentBtn, on && s.segmentBtnOn]}
+                onPress={() => { void setThemeChoice(value); }}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: on }}
+              >
+                {/* The selected label is `text`, not `accent`: accent on
+                    accentSoft over bg2 flattens to 4.10:1, under the AA bar
+                    this project holds every other label to. The accent border
+                    carries the selection instead, as SummaryScreen's chips do. */}
+                <Text style={[s.segmentText, on && { color: T.text, fontWeight: '700' }]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={s.note}>
+          System follows your phone's Light or Dark setting.
+        </Text>
+      </View>
+
+      <View style={s.card}>
+        <Text style={s.title}>PRIVACY</Text>
+        <Pressable
+          style={s.toggleRow}
+          onPress={() => {
+            if (!lockAvailable || lockOn == null) return;
+            const next = !lockOn;
+            setLockOn(next);
+            void setLockEnabled(next);
+          }}
+          disabled={!lockAvailable || lockOn == null}
+          accessibilityRole="switch"
+          accessibilityLabel="Require Face ID to open TaxTrail"
+          accessibilityState={{ checked: lockOn === true, disabled: !lockAvailable }}
+        >
+          <Text style={{ color: lockAvailable ? T.text : T.muted2, fontSize: 14, flex: 1 }}>
+            Require Face ID to open
+          </Text>
+          <Icon
+            name={lockOn && lockAvailable ? 'checkbox' : 'square-outline'}
+            size={22}
+            color={lockAvailable ? (lockOn ? T.accent : T.muted) : T.muted2}
+          />
+        </Pressable>
+        <Text style={s.note}>
+          {lockAvailable === false
+            ? 'Unavailable: this phone has no Face ID, Touch ID or passcode set, so there would be no way back in.'
+            : 'Face ID, Touch ID or your passcode is needed to open the app, and again after a minute away. Your receipts are on this device, so this is the only thing between them and whoever picks up your phone.'}
+        </Text>
+      </View>
+
+      <View style={s.card}>
         <Text style={s.title}>ABOUT</Text>
         {/*
           Goes through the composer rather than a bare mailto:, so the user can
@@ -279,7 +353,10 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
       <Pressable onPress={tapVersion} hitSlop={10}>
         <Text style={s.version}>{versionStamp()}</Text>
       </Pressable>
-      {hint && !dev && <Text style={[s.version, { color: T.muted }]}>{hint}</Text>}
+      {/* No `!dev` guard: it batches with setDev(true), so the seventh tap's
+          confirmation could never render. Nothing shows before the unlock now,
+          so this line only ever carries the confirmation itself. */}
+      {hint && <Text style={[s.version, { color: T.muted }]}>{hint}</Text>}
       <Text style={s.version}>
         {receipts.length} receipt{receipts.length === 1 ? '' : 's'} · 100% on-device
       </Text>
@@ -299,5 +376,22 @@ const makeStyles = styled((T) => ({
     paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
   },
   note: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginTop: 4 },
+  segment: {
+    flexDirection: 'row', gap: 6, backgroundColor: T.bg2, borderRadius: 10,
+    borderColor: T.line, borderWidth: 1, padding: 4,
+  },
+  segmentBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 7,
+    borderColor: 'transparent', borderWidth: 1,
+  },
+  segmentBtnOn: { backgroundColor: T.accentSoft, borderColor: T.accentLine },
+  segmentText: { color: T.muted, fontSize: 13.5, fontWeight: '600' },
+  // `row` has no flexDirection, so a label and a control laid out with it stack
+  // vertically. Same shape as FeedbackComposer's check row.
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
+    paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
+  },
   version: { color: T.muted2, fontSize: 11, textAlign: 'center', marginTop: 14, letterSpacing: 0.3 },
 }));

@@ -1,14 +1,20 @@
 // TaxTrail — root component. Custom four-tab shell (no navigation library:
 // fewer native deps = safer single EAS build).
-import React, { useCallback, useEffect, useState } from 'react';
-import { Linking, Pressable, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, Linking, Pressable, Text, View } from 'react-native';
 import Icon from './src/components/Icon';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { styled, useTheme } from './src/lib/theme';
+import { DARK, styled, useTheme } from './src/lib/theme';
+import { loadThemeChoice } from './src/lib/appearance';
+import { authenticate, isLockAvailable, isLockEnabled } from './src/lib/appLockNative';
+import { LockScreen } from './src/components/LockScreen';
 import { allReceipts, type Receipt } from './src/lib/db';
 import { initPurchases, isPro, registerFallbackPaywall } from './src/lib/purchases';
 import { FallbackPaywall, type PaywallPackage } from './src/components/FallbackPaywall';
+// Typed through appLock.d.ts, so a mistyped option is a compile error rather
+// than an undefined that silently locks the app on every foreground.
+const AL: typeof import('./src/lib/appLock') = require('./src/lib/appLock.js');
 import CaptureScreen from './src/screens/CaptureScreen';
 import ReceiptsScreen from './src/screens/ReceiptsScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
@@ -16,10 +22,109 @@ import SettingsScreen from './src/screens/SettingsScreen';
 
 type Tab = 'capture' | 'receipts' | 'summary' | 'settings';
 
+/*
+ * The Face ID gate (D-079).
+ *
+ * Three states, and the difference between them is the whole design:
+ *
+ *  - **locked**: authentication is required. The lock screen shows and prompts.
+ *  - **covered**: the app has resigned active, so iOS is about to take the
+ *    snapshot it shows in the app switcher. Content is hidden, nothing is
+ *    asked. Without this the switcher shows the receipt list to anyone holding
+ *    the phone, unlocked, which is the thing the feature exists to prevent.
+ *  - neither: the app is in use.
+ *
+ * **`inactive` is not `background`.** iOS fires `inactive` for the Face ID
+ * prompt itself, for Control Centre, and for a notification banner. It covers,
+ * because a snapshot may follow; it never starts the clock. Only a real
+ * `background` does, and the clock is consumed on the way back so an
+ * inactive/active blip can never be read as time away. Getting this wrong locks
+ * the app again the instant the prompt it raised is dismissed, which is a loop
+ * with no way out.
+ */
+function useAppLock() {
+  const [ready, setReady] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [covered, setCovered] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const backgroundedAt = useRef<number | null>(null);
+  // Refs, not state: the AppState handler reads them, nothing renders them.
+  const enabled = useRef(false);
+  const available = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [on, can] = await Promise.all([isLockEnabled(), isLockAvailable()]);
+      if (!alive) return;
+      enabled.current = on;
+      available.current = can;
+      setReady(true);
+      // A cold start: no previous foreground to lean on, which shouldLock reads
+      // as "ask".
+      setLocked(AL.shouldLock({ enabled: on, available: can, backgroundedAt: null, now: Date.now() }));
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const unlock = useCallback(async () => {
+    setBusy(true);
+    try {
+      if (await authenticate()) {
+        backgroundedAt.current = null;
+        setLocked(false);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'inactive' || next === 'background') {
+        if (enabled.current && available.current) setCovered(true);
+        if (next === 'background') backgroundedAt.current = Date.now();
+        return;
+      }
+      if (next !== 'active') return;
+      setCovered(false);
+
+      // Nothing to judge unless the app actually left. An inactive/active blip
+      // leaves this null, and reading null here as a cold start is the loop.
+      const wasAway = backgroundedAt.current;
+      backgroundedAt.current = null;
+      if (wasAway == null) return;
+
+      // Re-read the preference: Settings may have just changed it.
+      (async () => {
+        const [on, can] = await Promise.all([isLockEnabled(), isLockAvailable()]);
+        enabled.current = on;
+        available.current = can;
+        if (AL.shouldLock({ enabled: on, available: can, backgroundedAt: wasAway, now: Date.now() })) {
+          setLocked(true);
+        }
+      })();
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Prompt as soon as the lock screen appears, and again whenever it re-locks,
+  // so the normal case is one glance rather than a tap and then a glance.
+  useEffect(() => {
+    if (locked && !busy) void unlock();
+    // `busy` is deliberately absent: including it re-prompts the moment a
+    // cancelled attempt finishes, which is a loop the user cannot escape.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locked, unlock]);
+
+  return { ready, locked, covered, busy, unlock };
+}
+
 function Root() {
   const T = useTheme();
   const s = makeStyles(T);
   const insets = useSafeAreaInsets();
+  const lock = useAppLock();
   // Compliant fallback paywall, shown only if RevenueCat's remote template fails
   // to load. Rendered here so it sits above the tab shell (see purchases.ts).
   const [fallback, setFallback] = useState<{
@@ -64,6 +169,30 @@ function Root() {
     const sub = Linking.addEventListener('url', (e) => open(e.url));
     return () => sub.remove();
   }, []);
+
+  /*
+   * Nothing of the app renders while locked or covered, and nothing renders
+   * before the preference is known either: a frame of the receipt list before
+   * the lock appears is the whole feature defeated, and it is a real risk
+   * because the preference comes from AsyncStorage.
+   *
+   * Each branch carries its own StatusBar. Without it the clock and battery
+   * keep the previous style, and on the one screen a user is forced to look at
+   * they can end up black on black.
+   */
+  const bar = <StatusBar style={T.scheme === 'light' ? 'dark' : 'light'} />;
+  if (!lock.ready) return <View style={{ flex: 1, backgroundColor: T.bg }}>{bar}</View>;
+  if (lock.locked) {
+    return (
+      <View style={{ flex: 1 }}>
+        <LockScreen onUnlock={() => { void lock.unlock(); }} busy={lock.busy} />
+        {bar}
+      </View>
+    );
+  }
+  // Covered, not locked: the app switcher's snapshot must not carry the receipt
+  // list. No prompt here, because resigning active is not the user leaving.
+  if (lock.covered) return <View style={{ flex: 1, backgroundColor: T.bg }}>{bar}</View>;
 
   return (
     <View style={[s.app, { paddingTop: insets.top }]}>
@@ -127,6 +256,14 @@ function Root() {
 
 export default function App() {
   /*
+   * The stored theme choice, read before the first paint. Without the gate a
+   * light-mode user gets a dark frame first, which looks like a flash of the
+   * wrong app (D-077).
+   */
+  const [themeReady, setThemeReady] = useState(false);
+  useEffect(() => { loadThemeChoice().finally(() => setThemeReady(true)); }, []);
+
+  /*
    * No GestureHandlerRootView here, deliberately.
    *
    * It was added in build 4 ahead of the feature that needed it, and importing
@@ -141,7 +278,10 @@ export default function App() {
    */
   return (
     <SafeAreaProvider>
-      <Root />
+      {/* A themed ground rather than null: the platform default is white, and a
+          white flash is the wrong-appearance flash this gate exists to avoid,
+          just inverted. Dark is the safer default, as useTheme says. */}
+      {themeReady ? <Root /> : <View style={{ flex: 1, backgroundColor: DARK.bg }} />}
     </SafeAreaProvider>
   );
 }

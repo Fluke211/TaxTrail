@@ -7,6 +7,7 @@
 // runs once at module load, so a themed screen cannot keep its styles at module
 // scope. See `styled()` below.
 import { StyleSheet, useColorScheme } from 'react-native';
+import { useThemeChoice } from './appearance';
 
 export interface Palette {
   accent: string;
@@ -42,8 +43,14 @@ export const DARK: Palette = {
   card2: '#182333',
   line: 'rgba(255,255,255,0.07)',
   text: '#e8edf5',
-  muted: '#8a97ab',
-  muted2: '#5b6678',
+  // Brightened 2026-09-02 (D-078). Tyler reads the app in low light and the
+  // greys were hard going: muted 6.5:1 -> 7.9:1 on the app background, muted2
+  // 3.3:1 -> 5.1:1. `muted2 on card2` was one of the five ratios baselined
+  // below the WCAG target (D-061) and now clears it outright, so it comes off
+  // the baseline. The hierarchy survives: muted is still well below `text`,
+  // and muted2 is still visibly dimmer than muted.
+  muted: '#9aa6b8',
+  muted2: '#78849a',
   danger: '#ff6b6b',
   dangerLine: 'rgba(255,107,107,0.40)',
   warn: '#f0b429',
@@ -94,17 +101,22 @@ export const LIGHT: Palette = {
 export const T = DARK;
 
 /**
- * The palette for the current system appearance.
+ * The palette for the current appearance.
  *
- * Follows the OS rather than offering an in-app switch. iOS already has that
- * setting, it is where people look for it, and an app-level override is one more
- * thing to keep in sync with no benefit — Settings has enough in it already.
+ * This used to follow the OS with no in-app switch, on the reasoning that iOS
+ * already has that setting and it is where people look for it. Tyler asked for
+ * the switch, and he is right about why: an app used at a restaurant table in
+ * the evening and at a desk in the morning wants its own control (D-077).
+ *
  * `useColorScheme` returns null before the value is known; dark is the safer
  * default, because it is what every existing screenshot and the current binary
  * look like.
  */
 export function useTheme(): Palette {
+  const choice = useThemeChoice();
   const scheme = useColorScheme();
+  if (choice === 'light') return LIGHT;
+  if (choice === 'dark') return DARK;
   return scheme === 'light' ? LIGHT : DARK;
 }
 

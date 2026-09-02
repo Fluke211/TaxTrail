@@ -3,7 +3,7 @@
 // every OTA (EAS Update) push so Tyler can verify which JS he's running.
 export const APP_VERSION = '1.0.0';
 export const APP_BUILD = 6;
-export const JS_REVISION = 30;
+export const JS_REVISION = 31;
 
 export function versionStamp(): string {
   return `TaxTrail v${APP_VERSION} (build ${APP_BUILD}) · js r${JS_REVISION}`;
