@@ -19,8 +19,9 @@
  *
  * Everything below stays self-contained on purpose. It imports react, expo and
  * react-native and nothing of the app's, because any project module it reached
- * for could be the module that failed — including the theme and the version
- * file, which are read through guarded requires for exactly that reason.
+ * for could be the module that failed. So the theme is not used at all — the
+ * crash screen carries its own four colours — and the version file and
+ * expo-updates are reached through guarded requires.
  */
 import React from 'react';
 import { registerRootComponent } from 'expo';
@@ -120,7 +121,10 @@ async function fetchAndRestart(): Promise<RecoverState> {
     if (!res?.isAvailable) return 'none';
     await U.fetchUpdateAsync();
     await U.reloadAsync();
-    return 'checking';            // unreachable in practice — the app restarts
+    // Practically unreachable — reloadAsync restarts the app. Back to 'idle'
+    // rather than staying on 'Checking…' if it ever resolves without doing so,
+    // so the button is still pressable.
+    return 'idle';
   } catch {
     return 'failed';
   }
