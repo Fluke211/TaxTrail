@@ -78,7 +78,7 @@ const makeStyles = styled((T) => ({
     backgroundColor: 'rgba(0,0,0,0.62)', borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  hintText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  hintText: { color: '#fff', fontSize: T.fs.xs, fontWeight: '600' },
   backdrop: { flex: 1, backgroundColor: '#000' },
   fill: { flex: 1 },
   close: {
@@ -86,9 +86,9 @@ const makeStyles = styled((T) => ({
     backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 18,
     paddingHorizontal: 16, paddingVertical: 8,
   },
-  closeText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  closeText: { color: '#fff', fontSize: T.fs.body, fontWeight: '600' },
   tip: {
     position: 'absolute', bottom: 40, alignSelf: 'center',
-    color: T.muted2, fontSize: 12,
+    color: T.muted2, fontSize: T.fs.sm,
   },
 }));

@@ -320,11 +320,11 @@ const makeStyles = styled((T) => ({
     borderColor: T.line, borderWidth: 1, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5,
   },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: T.good },
-  badgeText: { color: T.muted, fontSize: 10.5, fontWeight: '600', letterSpacing: 0.6 },
+  badgeText: { color: T.muted, fontSize: T.fs.xs, fontWeight: '600', letterSpacing: 0.6 },
   tabbar: {
     flexDirection: 'row', borderTopColor: T.line, borderTopWidth: 1,
     backgroundColor: T.bg2, paddingTop: 8,
   },
   tabBtn: { flex: 1, alignItems: 'center', gap: 2 },
-  tabLabel: { color: T.muted2, fontSize: 11, fontWeight: '600' },
+  tabLabel: { color: T.muted2, fontSize: T.fs.xs, fontWeight: '600' },
 }));

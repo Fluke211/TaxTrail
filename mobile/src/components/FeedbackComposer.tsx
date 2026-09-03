@@ -16,7 +16,7 @@ import {
 import Icon from './Icon';
 import * as FileSystem from 'expo-file-system/legacy';
 import { resolveImage } from '../lib/images';
-import { styled, useTheme } from '../lib/theme';
+import { styled, useTheme, type Palette } from '../lib/theme';
 import type { Receipt } from '../lib/db';
 import { writeDiagnosticsFile } from '../lib/exportShare';
 import { versionStamp } from '../lib/version';
@@ -50,6 +50,34 @@ function mailComposer(): any | null {
  *  point when it cannot, so nobody taps a button that dead-ends. */
 export function isFeedbackAvailable(): boolean {
   return mailComposer() != null;
+}
+
+/*
+ * Declared at module scope, not inside the render body.
+ *
+ * A component defined in a render is a new component TYPE on every render, so
+ * React unmounts and remounts its whole subtree rather than updating it. This
+ * one sits next to a multiline TextInput that calls setState on every
+ * keystroke, so both checkbox rows were being torn down and rebuilt per
+ * character typed.
+ */
+function Check({ on, onToggle, label, detail, T, s }: {
+  on: boolean; onToggle: () => void; label: string; detail: string;
+  T: Palette; s: ReturnType<typeof makeStyles>;
+}) {
+  return (
+    <Pressable style={s.check} onPress={onToggle} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+      <Icon
+        name={on ? 'checkbox' : 'square-outline'}
+        size={22}
+        color={on ? T.accent : T.muted2}
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: T.text, fontSize: T.fs.body }}>{label}</Text>
+        <Text style={s.detail}>{detail}</Text>
+      </View>
+    </Pressable>
+  );
 }
 
 export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
@@ -165,22 +193,6 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
     }
   }, [kind, message, receipts, withDiagnostics, withImages, reset, onClose]);
 
-  const Check = ({ on, onToggle, label, detail }: {
-    on: boolean; onToggle: () => void; label: string; detail: string;
-  }) => (
-    <Pressable style={s.check} onPress={onToggle} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
-      <Icon
-        name={on ? 'checkbox' : 'square-outline'}
-        size={22}
-        color={on ? T.accent : T.muted2}
-      />
-      <View style={{ flex: 1 }}>
-        <Text style={{ color: T.text, fontSize: 14 }}>{label}</Text>
-        <Text style={s.detail}>{detail}</Text>
-      </View>
-    </Pressable>
-  );
-
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <ScrollView style={s.sheet} contentContainerStyle={{ padding: 16, paddingTop: 60, paddingBottom: 60 }}>
@@ -207,12 +219,14 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
 
         <Text style={s.label}>ATTACH (OPTIONAL)</Text>
         <Check
+          T={T} s={s}
           on={withDiagnostics}
           onToggle={() => setWithDiagnostics(!withDiagnostics)}
           label={F.ATTACHMENT_LABELS.diagnostics}
           detail={`The text the scanner read from your ${receipts.length} receipt${receipts.length === 1 ? '' : 's'}, and what it made of it. This is what makes a parsing bug fixable. It includes merchant names and amounts.`}
         />
         <Check
+          T={T} s={s}
           on={withImages}
           onToggle={() => setWithImages(!withImages)}
           label={F.ATTACHMENT_LABELS.images}
@@ -237,7 +251,7 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
         >
           {sending
             ? <ActivityIndicator color="#fff" />
-            : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Continue to Mail</Text>}
+            : <Text style={{ color: '#fff', fontWeight: '700', fontSize: T.fs.body }}>Continue to Mail</Text>}
         </Pressable>
       </ScrollView>
     </Modal>
@@ -247,18 +261,18 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
 const makeStyles = styled((T) => ({
   sheet: { flex: 1, backgroundColor: T.bg },
   title: { color: T.text, fontSize: 18, fontWeight: '700', flex: 1 },
-  label: { color: T.muted2, fontSize: 10, letterSpacing: 0.6, marginTop: 18, marginBottom: 6, fontWeight: '600' },
+  label: { color: T.muted2, fontSize: T.fs.xs, letterSpacing: 0.6, marginTop: 18, marginBottom: 6, fontWeight: '600' },
   input: {
     backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: 10,
-    color: T.text, padding: 12, fontSize: 14, minHeight: 110, textAlignVertical: 'top',
+    color: T.text, padding: 12, fontSize: T.fs.body, minHeight: 110, textAlignVertical: 'top',
   },
   check: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: 10,
     padding: 12, marginBottom: 8,
   },
-  detail: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginTop: 3 },
-  privacy: { color: T.muted, fontSize: 11.5, lineHeight: 17, marginTop: 8 },
+  detail: { color: T.muted2, fontSize: T.fs.sm, lineHeight: T.lh.sm, marginTop: 3 },
+  privacy: { color: T.muted, fontSize: T.fs.sm, lineHeight: T.lh.sm, marginTop: 8 },
   primary: {
     backgroundColor: T.accent, borderRadius: T.radius, padding: 15,
     alignItems: 'center', marginTop: 20,

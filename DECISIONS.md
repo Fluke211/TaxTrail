@@ -4003,3 +4003,135 @@ of D-066, and it is what build 7 is for.
 **Ship the feature or drop the permission, and prefer shipping when the feature
 is worth having.** The module was already paid for in binary size and in the
 privacy label; what it lacked was five hundred lines of JavaScript.
+
+---
+
+## D-080
+
+**A type scale, and brighter greys again** (2026-09-03)
+
+Tyler's second pass on r31, both parts of the same complaint: the small text is
+hard to read.
+
+### The greys, once more
+
+|  | original | D-078 | now | on the app background |
+|---|---|---|---|---|
+| `muted` | `#8a97ab` | `#9aa6b8` | `#b3bcca` | 6.5 -> 7.9 -> 10.1 |
+| `muted2` | `#5b6678` | `#78849a` | `#98a3b5` | 3.3 -> 5.1 -> 7.6 |
+
+The thing to watch when brightening secondary text is the hierarchy, and it
+holds: `text` 16.5, `muted` 10.1, `muted2` 7.6. Three steps, each visibly
+dimmer than the one above.
+
+Light mode is untouched again. The complaint has twice been about reading in
+the dark, and inventing a change to the light palette to match would be
+guessing at a problem nobody has reported.
+
+### The type scale
+
+The app had **nine** distinct sizes below 15pt: 10, 10.5, 11, 11.5, 12, 12.5,
+13, 13.5, 14. Some of those distinctions were real and most were an accident of
+whoever wrote that screen. Changing "the small text" meant editing **58 sizes
+across 10 files**, which is why the first answer to "it is hard to read" was a
+colour change only.
+
+So the palette carries the scale now:
+
+```
+xs    10, 10.5, 11    ->  12   overlines, tab labels, badges
+sm    11.5, 12        ->  13   notes, hints, list metadata
+md    12.5, 13        ->  14   secondary body
+body  13.5, 14        ->  15   rows, controls, form labels
+```
+
+Headings, amounts and the brand mark keep their own sizes. They were tuned
+individually and none of them was ever the complaint.
+
+**Line heights moved with the sizes, and into the scale with them.** A bigger
+font in the same box sets tighter than the small one did, which undoes some of
+what the change is for. Leaving eight literal `lineHeight`s next to the new
+tokens would have re-tightened every paragraph the moment the scale moved
+again: the exact regression this entry warns about, one round later and
+invisible in the diff that caused it. So `T.lh` sits beside `T.fs`.
+
+**The capture screen has to keep fitting an iPhone 14 without scrolling**
+(D-077's neighbour complaint), and a dozen points appeared down the page. The
+privacy card gives back six, four in margin and two in padding. That does not
+cover it and is not meant to; whether the page still fits is a device question,
+not a computable one.
+
+### Why this is worth a decision entry
+
+**Nine sizes below 15pt is not a design, it is a residue.** The knob exists
+because this is the second round of the same feedback and there will be a
+third: "still a bit small" should be one number, not an afternoon.
+
+`npm run test:type` keeps it that way, in CI: a literal `fontSize` below 17pt
+fails, and the scale has to stay ordered. This repo's habit by now (D-061,
+D-066, D-076), and for the same reason each time: a convention nobody enforces
+is one the next screen forgets.
+
+### Light mode came along for the ride
+
+`muted2` in the light palette measured **3.3:1**, which is WCAG's threshold for
+large text and non-text. It renders at 12 and 13 points, where the bar is 4.5,
+so it was below AA everywhere it appeared, and `check-contrast.js` was holding
+it to the wrong tier. Both are fixed: the light greys darken (`muted` 5.5 ->
+7.0, `muted2` 3.3 -> 4.8) and the check holds hint text to AA in both palettes.
+
+That was survivable while light mode was unreachable. r31 made it reachable and
+Tyler uses it, so "the complaint was about dark mode" stopped being a reason to
+leave it.
+
+### What the ratios were not measuring
+
+The comment claimed the three-tier hierarchy held, and offered three ratios
+against the same near-black ground as evidence. Those stay ordered no matter how
+close the colours get. The separation between adjacent tiers went 1.96 -> 1.53
+-> 1.33 across the two brightenings and nothing was watching it.
+`check-contrast.js` measures the steps now, with a floor, so a third
+brightening cannot quietly collapse `muted` into `muted2`.
+
+---
+
+## D-081
+
+**The appearance switch works. The window override is still unverified**
+(2026-09-03)
+
+D-077 shipped with a claim labelled as unverified: that Light and Dark would
+work over the air on build 6, whose `Info.plist` still pins
+`UIUserInterfaceStyle: Dark`, because `Appearance.setColorScheme()` sets a
+window-level `overrideUserInterfaceStyle` and a window override beats the
+app-level value.
+
+**Tyler tapped Light and the app turned light.** That confirms the half that
+matters most to him and the half that is nearly all of the visible surface.
+
+### It does not confirm the override, and this entry first said it did
+
+`useTheme()` returns `LIGHT` straight from the stored choice; it never consults
+`useColorScheme()` on that path, and `apply()` wraps `setColorScheme` in a
+try/catch that swallows any failure. So the app turning light happens
+identically whether UIKit honoured the window override or ignored it. **The
+observation cannot distinguish the two**, and the first version of this entry,
+of the `appearance.ts` comment, of STATUS and of the CHANGELOG all read as
+though it could.
+
+The only observable for the override is a **system** surface: raise an alert
+while Light is selected, and see whether it is light or black. Settings ->
+Restore purchases, or Delete all receipts and then Cancel, both do it in one
+tap.
+
+### The rule this nearly broke
+
+CLAUDE.md: verify before recommending, and reasoning is not verification. The
+labelling worked exactly as intended right up to the point where a real but
+*different* observation arrived and got filed against the open question because
+it was adjacent to it. **Check that the evidence discriminates**, not only that
+evidence exists: "the app turned light" and "the override works" are one
+sentence apart and not the same claim.
+
+"System" is still dark until build 7, which is a separate fact about the plist
+and unaffected by any of this.

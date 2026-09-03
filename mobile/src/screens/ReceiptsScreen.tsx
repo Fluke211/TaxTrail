@@ -149,7 +149,7 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
               <>
                 <Text style={s.label}>SPLITS</Text>
                 {allocationsOf(selected).map((a, i) => (
-                  <Text key={i} style={{ color: T.muted, fontSize: 13, marginBottom: 2 }}>
+                  <Text key={i} style={{ color: T.muted, fontSize: T.fs.md, marginBottom: 2 }}>
                     · {a.category}: ${a.amount.toFixed(2)}{a.tax ? ` ($${a.base?.toFixed(2)} + $${a.tax.toFixed(2)} tax)` : ''}
                   </Text>
                 ))}
@@ -161,7 +161,7 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
 
             <Pressable style={{ marginTop: 14 }}
               onPress={async () => { await Clipboard.setStringAsync(selected.ocrText || ''); Alert.alert('Raw text copied'); }}>
-              <Text style={{ color: T.accent, fontSize: 12, fontWeight: '600' }}>COPY RAW SCANNED TEXT</Text>
+              <Text style={{ color: T.accent, fontSize: T.fs.sm, fontWeight: '600' }}>COPY RAW SCANNED TEXT</Text>
             </Pressable>
 
             {/*
@@ -172,7 +172,7 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
             */}
             {isFeedbackAvailable() && (
             <Pressable style={{ marginTop: 12 }} onPress={() => setReporting(selected)}>
-              <Text style={{ color: T.accent, fontSize: 12, fontWeight: '600' }}>REPORT A SCANNING PROBLEM</Text>
+              <Text style={{ color: T.accent, fontSize: T.fs.sm, fontWeight: '600' }}>REPORT A SCANNING PROBLEM</Text>
             </Pressable>
             )}
 
@@ -205,18 +205,18 @@ const makeStyles = styled((T) => ({
     padding: 12, marginBottom: 10,
   },
   thumb: { width: 46, height: 46, borderRadius: 8, backgroundColor: T.bg2 },
-  cardM: { color: T.text, fontSize: 15, fontWeight: '600' },
-  cardSub: { color: T.muted2, fontSize: 12, marginTop: 2 },
-  cardAmt: { color: T.text, fontSize: 15, fontWeight: '700' },
+  cardM: { color: T.text, fontSize: T.fs.body, fontWeight: '600' },
+  cardSub: { color: T.muted2, fontSize: T.fs.sm, marginTop: 2 },
+  cardAmt: { color: T.text, fontSize: T.fs.body, fontWeight: '700' },
   detail: { flex: 1, backgroundColor: T.bg },
   detailTitle: { color: T.text, fontSize: 18, fontWeight: '700', flex: 1 },
   detailImg: { width: '100%', height: 260, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)', marginTop: 10 },
-  label: { color: T.muted2, fontSize: 10, letterSpacing: 0.6, marginTop: 14, marginBottom: 5, fontWeight: '600' },
+  label: { color: T.muted2, fontSize: T.fs.xs, letterSpacing: 0.6, marginTop: 14, marginBottom: 5, fontWeight: '600' },
   input: {
     backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
-    color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15,
+    color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: T.fs.body,
   },
-  hint: { color: T.muted2, fontSize: 12, marginTop: 6 },
+  hint: { color: T.muted2, fontSize: T.fs.sm, marginTop: 6 },
   dangerBtn: {
     flex: 1, borderColor: T.dangerLine, borderWidth: 1, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',

@@ -11,6 +11,44 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r32 — v1.0.0 (build 6) — 2026-09-03
+
+Tyler's second pass on r31: the small text is hard to read.
+
+**A type scale** (D-080). The app had nine distinct sizes below 15pt, most of
+them an accident rather than a decision, so "make the small text bigger" meant
+editing 58 sizes across 10 files. The palette carries `T.fs` now, with `T.lh`
+for leading beside it, and every step went up:
+
+| | was | now |
+|---|---|---|
+| `xs` overlines, tab labels, badges | 10, 10.5, 11 | 12 |
+| `sm` notes, hints, list metadata | 11.5, 12 | 13 |
+| `md` secondary body | 12.5, 13 | 14 |
+| `body` rows, controls, form labels | 13.5, 14 | 15 |
+
+Line heights moved with the sizes and into the scale with them; headings and
+amounts are untouched. `npm run test:type` fails on a literal `fontSize` below
+17pt, so the residue cannot grow back. The capture screen's privacy card gives
+back six points, which does not cover the dozen-odd the bigger text costs: that
+page has to keep fitting an iPhone 14, and whether it does is for Tyler to say.
+
+**Light mode's hint text was below AA** and is fixed in the same pass: `muted2`
+measured 3.3:1 at 12 and 13 points, where the bar is 4.5. The light greys darken
+(`muted` 5.5 -> 7.0, `muted2` 3.3 -> 4.8), the contrast check stops holding hint
+text to the large-text tier, and it now measures the gaps BETWEEN the text tiers
+too, which the previous "the hierarchy holds" claim never did.
+
+**Brighter greys, second pass** (D-080): `muted` 7.9:1 -> 10.1:1 and `muted2`
+5.1:1 -> 7.6:1 against the app background. The hierarchy still reads: 16.5,
+10.1, 7.6.
+
+**The appearance switch works on build 6** (D-081): tapping Light turns the app
+light, over the air, on a binary whose plist still pins dark. **The window
+override itself is still unverified**, and this entry first claimed otherwise:
+the palette swap is pure JS and would look identical either way. The test is a
+system alert while Light is selected. "System" is still dark until build 7.
+
 ### js r31 — v1.0.0 (build 6) — 2026-09-02
 
 **A Face ID app lock, on by default** (D-079). `expo-local-authentication` has

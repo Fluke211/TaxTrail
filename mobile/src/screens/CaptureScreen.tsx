@@ -501,8 +501,8 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
               <View style={s.splitBox}>
                 {allocs.map((a, i) => (
                   <View key={i} style={s.allocRow}>
-                    <Text style={{ color: T.text, flex: 1, fontSize: 13 }} numberOfLines={1}>{a.category}</Text>
-                    <Text style={{ color: T.muted, fontSize: 13 }}>
+                    <Text style={{ color: T.text, flex: 1, fontSize: T.fs.md }} numberOfLines={1}>{a.category}</Text>
+                    <Text style={{ color: T.muted, fontSize: T.fs.md }}>
                       ${a.amount.toFixed(2)}{a.tax ? ` ($${a.base?.toFixed(2)} + $${a.tax.toFixed(2)} tax)` : ''}
                     </Text>
                     <Pressable onPress={() => setAllocs(allocs.filter((_, j) => j !== i))}>
@@ -511,7 +511,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
                   </View>
                 ))}
                 <Pressable style={s.input} onPress={() => setShowSplitCats(!showSplitCats)}>
-                  <Text style={{ color: T.text, fontSize: 13 }}>{splitCat} ▾</Text>
+                  <Text style={{ color: T.text, fontSize: T.fs.md }}>{splitCat} ▾</Text>
                 </Pressable>
                 <CategoryPicker
                   visible={showSplitCats}
@@ -526,7 +526,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
                   <TextInput style={[s.input, { flex: 1 }]} value={splitAmt} keyboardType="decimal-pad"
                     onChangeText={setSplitAmt} placeholder="Amount $" placeholderTextColor={T.muted2} />
                   <Pressable onPress={() => setSplitTax(!splitTax)} style={s.taxToggle}>
-                    <Text style={{ color: splitTax ? T.accent : T.muted2, fontSize: 13 }}>{splitTax ? '☑' : '☐'} + tax</Text>
+                    <Text style={{ color: splitTax ? T.accent : T.muted2, fontSize: T.fs.md }}>{splitTax ? '☑' : '☐'} + tax</Text>
                   </Pressable>
                 </View>
                 {splitPreview && <Text style={s.hint}>{splitPreview}</Text>}
@@ -553,7 +553,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
               <View style={s.rawBox}>
                 <Pressable style={s.copyBtn}
                   onPress={async () => { await Clipboard.setStringAsync(pending.ocrText); Alert.alert('Copied'); }}>
-                  <Text style={{ color: T.accent, fontSize: 12 }}>Copy</Text>
+                  <Text style={{ color: T.accent, fontSize: T.fs.sm }}>Copy</Text>
                 </Pressable>
                 <Text style={s.rawText}>{pending.ocrText || '(no text found)'}</Text>
               </View>
@@ -586,12 +586,12 @@ const makeStyles = styled((T) => ({
   },
   heroPressed: { opacity: 0.7 },
   heroTitle: { color: T.text, fontSize: 22, fontWeight: '700' },
-  heroSub: { color: T.muted, fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
+  heroSub: { color: T.muted, fontSize: T.fs.md, textAlign: 'center', maxWidth: 260, lineHeight: T.lh.md },
 
   meter: { marginTop: 12, gap: 6 },
   meterTrack: { height: 4, borderRadius: 2, backgroundColor: T.line, overflow: 'hidden' },
   meterFill: { height: 4, borderRadius: 2, backgroundColor: T.accent },
-  meterText: { color: T.muted, fontSize: 12, textAlign: 'center' },
+  meterText: { color: T.muted, fontSize: T.fs.sm, textAlign: 'center' },
 
   recents: {
     marginTop: 16, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
@@ -601,15 +601,15 @@ const makeStyles = styled((T) => ({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 10, paddingBottom: 6,
   },
-  recentsTitle: { color: T.muted, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
-  recentsAll: { color: T.accent, fontSize: 12.5, fontWeight: '600' },
+  recentsTitle: { color: T.muted, fontSize: T.fs.xs, fontWeight: '700', letterSpacing: 0.8 },
+  recentsAll: { color: T.accent, fontSize: T.fs.md, fontWeight: '600' },
   recentRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 9, borderTopColor: T.line, borderTopWidth: 1,
   },
-  recentMerchant: { color: T.text, fontSize: 14, fontWeight: '600' },
-  recentMeta: { color: T.muted, fontSize: 11.5, marginTop: 2 },
-  recentAmt: { color: T.text, fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  recentMerchant: { color: T.text, fontSize: T.fs.body, fontWeight: '600' },
+  recentMeta: { color: T.muted, fontSize: T.fs.sm, marginTop: 2 },
+  recentAmt: { color: T.text, fontSize: T.fs.body, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   // Still used by "Save Receipt" in the review form. The capture hero no
   // longer uses it — there the rectangle is the button.
@@ -618,21 +618,31 @@ const makeStyles = styled((T) => ({
     alignItems: 'center', shadowColor: T.accent, shadowOpacity: 0.4, shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
   },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  primaryBtnText: { color: '#fff', fontSize: T.fs.lg, fontWeight: '600' },
   uploadBtn: {
     marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, backgroundColor: T.card2, borderColor: T.line, borderWidth: 1,
     borderRadius: 12, paddingVertical: 14,
   },
   uploadBtnPressed: { opacity: 0.7 },
-  uploadBtnText: { color: T.text, fontSize: 15, fontWeight: '600' },
+  uploadBtnText: { color: T.text, fontSize: T.fs.body, fontWeight: '600' },
+  /*
+   * Margin 18 -> 14 and padding 14 -> 13 with the type scale (D-080), which
+   * gives back 6 points: 4 of margin and 2 of vertical padding.
+   *
+   * The bigger small text costs this screen roughly 12 to 16 points down the
+   * page, so 6 does not cover it and is not meant to. This page has to fit an
+   * iPhone 14 without scrolling, and whether it still does is a device
+   * question. If it scrolls, the next thing to shorten is the hero's padding,
+   * not this copy: it is already two lines.
+   */
   privacy: {
-    marginTop: 18, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
-    borderRadius: T.radius, padding: 14,
+    marginTop: 14, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
+    borderRadius: T.radius, padding: 13,
   },
-  privacyText: { color: T.muted, fontSize: 12.5, lineHeight: 19 },
+  privacyText: { color: T.muted, fontSize: T.fs.md, lineHeight: T.lh.md },
   progress: { marginTop: 40, alignItems: 'center', gap: 14 },
-  progressLabel: { color: T.muted, fontSize: 13 },
+  progressLabel: { color: T.muted, fontSize: T.fs.md },
   pinned: {
     marginTop: 10, width: '100%', height: 170, borderRadius: 12,
     backgroundColor: 'rgba(0,0,0,0.3)',
@@ -641,15 +651,15 @@ const makeStyles = styled((T) => ({
     marginTop: 12, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
     borderRadius: T.radius, padding: 16, marginBottom: 20,
   },
-  h3: { color: T.text, fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  conf: { color: T.muted, fontSize: 12.5, marginBottom: 12 },
-  label: { color: T.muted2, fontSize: 10, letterSpacing: 0.6, marginTop: 12, marginBottom: 5, fontWeight: '600' },
+  h3: { color: T.text, fontSize: T.fs.lg, fontWeight: '700', marginBottom: 4 },
+  conf: { color: T.muted, fontSize: T.fs.md, marginBottom: 12 },
+  label: { color: T.muted2, fontSize: T.fs.xs, letterSpacing: 0.6, marginTop: 12, marginBottom: 5, fontWeight: '600' },
   input: {
     backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
-    color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15,
+    color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: T.fs.body,
   },
   row3: { flexDirection: 'row', gap: 8 },
-  hint: { color: T.muted2, fontSize: 12, marginTop: 6 },
+  hint: { color: T.muted2, fontSize: T.fs.sm, marginTop: 6 },
   splitBox: { backgroundColor: T.bg2, borderRadius: 10, padding: 10, gap: 8, borderColor: T.line, borderWidth: 1 },
   allocRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   taxToggle: { paddingHorizontal: 10, paddingVertical: 10 },
@@ -659,5 +669,5 @@ const makeStyles = styled((T) => ({
   },
   rawBox: { backgroundColor: T.bg2, borderRadius: 10, padding: 10, borderColor: T.line, borderWidth: 1 },
   copyBtn: { alignSelf: 'flex-end', padding: 4 },
-  rawText: { color: T.muted, fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  rawText: { color: T.muted, fontSize: T.fs.xs, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
 }));

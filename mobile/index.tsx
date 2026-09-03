@@ -130,6 +130,8 @@ async function fetchAndRestart(): Promise<RecoverState> {
   }
 }
 
+/* Sizes raised by hand with the app's type scale (D-080). This file cannot
+ * reach `T.fs` on purpose, so they are kept in step rather than shared. */
 function CrashScreen({ phase, when, detail }: {
   /** Which net caught it. NOT derived from `when`: the caption is display text
    *  and someone rewording it must not silently change what the screen says. */
@@ -145,10 +147,10 @@ function CrashScreen({ phase, when, detail }: {
   const atLaunch = phase === 'load';
   return (
     <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: 72, paddingHorizontal: 20 }}>
-      <Text style={{ color: C.text, fontSize: 19, fontWeight: '700', marginBottom: 8 }}>
+      <Text style={{ color: C.text, fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
         {atLaunch ? 'TaxTrail couldn\u2019t start' : 'TaxTrail hit an error'}
       </Text>
-      <Text selectable style={{ color: C.muted, fontSize: 14, lineHeight: 21, marginBottom: 4 }}>
+      <Text selectable style={{ color: C.muted, fontSize: 15, lineHeight: 22, marginBottom: 4 }}>
         {atLaunch
           ? 'Your receipts are safe. They live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'
           : 'Every receipt you have saved is safe. They live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'}
@@ -156,7 +158,7 @@ function CrashScreen({ phase, when, detail }: {
         <Text style={{ color: C.text, fontWeight: '600' }}>{SUPPORT_EMAIL}</Text>
         {' with the details below.'}
       </Text>
-      <Text selectable style={{ color: C.muted, fontSize: 11, marginTop: 12 }}>
+      <Text selectable style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
         {when} · {jsStamp()}
       </Text>
       <Pressable
@@ -174,17 +176,17 @@ function CrashScreen({ phase, when, detail }: {
           borderRadius: 12, borderWidth: 1, borderColor: C.accent, opacity: pressed ? 0.6 : 1,
         })}
       >
-        <Text style={{ color: C.accent, fontSize: 15, fontWeight: '600' }}>
+        <Text style={{ color: C.accent, fontSize: 16, fontWeight: '600' }}>
           {recover === 'checking' ? 'Checking…' : 'Check for an update'}
         </Text>
       </Pressable>
       {recover === 'none' && (
-        <Text style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>
+        <Text style={{ color: C.muted, fontSize: 13, marginTop: 8 }}>
           No update available yet. Force-quit and reopen to try again.
         </Text>
       )}
       {recover === 'failed' && (
-        <Text style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>
+        <Text style={{ color: C.muted, fontSize: 13, marginTop: 8 }}>
           Couldn’t reach the update service. Check your connection and try again.
         </Text>
       )}
@@ -197,13 +199,13 @@ function CrashScreen({ phase, when, detail }: {
           alignSelf: 'flex-start', paddingVertical: 14, paddingRight: 16, opacity: pressed ? 0.6 : 1,
         })}
       >
-        <Text style={{ color: C.accent, fontSize: 15, fontWeight: '600' }}>
+        <Text style={{ color: C.accent, fontSize: 16, fontWeight: '600' }}>
           {showDetail ? 'Hide technical details' : 'Show technical details'}
         </Text>
       </Pressable>
       {showDetail && (
         <ScrollView style={{ flex: 1 }}>
-          <Text selectable style={{ color: C.text, fontSize: 12, lineHeight: 18, paddingBottom: 60 }}>
+          <Text selectable style={{ color: C.text, fontSize: 13, lineHeight: 19, paddingBottom: 60 }}>
             {detail}
           </Text>
         </ScrollView>

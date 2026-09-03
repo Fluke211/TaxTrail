@@ -21,12 +21,16 @@
  * changed to "automatic" in the same commit as this file, and it takes a native
  * build to reach a binary.
  *
- * **Light and Dark on build 6 are expected to work, and are NOT verified.**
- * `RCTAppearance.mm` sets `window.overrideUserInterfaceStyle`, and a window
- * override is documented to win over the app-level `UIUserInterfaceStyle`, so
- * the reasoning is sound. But how UIKit resolves that pair is not something
- * this environment can run, and CLAUDE.md is explicit that reasoning is not
- * verification. Tyler can settle it in five seconds by tapping Light.
+ * **The app's own palette switches on build 6. Confirmed 2026-09-03.** Tyler
+ * tapped Light and the app turned light.
+ *
+ * **That does not settle the window override, and it was briefly written down
+ * as if it did.** `useTheme()` returns LIGHT from the stored choice without
+ * consulting `useColorScheme()`, and `apply()` swallows any error, so the app
+ * turning light proves the JS half and nothing about UIKit. The only observable
+ * for the override is a SYSTEM surface: raise an alert while Light is selected
+ * and see whether it is light or black. Until someone looks at that, the
+ * override is still reasoning (D-081).
  */
 import { useSyncExternalStore } from 'react';
 import { Appearance } from 'react-native';

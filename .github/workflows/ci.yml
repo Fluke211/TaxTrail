@@ -85,6 +85,12 @@ jobs:
       - name: No em or en dashes in user-facing text
         run: npm run test:prose
 
+      # Nine distinct sizes below 15pt was not a design, it was a residue, and
+      # "make the small text bigger" meant editing 58 numbers across 10 files
+      # (D-080). The sizes live in the theme now, and this keeps them there.
+      - name: Font sizes come from the type scale
+        run: npm run test:type
+
       # A stored image path handed straight to <Image> or FileSystem fails
       # silently: a blank thumbnail, or a delete that reports success and leaves
       # the photograph on the device (D-075). Both forms are `string`, so

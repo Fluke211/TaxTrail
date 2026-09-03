@@ -119,16 +119,26 @@ const PAIRS = [
   ['text', 'bg2', 4.5, 'body text on the tab bar'],
   ['muted', 'bg', 4.5, 'secondary text on the app background'],
   ['muted', 'card', 4.5, 'secondary text on a card'],
+  // The tab labels. The most persistently visible text in the app, and it had
+  // no row here until the type scale changed its size and review noticed.
+  ['muted2', 'bg2', 4.5, 'inactive tab labels'],
   ['accent', 'bg', 4.5, 'links and every tappable label'],
   ['accent', 'card', 4.5, 'links on a card'],
   ['accent', 'card2', 4.5, 'links on an inset control'],
   ['danger', 'card', 4.5, 'the Delete label in the danger zone'],
   ['good', 'card', 3.0, 'the business total'],
   ['warn', 'card', 3.0, 'warnings'],
-  // Hint text and disabled labels — large-text/secondary threshold.
-  ['muted2', 'bg', 3.0, 'hint text'],
-  ['muted2', 'card', 3.0, 'hint text on a card'],
-  ['muted2', 'card2', 3.0, 'hint text on an inset control'],
+  /*
+   * Hint text, at AA rather than the 3:1 tier it used to sit in.
+   *
+   * That tier is WCAG's threshold for text at 18pt, or 14pt bold, and for
+   * non-text. `muted2` renders at 12 and 13 points, so the bar is 4.5 and
+   * calling it "secondary" did not change that. Both palettes clear it now
+   * (D-080).
+   */
+  ['muted2', 'bg', 4.5, 'hint text'],
+  ['muted2', 'card', 4.5, 'hint text on a card'],
+  ['muted2', 'card2', 4.5, 'hint text on an inset control'],
   // Non-text: borders have to be visible or every card loses its edge.
   ['line', 'card', 1.2, 'card borders'],
   ['line', 'bg', 1.2, 'borders on the background'],
@@ -178,6 +188,21 @@ const CRASH_PAIRS = [
   ['accent', 'bg', 4.5, 'Show technical details'],
 ];
 
+/*
+ * The steps between the text tiers, not only each tier against the ground.
+ *
+ * Brightening secondary text twice (D-078, D-080) moved `muted` and `muted2`
+ * closer together each time: 1.96 -> 1.53 -> 1.33. Three ratios measured
+ * against the same near-black ground stay ordered no matter how close the
+ * colours get, so the evidence used to justify "the hierarchy holds" could not
+ * have detected them converging. This can. A third brightening on the same
+ * trajectory is what it exists to stop.
+ */
+const STEPS = [
+  ['text', 'muted', 1.3, 'body text against secondary text'],
+  ['muted', 'muted2', 1.25, 'secondary text against hint text'],
+];
+
 const palettes = { ...readPalettes(), ...readCrashPalette() };
 let failures = 0;
 let belowTarget = 0;
@@ -218,6 +243,20 @@ for (const [name, p] of Object.entries(palettes)) {
     if (!ok) failures++;
     console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${label.padEnd(26)} ${r.toFixed(2)}:1  (min ${min})  ${what}`);
     if (!ok) console.log(`  ::error::${name}: ${what} is ${r.toFixed(2)}:1, needs ${min}:1 — ${fg} on ${bg}`);
+  }
+}
+
+for (const [name, p] of Object.entries(palettes)) {
+  if (name.startsWith('CRASH SCREEN')) continue;
+  console.log(`\n${name} · steps between tiers`);
+  for (const [a, b, min, what] of STEPS) {
+    const r = ratio(p[a], p[b]);
+    const ok = r >= min;
+    if (!ok) failures++;
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${`${a} vs ${b}`.padEnd(26)} ${r.toFixed(2)}:1  (min ${min})  ${what}`);
+    if (!ok) {
+      console.log(`  ::error::${name}: ${what} is only ${r.toFixed(2)}:1 apart. Brightening one tier past the next stops it being a tier.`);
+    }
   }
 }
 
