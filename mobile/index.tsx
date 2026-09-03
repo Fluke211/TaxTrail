@@ -44,11 +44,11 @@ const SUPPORT_EMAIL = 'support@taxtrail.app';
  * is what just failed. `useColorScheme()` comes from react-native itself, so
  * following the system setting costs no dependency.
  *
- * The light half is latent today: `app.json` sets `userInterfaceStyle: "dark"`,
- * which pins the window's trait collection, so `useColorScheme()` returns
- * 'dark' even on a phone set to Light. It is written anyway so that flipping
- * app.json to "automatic" does not leave a hardcoded dark panel behind — the
- * same reason `src/lib/theme.ts` carries a LIGHT palette.
+ * Both halves are live. `app.json` used to pin `userInterfaceStyle: "dark"`,
+ * which held the window's trait collection to dark and made the light half
+ * unreachable; it is `"automatic"` as of the appearance switch (D-077), so this
+ * follows the phone from build 7 onward. It was written before it could be
+ * reached, which is why it was there to become correct.
  *
  * `npm run test:contrast` reads this literal, so the ratios are checked rather
  * than asserted in a comment.

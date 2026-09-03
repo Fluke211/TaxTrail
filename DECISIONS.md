@@ -3834,3 +3834,172 @@ stamp and the receipt subtitle.
 kind of rule that decays: the next screen gets written from memory, and nobody
 notices until Tyler does. Comments are not scanned, deliberately — they are
 written for whoever maintains this, not for the user.
+
+---
+
+## D-077
+
+**An in-app appearance switch: System, Light, Dark** (2026-09-02)
+
+This overturns a decision that was never written down as one. `useTheme` said:
+"Follows the OS rather than offering an in-app switch. iOS already has that
+setting, it is where people look for it, and an app-level override is one more
+thing to keep in sync with no benefit."
+
+Tyler asked for the switch, and the reasoning above is wrong for this app. It is
+used at a restaurant table in the evening and at a desk in the morning, and
+changing the whole phone's appearance to read one receipt is not a thing anyone
+does. Plenty of shipped apps carry this control for the same reason.
+
+### Two things move, not one
+
+1. `useTheme()` returns the chosen palette, which repaints the app.
+2. **`Appearance.setColorScheme()`**, which sets `window.overrideUserInterfaceStyle`
+   and is what makes the SYSTEM surfaces follow: alerts, the keyboard, the share
+   sheet, RevenueCat's paywall. Without it, a light-mode app raises black alert
+   dialogs, and that reads as a bug rather than a theme.
+
+### "System" is dark until build 7, and that is a plist fact
+
+`app.json` had `userInterfaceStyle: "dark"`, which becomes `UIUserInterfaceStyle:
+Dark` in `Info.plist` and pins the window's trait collection. With it set,
+`useColorScheme()` returns 'dark' on a phone set to Light, so "System" cannot
+work. Verified in the RN source rather than assumed: `RCTAppearance.mm` reads
+the trait collection, and `setColorScheme` writes `overrideUserInterfaceStyle`,
+which is why Light and Dark work immediately and System does not.
+
+The value is now `"automatic"`, and it reaches a device with the next native
+build. Until then, choosing System gives dark, and the Settings copy says so
+rather than promising something the running binary cannot do.
+
+**Light and Dark on build 6 are expected to work and are not verified.** A
+window-level `overrideUserInterfaceStyle` is documented to win over the
+app-level plist value, and that is the whole basis for the claim. UIKit trait
+resolution is not something this environment can run, and CLAUDE.md is explicit
+that reasoning is not verification. It is one tap for Tyler to settle.
+
+### The rule
+
+**A theme switch that leaves the system surfaces behind is half a theme
+switch.** The palette is the visible part; the window override is the part
+people notice only when it is missing.
+
+---
+
+## D-078
+
+**Brighter greys in the dark palette** (2026-09-02)
+
+Tyler reads the app in low light and found the grey text hard going. He is
+right, and the numbers agree.
+
+| Token | Was | Now | On the app background |
+|---|---|---|---|
+| `muted` | `#8a97ab` | `#9aa6b8` | 6.53:1 -> 7.85:1 |
+| `muted2` | `#5b6678` | `#78849a` | 3.33:1 -> 5.13:1 |
+
+`muted2 on card2` was one of the five ratios baselined below the WCAG target
+(D-061). At 4.19:1 it now clears the 3.0 target outright, so it comes off the
+baseline and is checked normally. **Four baselined ratios remain**, all of them
+about the accent and danger colours, which are Tyler's brand and a separate
+decision.
+
+The hierarchy survives, which is the thing worth checking when brightening
+secondary text: `text` is 16.45:1, `muted` 7.85:1, `muted2` 5.13:1. Each step is
+still visibly dimmer than the one above it.
+
+Light mode is untouched. The complaint was specific to reading in the dark, and
+the light palette already meets every target.
+
+---
+
+## D-079
+
+**A Face ID app lock, on by default** (2026-09-02)
+
+`expo-local-authentication` has been compiled into every build since build 3
+with a purpose string describing a feature that did not exist. That is half of
+D-066, the open submission blocker. This is the feature, and it is worth having
+on its own merits: the app holds a year of financial records on a device other
+people pick up.
+
+### The shape of it
+
+- **On by default**, Tyler's call. Off is one tap away in Settings.
+- **Never lock a phone that cannot unlock.** Availability is
+  `getEnrolledLevelAsync() !== NONE`, not `isEnrolledAsync()`, because the
+  prompt allows the device passcode as a fallback. A phone with neither
+  biometrics nor a passcode is never locked: a privacy feature that shuts the
+  owner out of their own receipts is not a privacy feature.
+- **The passcode fallback stays enabled** for the same reason. A face that will
+  not scan must not be the end of the road.
+- **A 60-second grace period.** Photographing a receipt, sharing an export and
+  picking an image all leave the app briefly. Demanding a scan on the way back
+  from a two-second detour is how a feature gets switched off.
+- **Only `background` starts the clock, never `inactive`.** iOS fires `inactive`
+  for the Face ID prompt itself; treating that as leaving would mean the prompt
+  re-arms the lock that raised it.
+- **Nothing of the app renders while locked**, and nothing renders before the
+  preference has been read either. The preference comes from AsyncStorage, so a
+  frame of the receipt list before the lock appears is a real risk and would
+  defeat the whole feature.
+
+- **The app switcher's snapshot is covered**, by an overlay ON TOP of the
+  screen rather than instead of it. iOS photographs the screen when the app
+  resigns active, and that photograph is visible in the switcher to anyone
+  holding the phone, so the content has to be gone before the snapshot. The
+  first attempt returned early instead, which unmounted whichever screen was
+  showing: a notification banner would have thrown away a scanned receipt, its
+  typed corrections and its splits, none of which are in the database until
+  Save. `inactive` covers; only a real `background` starts the clock.
+
+The decision rules are in `src/lib/appLock.js`, pure and unit-tested, so "does a
+two-second trip to the share sheet demand Face ID again" is a test rather than
+something checked by unlocking a phone repeatedly.
+
+### The loop review caught
+
+The first version re-evaluated the lock on every `active` event against a
+`backgroundedAt` that no unlock ever cleared. On a cold start that value is
+null, which the rules read as "ask" — so the Face ID prompt, whose own dismissal
+fires `active`, re-locked the app the instant it succeeded. **A loop with no way
+into the app**, on a feature that is on by default, reachable by every user on
+their first launch of r31.
+
+The fix is to consume the timestamp: `active` only judges when the app actually
+backgrounded, and clears the mark either way. The general shape is worth
+keeping: **`inactive` is not `background`, and a state machine driven by
+AppState needs to say which transitions it ignores**, not only which it acts on.
+
+A second review pass found three more of the same kind, which is what settled
+the design:
+
+- **The cover was a replacement, not an overlay** (above), and would have
+  discarded an unsaved scan.
+- **The resume decision was asynchronous**, so the receipt list painted for a
+  few frames before the lock screen. It is computed synchronously now, from
+  values already in hand; the storage re-read refines the next decision rather
+  than making this one.
+- **A cancelled prompt was never re-asked.** `locked` stays true after a cancel,
+  so the next lock event changed no boolean and no prompt could fire again. The
+  state carries a `prompts` counter for exactly that.
+
+So the whole gate is a reducer in `appLock.js` now, and every transition is a
+fixture: the prompt-dismissal loop, the notification banner, both sides of the
+grace period, and the cancelled-then-away case. **Pure rules with an untested
+state machine wrapped around them is not a tested feature** — that split is what
+let four bugs through in one file. `expo-local-authentication`
+now comes off the `check-permissions.js` baseline.
+
+### What this leaves
+
+**`expo-location` is now the only unjustified permission.** Tyler ruled out GPS
+mileage (it is a different app), so that permission can never be justified and
+the plugin should come out in the next native build. That is the remaining half
+of D-066, and it is what build 7 is for.
+
+### The rule
+
+**Ship the feature or drop the permission, and prefer shipping when the feature
+is worth having.** The module was already paid for in binary size and in the
+privacy label; what it lacked was five hundred lines of JavaScript.

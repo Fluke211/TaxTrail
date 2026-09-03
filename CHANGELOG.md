@@ -11,6 +11,40 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r31 — v1.0.0 (build 6) — 2026-09-02
+
+**A Face ID app lock, on by default** (D-079). `expo-local-authentication` has
+been compiled into every build since build 3 with a purpose string describing a
+feature that did not exist. This is the feature.
+
+- Off is one tap away in Settings, under PRIVACY
+- **Never locks a phone that cannot unlock**: availability is "a biometric or a
+  passcode is enrolled", and the passcode fallback stays enabled. A privacy
+  feature that shuts the owner out of their own receipts is not one
+- 60-second grace period, so a trip to the share sheet or the camera does not
+  demand a scan on the way back
+- Nothing of the app renders while locked, or before the preference is read,
+  and the app switcher's snapshot is covered: iOS photographs the screen when
+  the app resigns active, and that photograph is visible without unlocking
+- Rules in `src/lib/appLock.js`, pure and unit-tested, 7 new cases
+
+**Appearance: System, Light or Dark** (D-077), in Settings. **System is dark
+until the next native build**, because `app.json` pinned `userInterfaceStyle` to
+dark and that is a plist fact no OTA can change; the value is now `automatic`,
+ready for build 7, and the Settings copy says so until then. Light and Dark are
+window-level overrides and are *expected* to work on build 6, which is reasoning
+rather than a device observation. `Appearance.setColorScheme()` moves the system
+surfaces too, so a light-mode app does not raise black alert dialogs.
+
+**Brighter greys in dark mode** (D-078), Tyler reads in low light: `muted`
+6.5:1 -> 7.9:1, `muted2` 3.3:1 -> 5.1:1 against the app background. One of the
+five ratios baselined below the WCAG target now clears it outright and comes off
+the baseline. Four remain.
+
+**The developer unlock says nothing before it fires.** It used to count down
+from the fourth tap, which tells someone who tapped the version stamp by
+accident that there is something here to find.
+
 ### js r30 — v1.0.0 (build 6) — 2026-09-02
 
 **Live on `production` since 2026-09-02** (group `859ae2fc`), runtime version

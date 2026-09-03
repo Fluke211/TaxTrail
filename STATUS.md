@@ -5,7 +5,7 @@
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 6) · js r30 published; r29 observed on device** | Build 6 opens on Tyler's phone with real icons, which confirms the expo-font pin (D-072). It is the first binary whose **embedded** bundle runs, so the first that is submittable. Build 6 is in `LIVE_BUILDS` (D-074). r29 confirmed running on device 2026-09-02. r30 (live 2026-09-02, group `859ae2fc`) fixes receipt photographs, which stopped rendering because iOS moved the app's Data container (D-075). |
+| iOS app (`mobile/`) | **v1.0.0 (build 6) · js r31 next; r30 published, r29 observed on device** | Build 6 opens on Tyler's phone with real icons, which confirms the expo-font pin (D-072). It is the first binary whose **embedded** bundle runs, so the first that is submittable. Build 6 is in `LIVE_BUILDS` (D-074). r29 confirmed running on device 2026-09-02. r30 (live 2026-09-02, group `859ae2fc`) fixes receipt photographs, which stopped rendering because iOS moved the app's Data container (D-075). |
 
 ---
 
@@ -125,12 +125,11 @@ line 20a (D-068).
 
 What is left, and none of it is code:
 
-1. **Decide the permission question (D-066).** The app still requests **Face ID
-   and Location** with no feature behind either. D-069 kept both modules on
-   purpose so an app lock and manual mileage can ship over the air, but the
-   prompts exist now and the privacy label is the pitch. Either ship the
-   features or drop the plugins, which needs a build. **This is the one open
-   item that blocks submission on its own.**
+1. **The permission question is half closed (D-066).** The Face ID app lock
+   shipped in r31 (D-079), so that permission has a feature behind it. **Location
+   does not, and cannot**: GPS mileage is ruled out, so `expo-location` has to
+   come out of `app.json`, which needs a native build. That is what build 7 is
+   for, and it is the last thing blocking submission on its own.
 2. **Sandbox purchase test** — monthly, annual, lifetime, and Restore. All
    three products read `READY_TO_SUBMIT`; the Paid Applications agreement is
    active, so nothing is in the way but the testing.

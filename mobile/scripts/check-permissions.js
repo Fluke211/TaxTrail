@@ -79,7 +79,9 @@ const PERMISSION_PLUGINS = {
  * native weight rather than optionality. Removed in build 5.
  */
 const BASELINE = [
-  'expo-local-authentication',
+  // expo-local-authentication came off this list on 2026-09-02: the Face ID app
+  // lock is a real feature now (D-079), so the permission has something behind
+  // it and the normal check applies.
   'expo-location',
 ];
 
@@ -133,7 +135,7 @@ const fresh = unused.filter((n) => BASELINE.indexOf(n) === -1);
 const held = unused.filter((n) => BASELINE.indexOf(n) !== -1);
 
 for (const name of held) {
-  console.log(`  known ${name.padEnd(38)} kept for a future OTA feature — asks for ${PERMISSION_PLUGINS[name]} (D-069)`);
+  console.log(`  known ${name.padEnd(38)} no feature behind it yet · asks for ${PERMISSION_PLUGINS[name]} (D-066, D-069)`);
 }
 
 /* A baseline entry that got fixed should leave the list, or it stops meaning
@@ -145,8 +147,11 @@ if (stale.length) {
 
 if (!fresh.length) {
   console.log(held.length
-    ? `\nNo new unjustified permissions. ${held.length} kept on purpose (D-069) so an`
-      + ' app lock and GPS mileage can ship over the air without a build.'
+    // Count-neutral. The per-permission story is on the `known` lines above;
+    // encoding today's single entry into this sentence is how it goes stale.
+    ? `\nNo new unjustified permissions. ${held.length} still ${held.length === 1 ? 'has' : 'have'}`
+      + ' no feature behind it, which is the open part of D-066: ship the feature'
+      + ' or drop the plugin, and dropping one needs a native build.'
     : '\nEvery permission this app asks for has code behind it.');
   process.exit(0);
 }

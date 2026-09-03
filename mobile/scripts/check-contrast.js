@@ -160,7 +160,6 @@ const ON_SOLID = [
 const BASELINE = {
   DARK: {
     'accent on card2': 4.26,    // #4f7cff on #182333 — target 4.5
-    'muted2 on card2': 2.73,    // hint text on an inset control — target 3.0
     'line on bg': 1.17,         // a hairline on the darkest ground
     '#fff on accent': 3.71,     // the primary button — clears WCAG's 3:1 large-text bar
     '#fff on danger': 2.78,     // the Delete action

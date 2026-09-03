@@ -23,9 +23,19 @@ var TAPS_TO_UNLOCK = 7;
 // idle scrolling. Anything slower than this restarts the count.
 var TAP_GAP_MS = 1500;
 
-// How many taps in before the UI starts counting down out loud. Silent at
-// first so nothing is advertised, then helpful once the intent is obvious.
-var HINT_AFTER = 3;
+/*
+ * Nothing is announced before the unlock. Not a count, not a hint.
+ *
+ * This used to show "3 more to enable developer options" from the fourth tap.
+ * Tyler's call, 2026-09-02, and it is the right one: the countdown tells a user
+ * who tapped the version stamp a few times by accident that there is something
+ * here to find, which is the opposite of what a hidden control is for. It also
+ * puts the words "developer options" in front of someone who has no use for
+ * them, in an app whose Settings screen is meant to be short.
+ *
+ * The only message is the confirmation after the seventh tap, which cannot
+ * reveal anything that has not already happened.
+ */
 
 /**
  * Fold one tap into the counter.
@@ -42,18 +52,11 @@ function tap(state, now) {
   if (count >= TAPS_TO_UNLOCK) {
     return { count: 0, lastAt: t, unlocked: true, message: 'Developer options enabled.' };
   }
-  var remaining = TAPS_TO_UNLOCK - count;
-  return {
-    count: count,
-    lastAt: t,
-    unlocked: false,
-    message: count >= HINT_AFTER ? remaining + ' more to enable developer options' : null,
-  };
+  return { count: count, lastAt: t, unlocked: false, message: null };
 }
 
 module.exports = {
   TAPS_TO_UNLOCK: TAPS_TO_UNLOCK,
   TAP_GAP_MS: TAP_GAP_MS,
-  HINT_AFTER: HINT_AFTER,
   tap: tap,
 };

@@ -47,6 +47,7 @@ const GLYPH: Record<string, string> = {
   settings: '⚙', 'settings-outline': '⚙',
   'scan-outline': '⬚',
   'images-outline': '⧉',
+  'lock-closed-outline': '▣',
   'information-circle-outline': 'ⓘ',
   checkbox: '☑', 'square-outline': '☐',
 };
