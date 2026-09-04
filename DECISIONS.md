@@ -4024,9 +4024,10 @@ The thing to watch when brightening secondary text is the hierarchy, and it
 holds: `text` 16.5, `muted` 10.1, `muted2` 7.6. Three steps, each visibly
 dimmer than the one above.
 
-Light mode is untouched again. The complaint has twice been about reading in
-the dark, and inventing a change to the light palette to match would be
-guessing at a problem nobody has reported.
+The light palette moved too, and for a different reason than the dark one: not
+to match Tyler's complaint, but because `muted2` there was measurably below AA.
+That is the section further down; the two changes are not the same change and
+should not be read as one.
 
 ### The type scale
 
@@ -4091,7 +4092,24 @@ against the same near-black ground as evidence. Those stay ordered no matter how
 close the colours get. The separation between adjacent tiers went 1.96 -> 1.53
 -> 1.33 across the two brightenings and nothing was watching it.
 `check-contrast.js` measures the steps now, with a floor, so a third
-brightening cannot quietly collapse `muted` into `muted2`.
+brightening cannot quietly collapse `muted` into `muted2`. It measures the
+DIRECTION as well: a symmetric ratio cannot tell a healthy gap from an inverted
+hierarchy, and the first version of the check could not have caught the case its
+own error message described. Each tier must now stand out from the background
+more than the tier below it, which is the same assertion in both palettes.
+
+### Where the check still could not look
+
+Every pairing was token-against-token, so text on a hardcoded ground was never
+measured, and there is one: the full-screen photo backdrop is `#000` in both
+palettes. Darkening `LIGHT.muted2` took the zoom hint there from 5.96:1 to
+**4.07:1**, so a change made for legibility removed some, in the one place
+nothing was watching. The hint takes a fixed grey now (10.96:1) and the check
+carries the pairing.
+
+**The lesson is the same one as the tier separation, one level up:** a check
+that only compares the things it already knows about will keep reporting green
+about the things it does not.
 
 ---
 

@@ -72,6 +72,9 @@ export function ZoomableImage({ uri, style, hint = true }: Props) {
   );
 }
 
+/* Text on the photo backdrop, which is black whatever the palette says. */
+const ON_BLACK = '#b3bcca';
+
 const makeStyles = styled((T) => ({
   hint: {
     position: 'absolute', right: 8, bottom: 8,
@@ -87,8 +90,20 @@ const makeStyles = styled((T) => ({
     paddingHorizontal: 16, paddingVertical: 8,
   },
   closeText: { color: '#fff', fontSize: T.fs.body, fontWeight: '600' },
+  /*
+   * A fixed grey, not `T.muted2`.
+   *
+   * The backdrop is `#000` in both palettes, so this text does not sit on a
+   * palette ground and must not take a palette colour. It did, and darkening
+   * the light greys for AA (D-080) dropped it from 5.96:1 to 4.07:1 on black:
+   * a change made for legibility took legibility away from the one place it
+   * could not be measured, because every contrast pairing in the check is
+   * token-against-token.
+   *
+   * `#b3bcca` on black is 9.6:1. `check-contrast.js` carries the pairing now.
+   */
   tip: {
     position: 'absolute', bottom: 40, alignSelf: 'center',
-    color: T.muted2, fontSize: T.fs.sm,
+    color: ON_BLACK, fontSize: T.fs.sm,
   },
 }));

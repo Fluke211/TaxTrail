@@ -130,8 +130,11 @@ async function fetchAndRestart(): Promise<RecoverState> {
   }
 }
 
-/* Sizes raised by hand with the app's type scale (D-080). This file cannot
- * reach `T.fs` on purpose, so they are kept in step rather than shared. */
+/* Sizes and leading raised by hand to match the app's scale (D-080): 20, 16,
+ * 15/21, 13/18, 12. This file cannot reach `T.fs` on purpose, so they are kept
+ * in step rather than shared, and check-type-scale.js exempts it. Review found
+ * two line heights already drifted in the commit that promised they would not,
+ * so the numbers are written out here to be checked against. */
 function CrashScreen({ phase, when, detail }: {
   /** Which net caught it. NOT derived from `when`: the caption is display text
    *  and someone rewording it must not silently change what the screen says. */
@@ -150,7 +153,7 @@ function CrashScreen({ phase, when, detail }: {
       <Text style={{ color: C.text, fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
         {atLaunch ? 'TaxTrail couldn\u2019t start' : 'TaxTrail hit an error'}
       </Text>
-      <Text selectable style={{ color: C.muted, fontSize: 15, lineHeight: 22, marginBottom: 4 }}>
+      <Text selectable style={{ color: C.muted, fontSize: 15, lineHeight: 21, marginBottom: 4 }}>
         {atLaunch
           ? 'Your receipts are safe. They live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'
           : 'Every receipt you have saved is safe. They live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'}
@@ -205,7 +208,7 @@ function CrashScreen({ phase, when, detail }: {
       </Pressable>
       {showDetail && (
         <ScrollView style={{ flex: 1 }}>
-          <Text selectable style={{ color: C.text, fontSize: 13, lineHeight: 19, paddingBottom: 60 }}>
+          <Text selectable style={{ color: C.text, fontSize: 13, lineHeight: 18, paddingBottom: 60 }}>
             {detail}
           </Text>
         </ScrollView>

@@ -145,6 +145,17 @@ const PAIRS = [
   ['dangerLine', 'card', 1.2, 'the danger-zone border'],
 ];
 
+/*
+ * Pairings that owe nothing to the palette, and would otherwise be invisible
+ * here: every other row is token-against-token, so text on a hardcoded ground
+ * is never measured. That is exactly how darkening the light greys for AA
+ * (D-080) took the full-screen zoom hint from 5.96:1 to 4.07:1 without a single
+ * check going red.
+ */
+const FIXED = [
+  ['#b3bcca', '#000000', 4.5, 'the zoom hint on the photo backdrop'],
+];
+
 // White-on-accent is a fixed pairing: the primary button and the delete action
 // both put #fff on a solid colour.
 const ON_SOLID = [
@@ -203,6 +214,20 @@ const STEPS = [
   ['muted', 'muted2', 1.25, 'secondary text against hint text'],
 ];
 
+/*
+ * Distance is not direction, and this check needs both.
+ *
+ * `ratio()` is symmetric, so a `muted2` brightened clean past `text` measures a
+ * healthy gap and passes, while the error message talks about exactly that
+ * case. So each tier must also stand out from the background MORE than the tier
+ * below it. That works in both palettes without knowing which way is up: in
+ * dark the text is lighter than the ground, in light it is darker, and in each
+ * the ordering by contrast-with-ground is the same.
+ */
+function standsOut(p, token) {
+  return ratio(p[token], p.bg);
+}
+
 const palettes = { ...readPalettes(), ...readCrashPalette() };
 let failures = 0;
 let belowTarget = 0;
@@ -216,6 +241,8 @@ for (const [name, p] of Object.entries(palettes)) {
     : [
       ...PAIRS.map(([f, b, min, what]) => [p[f], p[b], min, `${f} on ${b}`, what]),
       ...ON_SOLID.map(([f, b, min, what]) => [f, p[b], min, `#fff on ${b}`, what]),
+      // FIXED only under the first palette: the pairing owes nothing to either.
+      ...(name === 'DARK' ? FIXED.map(([f, b, min, what]) => [f, b, min, `${f} on ${b}`, what]) : []),
     ];
   for (const [fg, bg, min, label, what] of rows) {
     if (!fg || !bg) {
@@ -250,12 +277,21 @@ for (const [name, p] of Object.entries(palettes)) {
   if (name.startsWith('CRASH SCREEN')) continue;
   console.log(`\n${name} · steps between tiers`);
   for (const [a, b, min, what] of STEPS) {
+    if (!p[a] || !p[b]) {
+      console.log(`  ::error::${name}: ${a} vs ${b} — a token in this pairing is missing from the palette`);
+      failures++;
+      continue;
+    }
     const r = ratio(p[a], p[b]);
-    const ok = r >= min;
+    const ordered = standsOut(p, a) > standsOut(p, b);
+    const ok = r >= min && ordered;
     if (!ok) failures++;
-    console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${`${a} vs ${b}`.padEnd(26)} ${r.toFixed(2)}:1  (min ${min})  ${what}`);
-    if (!ok) {
-      console.log(`  ::error::${name}: ${what} is only ${r.toFixed(2)}:1 apart. Brightening one tier past the next stops it being a tier.`);
+    const note = ordered ? '' : '  ORDER INVERTED';
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${`${a} vs ${b}`.padEnd(26)} ${r.toFixed(2)}:1  (min ${min})  ${what}${note}`);
+    if (!ordered) {
+      console.log(`  ::error::${name}: ${b} stands out from the background more than ${a} does (${standsOut(p, b).toFixed(2)}:1 vs ${standsOut(p, a).toFixed(2)}:1). Brightening one tier past the next stops it being a tier.`);
+    } else if (!ok) {
+      console.log(`  ::error::${name}: ${what} is only ${r.toFixed(2)}:1 apart. Any closer and the two stop reading as different tiers.`);
     }
   }
 }

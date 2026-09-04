@@ -247,9 +247,14 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
                 accessibilityState={{ selected: on }}
               >
                 {/* The selected label is `text`, not `accent`: accent on
-                    accentSoft over bg2 flattens to 4.10:1, under the AA bar
-                    this project holds every other label to. The accent border
-                    carries the selection instead, as SummaryScreen's chips do. */}
+                    accentSoft flattens to about 4.1:1, under the AA bar this
+                    project holds every other label to. The accent border
+                    carries the selection instead.
+
+                    SummaryScreen's range chips do recolour their label and sit
+                    at 3.47:1 because of it. That is older, it is Tyler's brand
+                    colour, and it belongs with the four baselined ratios he
+                    still has to rule on, not with a silent change here. */}
                 <Text style={[s.segmentText, on && { color: T.text, fontWeight: '700' }]}>{label}</Text>
               </Pressable>
             );

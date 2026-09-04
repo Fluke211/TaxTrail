@@ -37,7 +37,14 @@ page has to keep fitting an iPhone 14, and whether it does is for Tyler to say.
 measured 3.3:1 at 12 and 13 points, where the bar is 4.5. The light greys darken
 (`muted` 5.5 -> 7.0, `muted2` 3.3 -> 4.8), the contrast check stops holding hint
 text to the large-text tier, and it now measures the gaps BETWEEN the text tiers
-too, which the previous "the hierarchy holds" claim never did.
+too, and their direction: a symmetric ratio cannot tell a healthy gap from an
+inverted hierarchy.
+
+**One regression caught in review before it shipped.** Darkening the light greys
+took the full-screen zoom hint from 5.96:1 to 4.07:1, because it sits on a
+hardcoded black backdrop rather than a palette ground, so no pairing in the
+check could see it. It takes a fixed grey now, and the check carries that
+pairing.
 
 **Brighter greys, second pass** (D-080): `muted` 7.9:1 -> 10.1:1 and `muted2`
 5.1:1 -> 7.6:1 against the app background. The hierarchy still reads: 16.5,
