@@ -26,6 +26,22 @@ const C = require('../lib/classifier.js');
  * loses their images on the next reinstall. Tyler asked for an info control on
  * each one; these are the answers.
  */
+/*
+ * One icon per export format, in the accent colour.
+ *
+ * Five identical grey rectangles was the shape of this card, and in light mode
+ * that is five near-white rectangles on a white card (D-083). The icons are the
+ * cheapest place to put brand colour that also earns its keep: the row you want
+ * is findable by shape before you have read a word of it.
+ */
+const EXPORT_ICON: Record<string, string> = {
+  csv: 'document-text-outline',
+  xlsx: 'grid-outline',
+  txf: 'calculator-outline',
+  qbo: 'cloud-outline',
+  archive: 'archive-outline',
+};
+
 const EXPORT_HELP: Record<string, { title: string; body: string }> = {
   csv: {
     title: 'CPA CSV',
@@ -235,7 +251,12 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
               onPress={() => gated(key, () => fn(range), needsPro)}>
               {busyExport === key
                 ? <ActivityIndicator color={T.accent} />
-                : <Text style={{ color: T.text, fontSize: T.fs.body }}>{label}</Text>}
+                : (
+                  <View style={s.exportRow}>
+                    <Icon name={EXPORT_ICON[key] ?? 'document-text-outline'} size={20} color={T.accent} />
+                    <Text style={{ color: T.text, fontSize: T.fs.body, flex: 1 }}>{label}</Text>
+                  </View>
+                )}
             </Pressable>
             {/* Seven buttons with no explanation is a guessing game, and the
                 wrong guess loses images. Tyler asked for these. */}
@@ -281,7 +302,7 @@ const makeStyles = styled((T) => ({
     borderRadius: T.radius, padding: 14,
   },
   statLabel: { color: T.muted2, fontSize: T.fs.xs, letterSpacing: 0.6, fontWeight: '600' },
-  statVal: { color: T.text, fontSize: 22, fontWeight: '700', marginTop: 4 },
+  statVal: { color: T.text, fontSize: 24, fontWeight: '700', marginTop: 4 },
   card: {
     backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: T.radius,
     padding: 14, marginTop: 12,
@@ -294,6 +315,7 @@ const makeStyles = styled((T) => ({
     backgroundColor: T.card2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
     paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
   },
+  exportRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   exportLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   infoBtn: { padding: 6 },
   rangeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },

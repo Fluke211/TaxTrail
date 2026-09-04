@@ -25,8 +25,12 @@ const { sourceFiles } = require('./lib/source-files');
 const ROOT = path.join(__dirname, '..');
 
 /* Above this, a literal is a heading and its own business. Below it, the size
- * is body-ish text and belongs to the scale. */
-const HEADING_MIN = 17;
+ * is body-ish text and belongs to the scale.
+ *
+ * It tracks the top of the scale: 18 because `lg` is 17 (D-082). If the two
+ * ever meet, a literal at the same size as a token stops being a heading and
+ * the check stops catching the thing it exists for. */
+const HEADING_MIN = 18;
 
 /*
  * `index.tsx` is exempt, structurally.

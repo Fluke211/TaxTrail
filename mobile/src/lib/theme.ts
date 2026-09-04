@@ -62,21 +62,31 @@ export interface Palette {
 }
 
 /*
- * Raised 2026-09-03 (D-080), Tyler's second pass: the small end was not
- * comfortable to read. Every step went up by 1 to 2 points, which for the
- * smallest labels is a 20% increase.
+ * Raised twice on 2026-09-03 and 2026-09-04 (D-080, D-082). The second raise is
+ * the one that set the target: "easy to see and read for someone without young
+ * eyes", which is a different bar from "not too small".
  *
- *   xs    10, 10.5, 11    ->  12   overlines, tab labels, badges
- *   sm    11.5, 12        ->  13   notes, hints, list metadata
- *   md    12.5, 13        ->  14   secondary body
- *   body  13.5, 14        ->  15   rows, controls, form labels
+ *   xs    10, 10.5, 11    ->  12  ->  13   overlines, tab labels, badges
+ *   sm    11.5, 12        ->  13  ->  14   notes, hints, list metadata
+ *   md    12.5, 13        ->  14  ->  15   secondary body
+ *   body  13.5, 14        ->  15  ->  16   rows, controls, form labels
+ *   lg    16              ->  16  ->  17   primary buttons, picker rows
+ *
+ * `body` at 16 and `lg` at 17 put the app's main reading sizes at iOS's own
+ * default body size rather than below it, which is where they had sat since the
+ * PWA. Nothing is under 13 any more.
+ *
+ * The steps are 1 point apart, which is deliberate and not a scale that lost
+ * its rhythm. Presbyopia does not care about ratios; it cares that nothing on
+ * the screen is small. Hierarchy is carried by weight, colour and the heading
+ * sizes above this scale, all of which still have room.
  *
  * The same numbers in both palettes: this is legibility, not colour.
  */
-const TYPE = Object.freeze({ xs: 12, sm: 13, md: 14, body: 15, lg: 16 } as const);
+const TYPE = Object.freeze({ xs: 13, sm: 14, md: 15, body: 16, lg: 17 } as const);
 
 /** 1.4x, rounded to a whole point. Comfortable for a paragraph, not airy. */
-const LEADING = Object.freeze({ xs: 17, sm: 18, md: 20, body: 21, lg: 22 } as const);
+const LEADING = Object.freeze({ xs: 18, sm: 20, md: 21, body: 22, lg: 24 } as const);
 
 export const DARK: Palette = {
   accent: '#4f7cff',
@@ -131,13 +141,39 @@ export const DARK: Palette = {
  */
 export const LIGHT: Palette = {
   accent: '#2f5ae0',
-  accentSoft: 'rgba(47,90,224,0.10)',
-  accentLine: 'rgba(47,90,224,0.35)',
-  bg: '#f6f7f9',
+  /*
+   * Surfaces reworked 2026-09-04 (D-083). Tyler: "light mode doesn't really
+   * have any accent colors visible. It feels very washed out."
+   *
+   * He was describing two separate faults that look like one:
+   *
+   * 1. **The surfaces had no value between them.** `card` #ffffff on `bg`
+   *    #f6f7f9 is 1.05:1. That is a card you can only see because it has a
+   *    border, and the border was a 10% black hairline, so barely that. A page
+   *    of white boxes on a white page has no depth to lose, which is what
+   *    "washed out" describes. The ground drops to #e9edf5 (1.17:1 under a
+   *    white card) and the hairline goes to 14%.
+   * 2. **The accent appeared in about four places.** Dark mode gets brand
+   *    presence for free: `card2` #182333 and `accentSoft` both read as blue
+   *    against near-black. In light both were near-white, so every inset
+   *    control, chip and input was grey. `card2` picks up a blue cast and
+   *    `accentSoft` doubles in strength, which puts the brand on every control
+   *    rather than only on the section overlines.
+   *
+   * Dark is untouched. It was never the complaint: the same measurements there
+   * are 1.11:1 for card against bg and 1.11:1 for card2 against card, which is
+   * not much, but a dark card also has the whole palette's contrast behind it
+   * and it evidently reads. `npm run test:contrast` now measures all of this,
+   * because none of it was measured before and "the cards do not read as
+   * cards" was invisible to every check in the repo.
+   */
+  accentSoft: 'rgba(47,90,224,0.16)',
+  accentLine: 'rgba(47,90,224,0.45)',
+  bg: '#e9edf5',
   bg2: '#ffffff',
   card: '#ffffff',
-  card2: '#f1f3f7',
-  line: 'rgba(16,24,40,0.10)',
+  card2: '#eaeef7',
+  line: 'rgba(16,24,40,0.14)',
   text: '#131924',
   /*
    * Darkened 2026-09-03 alongside the dark brightening (D-080).
@@ -149,9 +185,13 @@ export const LIGHT: Palette = {
    *
    *   muted   #5a6577 -> #4b5566   5.5 -> 7.0 on the background
    *   muted2  #7f899c -> #636e80   3.3 -> 4.8
+   *
+   * `muted2` darkens once more, to #5e6879, purely to pay for the deeper
+   * background: 4.81:1 on #f6f7f9 is 4.55:1 on #e9edf5, which is AA by a
+   * rounding error. At #5e6879 it is 4.80:1 again.
    */
   muted: '#4b5566',
-  muted2: '#636e80',
+  muted2: '#5e6879',
   danger: '#d13b3b',
   dangerLine: 'rgba(209,59,59,0.35)',
   warn: '#a86a00',

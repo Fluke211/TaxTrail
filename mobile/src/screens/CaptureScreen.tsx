@@ -393,7 +393,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
             // hit. It is here at all only to keep the icon glyph out of it.
             accessibilityLabel="Choose from photo library"
           >
-            <Icon name="images-outline" size={18} color={T.text} />
+            <Icon name="images-outline" size={20} color={T.accent} />
             <Text style={s.uploadBtnText}>Choose from photo library</Text>
           </Pressable>
 
@@ -582,10 +582,13 @@ const makeStyles = styled((T) => ({
   hero: {
     marginTop: 14, backgroundColor: T.card, borderColor: T.accent, borderWidth: 2,
     borderStyle: 'dashed', borderRadius: T.radiusLg, alignItems: 'center',
-    paddingVertical: 56, paddingHorizontal: 24, gap: 10,
+    // 56 -> 40 to pay for the type raise (D-082). This page has to fit an
+    // iPhone 14 without scrolling and the bigger text costs it roughly 20
+    // points; the hero is where the comment below always said to find them.
+    paddingVertical: 40, paddingHorizontal: 24, gap: 10,
   },
   heroPressed: { opacity: 0.7 },
-  heroTitle: { color: T.text, fontSize: 22, fontWeight: '700' },
+  heroTitle: { color: T.text, fontSize: 24, fontWeight: '700' },
   heroSub: { color: T.muted, fontSize: T.fs.md, textAlign: 'center', maxWidth: 260, lineHeight: T.lh.md },
 
   meter: { marginTop: 12, gap: 6 },

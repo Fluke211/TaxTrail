@@ -55,7 +55,7 @@ const SUPPORT_EMAIL = 'support@taxtrail.app';
  */
 const PALETTE = {
   dark: { bg: '#12151a', text: '#e6edf3', muted: '#8b95a5', accent: '#6f93ff' },
-  light: { bg: '#f6f7f9', text: '#111827', muted: '#525d6d', accent: '#2b52c9' },
+  light: { bg: '#e9edf5', text: '#111827', muted: '#525d6d', accent: '#2b52c9' },
 };
 
 /*
@@ -130,11 +130,12 @@ async function fetchAndRestart(): Promise<RecoverState> {
   }
 }
 
-/* Sizes and leading raised by hand to match the app's scale (D-080): 20, 16,
- * 15/21, 13/18, 12. This file cannot reach `T.fs` on purpose, so they are kept
- * in step rather than shared, and check-type-scale.js exempts it. Review found
- * two line heights already drifted in the commit that promised they would not,
- * so the numbers are written out here to be checked against. */
+/* Sizes and leading raised by hand to match the app's scale (D-080, then
+ * D-082): headline 22, buttons 17, body 16/22, notes 14, the version stamp 13,
+ * and the stack dump 14/20. This file cannot reach `T.fs` on purpose, so they
+ * are kept in step rather than shared, and check-type-scale.js exempts it.
+ * Review found two line heights already drifted in the commit that promised
+ * they would not, so the numbers are written out here to be checked against. */
 function CrashScreen({ phase, when, detail }: {
   /** Which net caught it. NOT derived from `when`: the caption is display text
    *  and someone rewording it must not silently change what the screen says. */
@@ -150,10 +151,10 @@ function CrashScreen({ phase, when, detail }: {
   const atLaunch = phase === 'load';
   return (
     <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: 72, paddingHorizontal: 20 }}>
-      <Text style={{ color: C.text, fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
+      <Text style={{ color: C.text, fontSize: 22, fontWeight: '700', marginBottom: 8 }}>
         {atLaunch ? 'TaxTrail couldn\u2019t start' : 'TaxTrail hit an error'}
       </Text>
-      <Text selectable style={{ color: C.muted, fontSize: 15, lineHeight: 21, marginBottom: 4 }}>
+      <Text selectable style={{ color: C.muted, fontSize: 16, lineHeight: 22, marginBottom: 4 }}>
         {atLaunch
           ? 'Your receipts are safe. They live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'
           : 'Every receipt you have saved is safe. They live in a database on this device, which this screen does not touch. Force-quit and reopen the app.'}
@@ -161,7 +162,7 @@ function CrashScreen({ phase, when, detail }: {
         <Text style={{ color: C.text, fontWeight: '600' }}>{SUPPORT_EMAIL}</Text>
         {' with the details below.'}
       </Text>
-      <Text selectable style={{ color: C.muted, fontSize: 12, marginTop: 12 }}>
+      <Text selectable style={{ color: C.muted, fontSize: 13, marginTop: 12 }}>
         {when} · {jsStamp()}
       </Text>
       <Pressable
@@ -179,17 +180,17 @@ function CrashScreen({ phase, when, detail }: {
           borderRadius: 12, borderWidth: 1, borderColor: C.accent, opacity: pressed ? 0.6 : 1,
         })}
       >
-        <Text style={{ color: C.accent, fontSize: 16, fontWeight: '600' }}>
+        <Text style={{ color: C.accent, fontSize: 17, fontWeight: '600' }}>
           {recover === 'checking' ? 'Checking…' : 'Check for an update'}
         </Text>
       </Pressable>
       {recover === 'none' && (
-        <Text style={{ color: C.muted, fontSize: 13, marginTop: 8 }}>
+        <Text style={{ color: C.muted, fontSize: 14, marginTop: 8 }}>
           No update available yet. Force-quit and reopen to try again.
         </Text>
       )}
       {recover === 'failed' && (
-        <Text style={{ color: C.muted, fontSize: 13, marginTop: 8 }}>
+        <Text style={{ color: C.muted, fontSize: 14, marginTop: 8 }}>
           Couldn’t reach the update service. Check your connection and try again.
         </Text>
       )}
@@ -202,13 +203,13 @@ function CrashScreen({ phase, when, detail }: {
           alignSelf: 'flex-start', paddingVertical: 14, paddingRight: 16, opacity: pressed ? 0.6 : 1,
         })}
       >
-        <Text style={{ color: C.accent, fontSize: 16, fontWeight: '600' }}>
+        <Text style={{ color: C.accent, fontSize: 17, fontWeight: '600' }}>
           {showDetail ? 'Hide technical details' : 'Show technical details'}
         </Text>
       </Pressable>
       {showDetail && (
         <ScrollView style={{ flex: 1 }}>
-          <Text selectable style={{ color: C.text, fontSize: 13, lineHeight: 18, paddingBottom: 60 }}>
+          <Text selectable style={{ color: C.text, fontSize: 14, lineHeight: 20, paddingBottom: 60 }}>
             {detail}
           </Text>
         </ScrollView>

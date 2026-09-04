@@ -71,7 +71,7 @@ const makeStyles = styled((T) => ({
     paddingTop: 60, paddingBottom: 14, paddingHorizontal: 18,
     borderBottomColor: T.line, borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: { color: T.text, fontSize: 17, fontWeight: '700' },
+  title: { color: T.text, fontSize: 19, fontWeight: '700' },
   cancel: { color: T.accent, fontSize: T.fs.lg },
   row: {
     flexDirection: 'row', alignItems: 'center',
@@ -83,5 +83,5 @@ const makeStyles = styled((T) => ({
   name: { color: T.text, fontSize: T.fs.body },
   nameActive: { color: T.accent, fontWeight: '600' },
   line: { color: T.muted2, fontSize: T.fs.xs, marginTop: 2 },
-  check: { color: T.accent, fontSize: 17, fontWeight: '700', marginLeft: 12 },
+  check: { color: T.accent, fontSize: 19, fontWeight: '700', marginLeft: 12 },
 }));

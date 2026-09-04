@@ -107,7 +107,7 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={s.detailTitle} numberOfLines={1}>{selected.merchant}</Text>
               <Pressable onPress={() => setSelected(null)} style={{ padding: 8 }}>
-                <Text style={{ color: T.muted, fontSize: 22 }}>✕</Text>
+                <Text style={{ color: T.muted, fontSize: 24 }}>✕</Text>
               </Pressable>
             </View>
             {detailUri && <ZoomableImage uri={detailUri} style={s.detailImg} />}
@@ -209,7 +209,7 @@ const makeStyles = styled((T) => ({
   cardSub: { color: T.muted2, fontSize: T.fs.sm, marginTop: 2 },
   cardAmt: { color: T.text, fontSize: T.fs.body, fontWeight: '700' },
   detail: { flex: 1, backgroundColor: T.bg },
-  detailTitle: { color: T.text, fontSize: 18, fontWeight: '700', flex: 1 },
+  detailTitle: { color: T.text, fontSize: 20, fontWeight: '700', flex: 1 },
   detailImg: { width: '100%', height: 260, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)', marginTop: 10 },
   label: { color: T.muted2, fontSize: T.fs.xs, letterSpacing: 0.6, marginTop: 14, marginBottom: 5, fontWeight: '600' },
   input: {

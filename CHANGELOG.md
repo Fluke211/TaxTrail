@@ -11,6 +11,50 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r33 — v1.0.0 (build 6) — 2026-09-04
+
+Tyler's third pass, on two things at once: the text is still too small, and
+light mode is washed out.
+
+**The type scale goes up again** (D-082), to a different bar than last time:
+"easy to see and read for someone without young eyes". Nothing on screen is
+under 13pt now, and `body` 16 / `lg` 17 put the app's reading sizes at iOS's own
+default rather than below it.
+
+| | r31 | r32 | r33 |
+|---|---|---|---|
+| `xs` overlines, tab labels, badges | 10, 10.5, 11 | 12 | 13 |
+| `sm` notes, hints, list metadata | 11.5, 12 | 13 | 14 |
+| `md` secondary body | 12.5, 13 | 14 | 15 |
+| `body` rows, controls, form labels | 13.5, 14 | 15 | 16 |
+| `lg` primary buttons, picker rows | 16 | 16 | 17 |
+
+Headings moved with it, since "across the board" included them: the brand mark
+20 -> 22, the capture hero and the Summary totals 22 -> 24, sheet titles 19/20,
+the paywall and lock screen 28. The crash screen's hand-kept sizes went up in
+step. The capture hero's padding drops 56 -> 40 to pay for the roughly 20 points
+the raise costs that page, which has to fit an iPhone 14 without scrolling.
+
+**Light mode is rebuilt around its surfaces** (D-083). `card` `#ffffff` on `bg`
+`#f6f7f9` measured **1.07:1**, a card visible only because of a 10% hairline,
+which is what "washed out" was describing. The ground drops to `#e9edf5`, the
+inset surface to `#eaeef7`, and the hairline to 14%.
+
+**And the accent comes back into it.** Dark mode gets brand presence for free,
+because `card2` and `accentSoft` both read as blue against near-black; in light
+both were near-white and the accent survived in about four places. `accentSoft`
+doubles to 0.16 and `accentLine` to 0.45, so chips and selected states are blue
+again; each export format gets its own accent icon; the photo-library button's
+icon turns accent; and the ON-DEVICE badge is filled rather than an empty
+outline. `muted2` darkens a third time, to `#5e6879`, to hold AA on the deeper
+ground. Dark mode is untouched.
+
+**The check that would have caught it now exists.** Every row in
+`check-contrast.js` measured text against a ground; nothing measured ground
+against ground, so 1.07:1 between the app's two most-used surfaces passed
+everything and shipped. `SURFACES` measures it, the old light palette fails it,
+and the floors are set where the dark palette actually sits.
+
 ### js r32 — v1.0.0 (build 6) — 2026-09-03
 
 Tyler's second pass on r31: the small text is hard to read.

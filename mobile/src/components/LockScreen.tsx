@@ -40,7 +40,7 @@ export function LockScreen({ onUnlock, busy }: { onUnlock: () => void; busy: boo
 
 const makeStyles = styled((T) => ({
   wrap: { flex: 1, backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  brand: { color: T.text, fontSize: 26, fontWeight: '700', letterSpacing: -0.4 },
+  brand: { color: T.text, fontSize: 28, fontWeight: '700', letterSpacing: -0.4 },
   sub: { color: T.muted, fontSize: T.fs.body, textAlign: 'center' },
   btn: {
     marginTop: 18, backgroundColor: T.accent, borderRadius: 12,

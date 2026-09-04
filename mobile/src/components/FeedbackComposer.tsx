@@ -201,7 +201,7 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
             {kind === 'scan' ? 'Report a scanning problem' : 'Send feedback'}
           </Text>
           <Pressable onPress={onClose} style={{ padding: 8 }}>
-            <Text style={{ color: T.muted, fontSize: 22 }}>✕</Text>
+            <Text style={{ color: T.muted, fontSize: 24 }}>✕</Text>
           </Pressable>
         </View>
 
@@ -260,7 +260,7 @@ export default function FeedbackComposer({ visible, receipts, kind, onClose }: {
 
 const makeStyles = styled((T) => ({
   sheet: { flex: 1, backgroundColor: T.bg },
-  title: { color: T.text, fontSize: 18, fontWeight: '700', flex: 1 },
+  title: { color: T.text, fontSize: 20, fontWeight: '700', flex: 1 },
   label: { color: T.muted2, fontSize: T.fs.xs, letterSpacing: 0.6, marginTop: 18, marginBottom: 6, fontWeight: '600' },
   input: {
     backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: 10,

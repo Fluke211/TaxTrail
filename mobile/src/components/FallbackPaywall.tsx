@@ -98,7 +98,7 @@ const makeStyles = styled((T) => ({
   body: { padding: 22, paddingTop: 64 },
   // Was '#fff', which is invisible on the light palette's near-white
   // background — on the purchase screen, of all places.
-  title: { color: T.text, fontSize: 26, fontWeight: '700' },
+  title: { color: T.text, fontSize: 28, fontWeight: '700' },
   sub: { color: T.muted, fontSize: T.fs.body, marginTop: 8, marginBottom: 22, lineHeight: T.lh.body },
   pkg: {
     backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1,

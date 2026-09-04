@@ -1,11 +1,11 @@
 # Status
 
-**Last updated:** 2026-09-03 · Update this file at the end of every working session.
+**Last updated:** 2026-09-04 · Update this file at the end of every working session.
 
 | Artifact | Version | State |
 |---|---|---|
 | PWA (`index.html`) | **v5.5** | **RETIRED** (D-021) — proof of concept. Do not modify: Tyler's unexported receipts live in its browser storage. |
-| iOS app (`mobile/`) | **v1.0.0 (build 6) · js r32 next; r31 confirmed on device** | Build 6 opens on Tyler's phone with real icons, which confirms the expo-font pin (D-072). It is the first binary whose **embedded** bundle runs, so the first that is submittable. Build 6 is in `LIVE_BUILDS` (D-074). r30 (live 2026-09-02, group `859ae2fc`) fixed receipt photographs, which stopped rendering because iOS moved the app's Data container (D-075). **r31 confirmed on device 2026-09-03** (live, group `c4c3357e`): the Face ID lock works, and the app's own palette switches to Light over the air on build 6. Whether the window override reaches the SYSTEM surfaces is still unverified (D-081). r32 raises the type scale and brightens the greys again (D-080). |
+| iOS app (`mobile/`) | **v1.0.0 (build 6) · js r33 next; r31 confirmed on device** | Build 6 opens on Tyler's phone with real icons, which confirms the expo-font pin (D-072). It is the first binary whose **embedded** bundle runs, so the first that is submittable. Build 6 is in `LIVE_BUILDS` (D-074). r30 (live 2026-09-02, group `859ae2fc`) fixed receipt photographs, which stopped rendering because iOS moved the app's Data container (D-075). **r31 confirmed on device 2026-09-03** (live, group `c4c3357e`): the Face ID lock works, and the app's own palette switches to Light over the air on build 6. Whether the window override reaches the SYSTEM surfaces is still unverified (D-081). r32 raises the type scale and brightens the greys again (D-080); **r33 raises it further, to "readable without young eyes" (D-082), and rebuilds light mode's surfaces, which measured 1.07:1 between a card and the page under it (D-083)**. |
 
 ---
 

@@ -209,6 +209,29 @@ const CRASH_PAIRS = [
  * have detected them converging. This can. A third brightening on the same
  * trajectory is what it exists to stop.
  */
+/*
+ * Do the surfaces separate from each other?
+ *
+ * Every other row here measures text against a ground. Nothing measured
+ * ground against ground, so the light palette shipped with `card` #ffffff on
+ * `bg` #f6f7f9 — 1.07:1 — and passed everything. Tyler's word for the result
+ * was "washed out" (D-083): a page of white boxes on a white page, with only a
+ * 10% hairline to say where one stopped.
+ *
+ * These are floors, not targets, and the DARK palette sits almost exactly on
+ * them. That is the point of writing them down: dark is as flat as this can get
+ * before it stops reading as layered, so a future palette tweak that goes below
+ * it fails rather than being noticed a month later on a phone.
+ *
+ * `bg2` is the tab bar, and it has a top border doing some of the work, so its
+ * floor is lower on purpose.
+ */
+const SURFACES = [
+  ['card', 'bg', 1.10, 'a card against the page under it'],
+  ['card2', 'card', 1.10, 'an inset control against the card it sits in'],
+  ['bg2', 'bg', 1.04, 'the tab bar against the page'],
+];
+
 const STEPS = [
   ['text', 'muted', 1.3, 'body text against secondary text'],
   ['muted', 'muted2', 1.25, 'secondary text against hint text'],
@@ -275,6 +298,21 @@ for (const [name, p] of Object.entries(palettes)) {
 
 for (const [name, p] of Object.entries(palettes)) {
   if (name.startsWith('CRASH SCREEN')) continue;
+  console.log(`\n${name} · surfaces`);
+  for (const [a, b, min, what] of SURFACES) {
+    if (!p[a] || !p[b]) {
+      console.log(`  ::error::${name}: ${a} vs ${b} — a token in this pairing is missing from the palette`);
+      failures++;
+      continue;
+    }
+    const r = ratio(p[a], p[b]);
+    const ok = r >= min;
+    if (!ok) failures++;
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${`${a} vs ${b}`.padEnd(26)} ${r.toFixed(3)}:1  (min ${min})  ${what}`);
+    if (!ok) {
+      console.log(`  ::error::${name}: ${what} is only ${r.toFixed(3)}:1. At that distance the two surfaces read as one and the layout loses its edges — see D-083.`);
+    }
+  }
   console.log(`\n${name} · steps between tiers`);
   for (const [a, b, min, what] of STEPS) {
     if (!p[a] || !p[b]) {
