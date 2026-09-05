@@ -266,9 +266,14 @@ including the `ONE_WEEK` trial, so most of the console work below is API work.
       metadata (screenshots, privacy URL) still pending (STATUS.md)
 - [x] Public RevenueCat Apple key wired into `src/lib/config.ts` (js r2)
 - [x] Free tier enforced — `CaptureScreen` gates on `FREE_SCANS_PER_MONTH`
-- [ ] Paywall at the 10-scan wall, annual trial highlighted
-- [ ] Enrol in the App Store Small Business Program (15%) — before the first
-      sale; not retroactive
+- [x] **Paywall at the 10-scan wall** — verified in code 2026-09-05, not just
+      ticked: `CaptureScreen` gates on `gates.js`'s `isOverFreeLimit` and calls
+      `presentPaywall()` at the wall, with `FallbackPaywall` behind it for the
+      case where RevenueCat's own sheet cannot be shown. This checkbox was
+      still open while the feature had shipped
+- [~] Enrol in the App Store Small Business Program (15%) — **applied**, and
+      Apple quotes over a month. Pure waiting; the 15% rate applies 15 days
+      after the end of the fiscal month of approval, and it is not retroactive
 
 ## Before the production build — batch these, they each need a binary
 
