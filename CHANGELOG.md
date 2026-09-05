@@ -11,7 +11,7 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
-### js r33 — v1.0.0 (build 6) — 2026-09-04
+### js r33 — v1.0.0 (build 6) — 2026-09-04 · published 2026-09-05, group `27cf5272`
 
 Tyler's third pass, on two things at once: the text is still too small, and
 light mode is washed out.
