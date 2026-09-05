@@ -420,14 +420,13 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
               ))}
             </View>
           )}
-          {/* Two lines on an iPhone 14, deliberately. It sits at the bottom of
-              the screen, and a third line was enough to make the whole page
-              scroll. What it says that the hero does not: no account, no ads. */}
+          {/* One line on an iPhone 14, and it has to stay one. This sits at the
+              bottom of the screen, so every line it takes is a line the page
+              scrolls by. "No account, no ads, no tracking" used to follow it
+              and moved into the ON-DEVICE badge, which is tappable now
+              (D-084). */}
           <View style={s.privacy}>
-            <Text style={s.privacyText}>
-              <Text style={{ color: T.text, fontWeight: '600' }}>Your data never leaves this device. </Text>
-              No account, no ads, no tracking.
-            </Text>
+            <Text style={s.privacyText}>Your data never leaves this device.</Text>
           </View>
         </>
       )}
@@ -630,20 +629,21 @@ const makeStyles = styled((T) => ({
   uploadBtnPressed: { opacity: 0.7 },
   uploadBtnText: { color: T.text, fontSize: T.fs.body, fontWeight: '600' },
   /*
-   * Margin 18 -> 14 and padding 14 -> 13 with the type scale (D-080), which
-   * gives back 6 points: 4 of margin and 2 of vertical padding.
+   * One line since D-084, and that is where the last of the height came from.
    *
-   * The bigger small text costs this screen roughly 12 to 16 points down the
-   * page, so 6 does not cover it and is not meant to. This page has to fit an
-   * iPhone 14 without scrolling, and whether it still does is a device
-   * question. If it scrolls, the next thing to shorten is the hero's padding,
-   * not this copy: it is already two lines.
+   * The type raise (D-082) cost this page about 20 points, the hero's padding
+   * gave back 16, and Tyler reported the result as fitting "but barely", with
+   * this card's bottom edge under the tab bar. Dropping the second sentence
+   * takes the wrap with it: 21 points of line, plus 3 of margin and padding.
+   *
+   * The first sentence stays. It is the product's claim, and someone opening
+   * the app for the first time reads this screen and may never tap a badge.
    */
   privacy: {
-    marginTop: 14, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
-    borderRadius: T.radius, padding: 13,
+    marginTop: 12, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
+    borderRadius: T.radius, padding: 12,
   },
-  privacyText: { color: T.muted, fontSize: T.fs.md, lineHeight: T.lh.md },
+  privacyText: { color: T.text, fontSize: T.fs.md, lineHeight: T.lh.md, fontWeight: '600' },
   progress: { marginTop: 40, alignItems: 'center', gap: 14 },
   progressLabel: { color: T.muted, fontSize: T.fs.md },
   pinned: {

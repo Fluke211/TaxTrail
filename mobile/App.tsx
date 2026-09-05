@@ -1,7 +1,7 @@
 // TaxTrail — root component. Custom four-tab shell (no navigation library:
 // fewer native deps = safer single EAS build).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from './src/components/Icon';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -206,10 +206,16 @@ function Root() {
         <Text style={s.brand}>
           Tax<Text style={{ color: T.accent }}>Trail</Text>
         </Text>
-        <View style={s.badge}>
+        <Pressable
+          style={({ pressed }) => [s.badge, pressed && { opacity: 0.7 }]}
+          onPress={() => Alert.alert(PRIVACY.title, PRIVACY.body)}
+          accessibilityRole="button"
+          accessibilityLabel="On device. What this means"
+          hitSlop={8}
+        >
           <View style={s.dot} />
           <Text style={s.badgeText}>ON-DEVICE</Text>
-        </View>
+        </Pressable>
       </View>
 
       <View style={{ flex: 1 }}>
@@ -264,6 +270,28 @@ function Root() {
     </View>
   );
 }
+
+/*
+ * The privacy claim in full, behind the ON-DEVICE badge.
+ *
+ * The badge was decoration: a green dot and a word, on every screen, doing
+ * nothing. Tyler's idea, and it solves two things at once. The claim is the
+ * product's whole pitch and it deserves more than five words, and the capture
+ * screen no longer has to carry the long version at the bottom, where it was
+ * being clipped by the tab bar on an iPhone 14 (D-084).
+ *
+ * The short line stays on the capture screen, because a first-run user reads
+ * that and may never tap a badge. This is the elaboration, not the claim.
+ */
+const PRIVACY = {
+  title: 'Everything happens on this phone',
+  body:
+    'Receipts are photographed, read and categorized by your iPhone itself. '
+    + 'Nothing is uploaded, there is no account to create, and there are no ads '
+    + 'or trackers.\n\n'
+    + 'Your receipts and their images live in a database on this device. The '
+    + 'only way any of it leaves is when you export or share it yourself.',
+};
 
 export default function App() {
   /*

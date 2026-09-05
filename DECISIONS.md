@@ -4246,3 +4246,44 @@ The floors are set where the DARK palette actually sits (1.10 for a card on the
 page, 1.10 for an inset control on a card), which is deliberate: dark is as flat
 as this can get before it stops reading as layered, so a tweak that goes below
 it fails here rather than being noticed a month later on a phone.
+
+## D-084
+
+**The ON-DEVICE badge does something now, and the capture screen fits**
+(2026-09-05)
+
+Tyler on r33: *"Capture screen fits but barely. Just slightly shorter would fit
+it. Or have that text be a little popup note that appears if you click the top
+right on-device icon."*
+
+Both, and the second is the better half of the idea.
+
+### The badge was decoration
+
+A green dot and one word, in the header of every screen, doing nothing. It
+asserts the entire product thesis and then offers no way to ask what it means.
+It is a `Pressable` now, and tapping it gives the claim in full: what happens on
+the device, that there is no account and no ads or trackers, and that the only
+way anything leaves is an export the user performs.
+
+### Which is what freed the height
+
+The capture screen's privacy card said *"Your data never leaves this device. No
+account, no ads, no tracking."* The second sentence is what made it wrap to two
+lines, and that card sits at the bottom, so every line it takes is a line the
+page scrolls by. The sentence moved into the badge popup, where it has room to
+be three sentences instead of five words, and 21 points of line height went with
+it. Three more come from the card's own margin and padding.
+
+That is on top of the 16 the hero's padding gave back in D-082, against roughly
+20 the type raise cost. The page should now have room rather than "barely".
+
+### The first sentence stays on the screen
+
+Not everything moves behind the tap. Someone opening TaxTrail for the first time
+reads the capture screen and may never touch a badge, and the claim is the
+product. What is behind the tap is the elaboration, not the claim.
+
+The line is `T.text` and semibold now rather than `T.muted` regular. It was
+styled as a footnote because it used to be a two-sentence paragraph; alone, it
+is the statement the app is built around.

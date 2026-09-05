@@ -11,6 +11,22 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r34 — v1.0.0 (build 6) — 2026-09-05
+
+**The ON-DEVICE badge is tappable** (D-084). It was a green dot and one word in
+the header of every screen, asserting the whole product thesis and offering no
+way to ask what it means. Tapping it now gives the claim in full: what happens
+on the device, that there is no account and no ads or trackers, and that the
+only way anything leaves is an export the user performs themselves.
+
+**And that is what made the capture screen fit.** Tyler reported r33 as fitting
+an iPhone 14 "but barely", with the privacy card's bottom edge under the tab
+bar. Its second sentence, "No account, no ads, no tracking", was what wrapped it
+to two lines; it moved into the badge popup, taking 21 points of line height
+with it, plus 3 more from the card's margin and padding. The first sentence
+stays on the screen, because a first-run user reads that and may never tap a
+badge, and it is styled as the statement it is rather than as a footnote.
+
 ### js r33 — v1.0.0 (build 6) — 2026-09-04 · published 2026-09-05, group `27cf5272`
 
 Tyler's third pass, on two things at once: the text is still too small, and
