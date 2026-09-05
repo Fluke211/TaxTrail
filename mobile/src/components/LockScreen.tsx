@@ -40,12 +40,12 @@ export function LockScreen({ onUnlock, busy }: { onUnlock: () => void; busy: boo
 
 const makeStyles = styled((T) => ({
   wrap: { flex: 1, backgroundColor: T.bg, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  brand: { color: T.text, fontSize: 26, fontWeight: '700', letterSpacing: -0.4 },
-  sub: { color: T.muted, fontSize: 14, textAlign: 'center' },
+  brand: { color: T.text, fontSize: 28, fontWeight: '700', letterSpacing: -0.4 },
+  sub: { color: T.muted, fontSize: T.fs.body, textAlign: 'center' },
   btn: {
     marginTop: 18, backgroundColor: T.accent, borderRadius: 12,
     paddingVertical: 14, paddingHorizontal: 40,
   },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  note: { color: T.muted2, fontSize: 12.5, marginTop: 4 },
+  btnText: { color: '#fff', fontSize: T.fs.lg, fontWeight: '600' },
+  note: { color: T.muted2, fontSize: T.fs.md, marginTop: 4 },
 }));

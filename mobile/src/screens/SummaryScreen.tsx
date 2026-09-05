@@ -26,6 +26,22 @@ const C = require('../lib/classifier.js');
  * loses their images on the next reinstall. Tyler asked for an info control on
  * each one; these are the answers.
  */
+/*
+ * One icon per export format, in the accent colour.
+ *
+ * Five identical grey rectangles was the shape of this card, and in light mode
+ * that is five near-white rectangles on a white card (D-083). The icons are the
+ * cheapest place to put brand colour that also earns its keep: the row you want
+ * is findable by shape before you have read a word of it.
+ */
+const EXPORT_ICON: Record<string, string> = {
+  csv: 'document-text-outline',
+  xlsx: 'grid-outline',
+  txf: 'calculator-outline',
+  qbo: 'cloud-outline',
+  archive: 'archive-outline',
+};
+
 const EXPORT_HELP: Record<string, { title: string; body: string }> = {
   csv: {
     title: 'CPA CSV',
@@ -174,8 +190,8 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
           <Text style={s.formTitle}>{form.toUpperCase()}</Text>
           {[...cats.entries()].sort((a, b) => b[1] - a[1]).map(([cat, amt]) => (
             <View key={cat} style={s.catLine}>
-              <Text style={{ color: T.text, fontSize: 13.5, flex: 1 }} numberOfLines={1}>{cat}</Text>
-              <Text style={{ color: T.muted, fontSize: 13.5 }}>${amt.toFixed(2)}</Text>
+              <Text style={{ color: T.text, fontSize: T.fs.body, flex: 1 }} numberOfLines={1}>{cat}</Text>
+              <Text style={{ color: T.muted, fontSize: T.fs.body }}>${amt.toFixed(2)}</Text>
             </View>
           ))}
         </View>
@@ -184,8 +200,17 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
       {(stats.taxBiz > 0 || stats.taxPersonal > 0) && (
         <View style={s.card}>
           <Text style={s.formTitle}>SALES TAX PAID</Text>
-          <View style={s.catLine}><Text style={s.taxLabel}>On business purchases</Text><Text style={{ color: T.muted }}>${stats.taxBiz.toFixed(2)}</Text></View>
-          <View style={s.catLine}><Text style={s.taxLabel}>On personal (Schedule A line 5a)</Text><Text style={{ color: T.muted }}>${stats.taxPersonal.toFixed(2)}</Text></View>
+          {/* The amounts carry the size explicitly. Without it they fall back to
+              RN's default 14 and end up a point smaller than the label beside
+              them, and than every other amount on the page. */}
+          <View style={s.catLine}>
+            <Text style={s.taxLabel}>On business purchases</Text>
+            <Text style={s.taxAmount}>${stats.taxBiz.toFixed(2)}</Text>
+          </View>
+          <View style={s.catLine}>
+            <Text style={s.taxLabel}>On personal (Schedule A line 5a)</Text>
+            <Text style={s.taxAmount}>${stats.taxPersonal.toFixed(2)}</Text>
+          </View>
         </View>
       )}
 
@@ -226,7 +251,12 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
               onPress={() => gated(key, () => fn(range), needsPro)}>
               {busyExport === key
                 ? <ActivityIndicator color={T.accent} />
-                : <Text style={{ color: T.text, fontSize: 14 }}>{label}</Text>}
+                : (
+                  <View style={s.exportRow}>
+                    <Icon name={EXPORT_ICON[key] ?? 'document-text-outline'} size={20} color={T.accent} />
+                    <Text style={{ color: T.text, fontSize: T.fs.body, flex: 1 }}>{label}</Text>
+                  </View>
+                )}
             </Pressable>
             {/* Seven buttons with no explanation is a guessing game, and the
                 wrong guess loses images. Tyler asked for these. */}
@@ -240,8 +270,8 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
 
       {!pro && (
         <Pressable style={s.proBtn} onPress={async () => { if (await presentPaywall()) onChanged(); }}>
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Upgrade to TaxTrail Pro</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 3 }}>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: T.fs.body }}>Upgrade to TaxTrail Pro</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: T.fs.sm, marginTop: 3 }}>
             Unlimited scans · every export format · $39.99/yr
           </Text>
         </Pressable>
@@ -271,19 +301,21 @@ const makeStyles = styled((T) => ({
     flex: 1, backgroundColor: T.card, borderColor: T.line, borderWidth: 1,
     borderRadius: T.radius, padding: 14,
   },
-  statLabel: { color: T.muted2, fontSize: 10, letterSpacing: 0.6, fontWeight: '600' },
-  statVal: { color: T.text, fontSize: 22, fontWeight: '700', marginTop: 4 },
+  statLabel: { color: T.muted2, fontSize: T.fs.xs, letterSpacing: 0.6, fontWeight: '600' },
+  statVal: { color: T.text, fontSize: 24, fontWeight: '700', marginTop: 4 },
   card: {
     backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: T.radius,
     padding: 14, marginTop: 12,
   },
-  formTitle: { color: T.accent, fontSize: 11, letterSpacing: 0.8, fontWeight: '700', marginBottom: 8 },
+  formTitle: { color: T.accent, fontSize: T.fs.xs, letterSpacing: 0.8, fontWeight: '700', marginBottom: 8 },
   catLine: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
-  taxLabel: { color: T.text, fontSize: 13.5, flex: 1 },
+  taxLabel: { color: T.text, fontSize: T.fs.body, flex: 1 },
+  taxAmount: { color: T.muted, fontSize: T.fs.body },
   exportBtn: {
     backgroundColor: T.card2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
     paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
   },
+  exportRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   exportLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   infoBtn: { padding: 6 },
   rangeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
@@ -292,12 +324,12 @@ const makeStyles = styled((T) => ({
     paddingHorizontal: 12, paddingVertical: 6, backgroundColor: T.card2,
   },
   chipOn: { borderColor: T.accentLine, backgroundColor: T.accentSoft },
-  chipText: { color: T.muted, fontSize: 12.5, fontWeight: '600' },
-  rangeNote: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginBottom: 10 },
+  chipText: { color: T.muted, fontSize: T.fs.md, fontWeight: '600' },
+  rangeNote: { color: T.muted2, fontSize: T.fs.sm, lineHeight: T.lh.sm, marginBottom: 10 },
   proBtn: {
     backgroundColor: T.accent, borderRadius: T.radius, padding: 16, alignItems: 'center', marginTop: 14,
   },
-  version: { color: T.muted2, fontSize: 11, textAlign: 'center', marginTop: 18, letterSpacing: 0.3 },
+  version: { color: T.muted2, fontSize: T.fs.xs, textAlign: 'center', marginTop: 18, letterSpacing: 0.3 },
   updateLink: { color: T.accent, marginTop: 4 },
-  restoreNote: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginTop: 8 },
+  restoreNote: { color: T.muted2, fontSize: T.fs.sm, lineHeight: T.lh.sm, marginTop: 8 },
 }));

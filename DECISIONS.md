@@ -4003,3 +4003,246 @@ of D-066, and it is what build 7 is for.
 **Ship the feature or drop the permission, and prefer shipping when the feature
 is worth having.** The module was already paid for in binary size and in the
 privacy label; what it lacked was five hundred lines of JavaScript.
+
+---
+
+## D-080
+
+**A type scale, and brighter greys again** (2026-09-03)
+
+Tyler's second pass on r31, both parts of the same complaint: the small text is
+hard to read.
+
+### The greys, once more
+
+|  | original | D-078 | now | on the app background |
+|---|---|---|---|---|
+| `muted` | `#8a97ab` | `#9aa6b8` | `#b3bcca` | 6.5 -> 7.9 -> 10.1 |
+| `muted2` | `#5b6678` | `#78849a` | `#98a3b5` | 3.3 -> 5.1 -> 7.6 |
+
+The thing to watch when brightening secondary text is the hierarchy, and it
+holds: `text` 16.5, `muted` 10.1, `muted2` 7.6. Three steps, each visibly
+dimmer than the one above.
+
+The light palette moved too, and for a different reason than the dark one: not
+to match Tyler's complaint, but because `muted2` there was measurably below AA.
+That is the section further down; the two changes are not the same change and
+should not be read as one.
+
+### The type scale
+
+The app had **nine** distinct sizes below 15pt: 10, 10.5, 11, 11.5, 12, 12.5,
+13, 13.5, 14. Some of those distinctions were real and most were an accident of
+whoever wrote that screen. Changing "the small text" meant editing **58 sizes
+across 10 files**, which is why the first answer to "it is hard to read" was a
+colour change only.
+
+So the palette carries the scale now:
+
+```
+xs    10, 10.5, 11    ->  12   overlines, tab labels, badges
+sm    11.5, 12        ->  13   notes, hints, list metadata
+md    12.5, 13        ->  14   secondary body
+body  13.5, 14        ->  15   rows, controls, form labels
+```
+
+Headings, amounts and the brand mark keep their own sizes. They were tuned
+individually and none of them was ever the complaint.
+
+**Line heights moved with the sizes, and into the scale with them.** A bigger
+font in the same box sets tighter than the small one did, which undoes some of
+what the change is for. Leaving eight literal `lineHeight`s next to the new
+tokens would have re-tightened every paragraph the moment the scale moved
+again: the exact regression this entry warns about, one round later and
+invisible in the diff that caused it. So `T.lh` sits beside `T.fs`.
+
+**The capture screen has to keep fitting an iPhone 14 without scrolling**
+(D-077's neighbour complaint), and a dozen points appeared down the page. The
+privacy card gives back six, four in margin and two in padding. That does not
+cover it and is not meant to; whether the page still fits is a device question,
+not a computable one.
+
+### Why this is worth a decision entry
+
+**Nine sizes below 15pt is not a design, it is a residue.** The knob exists
+because this is the second round of the same feedback and there will be a
+third: "still a bit small" should be one number, not an afternoon.
+
+`npm run test:type` keeps it that way, in CI: a literal `fontSize` below 17pt
+fails, and the scale has to stay ordered. This repo's habit by now (D-061,
+D-066, D-076), and for the same reason each time: a convention nobody enforces
+is one the next screen forgets.
+
+### Light mode came along for the ride
+
+`muted2` in the light palette measured **3.3:1**, which is WCAG's threshold for
+large text and non-text. It renders at 12 and 13 points, where the bar is 4.5,
+so it was below AA everywhere it appeared, and `check-contrast.js` was holding
+it to the wrong tier. Both are fixed: the light greys darken (`muted` 5.5 ->
+7.0, `muted2` 3.3 -> 4.8) and the check holds hint text to AA in both palettes.
+
+That was survivable while light mode was unreachable. r31 made it reachable and
+Tyler uses it, so "the complaint was about dark mode" stopped being a reason to
+leave it.
+
+### What the ratios were not measuring
+
+The comment claimed the three-tier hierarchy held, and offered three ratios
+against the same near-black ground as evidence. Those stay ordered no matter how
+close the colours get. The separation between adjacent tiers went 1.96 -> 1.53
+-> 1.33 across the two brightenings and nothing was watching it.
+`check-contrast.js` measures the steps now, with a floor, so a third
+brightening cannot quietly collapse `muted` into `muted2`. It measures the
+DIRECTION as well: a symmetric ratio cannot tell a healthy gap from an inverted
+hierarchy, and the first version of the check could not have caught the case its
+own error message described. Each tier must now stand out from the background
+more than the tier below it, which is the same assertion in both palettes.
+
+### Where the check still could not look
+
+Every pairing was token-against-token, so text on a hardcoded ground was never
+measured, and there is one: the full-screen photo backdrop is `#000` in both
+palettes. Darkening `LIGHT.muted2` took the zoom hint there from 5.96:1 to
+**4.07:1**, so a change made for legibility removed some, in the one place
+nothing was watching. The hint takes a fixed grey now (10.96:1) and the check
+carries the pairing.
+
+**The lesson is the same one as the tier separation, one level up:** a check
+that only compares the things it already knows about will keep reporting green
+about the things it does not.
+
+---
+
+## D-081
+
+**The appearance switch works. The window override is still unverified**
+(2026-09-03)
+
+D-077 shipped with a claim labelled as unverified: that Light and Dark would
+work over the air on build 6, whose `Info.plist` still pins
+`UIUserInterfaceStyle: Dark`, because `Appearance.setColorScheme()` sets a
+window-level `overrideUserInterfaceStyle` and a window override beats the
+app-level value.
+
+**Tyler tapped Light and the app turned light.** That confirms the half that
+matters most to him and the half that is nearly all of the visible surface.
+
+### It does not confirm the override, and this entry first said it did
+
+`useTheme()` returns `LIGHT` straight from the stored choice; it never consults
+`useColorScheme()` on that path, and `apply()` wraps `setColorScheme` in a
+try/catch that swallows any failure. So the app turning light happens
+identically whether UIKit honoured the window override or ignored it. **The
+observation cannot distinguish the two**, and the first version of this entry,
+of the `appearance.ts` comment, of STATUS and of the CHANGELOG all read as
+though it could.
+
+The only observable for the override is a **system** surface: raise an alert
+while Light is selected, and see whether it is light or black. Settings ->
+Restore purchases, or Delete all receipts and then Cancel, both do it in one
+tap.
+
+### The rule this nearly broke
+
+CLAUDE.md: verify before recommending, and reasoning is not verification. The
+labelling worked exactly as intended right up to the point where a real but
+*different* observation arrived and got filed against the open question because
+it was adjacent to it. **Check that the evidence discriminates**, not only that
+evidence exists: "the app turned light" and "the override works" are one
+sentence apart and not the same claim.
+
+"System" is still dark until build 7, which is a separate fact about the plist
+and unaffected by any of this.
+
+## D-082
+
+**The type scale goes up again, to "readable without young eyes"** (2026-09-04)
+
+D-080 raised the small end once, on Tyler's "the smaller font size is too small
+to be comfortably read". He looked at the result and asked again, with a
+different bar: *"Make it so it's easy to see and read for someone without young
+eyes."*
+
+That is not the same request. "A bit bigger" is a nudge; presbyopia is a
+constraint, and the answer to it is that **nothing on the screen is small**.
+
+| | before D-080 | D-080 | now |
+|---|---|---|---|
+| `xs` overlines, tab labels, badges | 10, 10.5, 11 | 12 | 13 |
+| `sm` notes, hints, list metadata | 11.5, 12 | 13 | 14 |
+| `md` secondary body | 12.5, 13 | 14 | 15 |
+| `body` rows, controls, form labels | 13.5, 14 | 15 | 16 |
+| `lg` primary buttons, picker rows | 16 | 16 | 17 |
+
+`body` 16 and `lg` 17 put the app's reading sizes at iOS's own default body
+size rather than below it, which is where they had sat since the PWA.
+
+Headings moved with it, since they are read too and "across the board" was the
+ask: the brand mark 20 -> 22, the capture hero and the Summary totals 22 -> 24,
+sheet titles 17/18 -> 19/20, the paywall and lock screen 26 -> 28. The crash
+screen's hand-kept sizes went up in step.
+
+### The steps are one point apart, and that is the decision
+
+A scale with 1pt gaps looks wrong written down. It is right on a phone held by
+someone who needs reading glasses: a ratio-preserving scale that keeps its
+rhythm has to put something at the bottom, and the bottom is what they cannot
+read. Hierarchy moves to weight, colour, and the heading sizes above the scale,
+all of which have room. `check-type-scale.js`'s `HEADING_MIN` tracks the top of
+the scale (18, one above `lg`) so the two never meet.
+
+### What it cost
+
+The capture screen. It has to fit an iPhone 14 without scrolling, the raise
+costs it roughly 20 points, and the hero's vertical padding pays for it (56 ->
+40) exactly as the D-080 comment said it would have to.
+
+## D-083
+
+**Light mode was washed out because nothing separated its surfaces**
+(2026-09-04)
+
+Tyler, on r31: *"light mode doesn't really have any accent colors visible. It
+feels very washed out."*
+
+Two faults that look like one from the outside.
+
+### 1. The surfaces had no value between them
+
+`card` `#ffffff` on `bg` `#f6f7f9` is **1.07:1**. That is a card you can only
+see because it has a border, and the border was a 10% black hairline, so barely
+that. A page of white boxes on a white page has no depth to lose, which is what
+"washed out" describes.
+
+The ground drops to `#e9edf5` (1.17:1 under a white card), `card2` to `#eaeef7`,
+and the hairline goes to 14%. `muted2` darkens a third time, to `#5e6879`,
+purely to pay for the deeper ground: 4.81:1 there becomes 4.55:1, which is AA by
+a rounding error.
+
+### 2. The accent was in about four places
+
+Dark mode gets brand presence for free. `card2` `#182333` and `accentSoft` both
+read as blue against near-black, so every inset control, chip and input is
+faintly branded without anyone deciding it. In light both were near-white, and
+the accent survived only in the section overlines, the brand mark and two links.
+
+So: `accentSoft` doubles (0.10 -> 0.16) and `accentLine` strengthens (0.35 ->
+0.45), which puts the brand back on every chip and selected state; the export
+formats get one accent icon each, which is the cheapest place to put colour that
+also earns its keep, since the row you want becomes findable by shape; the
+photo-library button's icon turns accent; and the ON-DEVICE badge gets a fill,
+because on the deeper ground an empty bordered pill reads as unfinished.
+
+**Dark is untouched.** It was never the complaint.
+
+### The check that did not exist
+
+Every row in `check-contrast.js` measured text against a ground. Nothing
+measured ground against ground, so 1.07:1 between the two most-used surfaces in
+the app passed every check in the repo and shipped. `SURFACES` measures it now,
+and the old light palette fails it.
+
+The floors are set where the DARK palette actually sits (1.10 for a card on the
+page, 1.10 for an inset control on a card), which is deliberate: dark is as flat
+as this can get before it stops reading as layered, so a tweak that goes below
+it fails here rather than being noticed a month later on a phone.

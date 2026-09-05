@@ -11,6 +11,95 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r33 — v1.0.0 (build 6) — 2026-09-04
+
+Tyler's third pass, on two things at once: the text is still too small, and
+light mode is washed out.
+
+**The type scale goes up again** (D-082), to a different bar than last time:
+"easy to see and read for someone without young eyes". Nothing on screen is
+under 13pt now, and `body` 16 / `lg` 17 put the app's reading sizes at iOS's own
+default rather than below it.
+
+| | r31 | r32 | r33 |
+|---|---|---|---|
+| `xs` overlines, tab labels, badges | 10, 10.5, 11 | 12 | 13 |
+| `sm` notes, hints, list metadata | 11.5, 12 | 13 | 14 |
+| `md` secondary body | 12.5, 13 | 14 | 15 |
+| `body` rows, controls, form labels | 13.5, 14 | 15 | 16 |
+| `lg` primary buttons, picker rows | 16 | 16 | 17 |
+
+Headings moved with it, since "across the board" included them: the brand mark
+20 -> 22, the capture hero and the Summary totals 22 -> 24, sheet titles 19/20,
+the paywall and lock screen 28. The crash screen's hand-kept sizes went up in
+step. The capture hero's padding drops 56 -> 40 to pay for the roughly 20 points
+the raise costs that page, which has to fit an iPhone 14 without scrolling.
+
+**Light mode is rebuilt around its surfaces** (D-083). `card` `#ffffff` on `bg`
+`#f6f7f9` measured **1.07:1**, a card visible only because of a 10% hairline,
+which is what "washed out" was describing. The ground drops to `#e9edf5`, the
+inset surface to `#eaeef7`, and the hairline to 14%.
+
+**And the accent comes back into it.** Dark mode gets brand presence for free,
+because `card2` and `accentSoft` both read as blue against near-black; in light
+both were near-white and the accent survived in about four places. `accentSoft`
+doubles to 0.16 and `accentLine` to 0.45, so chips and selected states are blue
+again; each export format gets its own accent icon; the photo-library button's
+icon turns accent; and the ON-DEVICE badge is filled rather than an empty
+outline. `muted2` darkens a third time, to `#5e6879`, to hold AA on the deeper
+ground. Dark mode is untouched.
+
+**The check that would have caught it now exists.** Every row in
+`check-contrast.js` measured text against a ground; nothing measured ground
+against ground, so 1.07:1 between the app's two most-used surfaces passed
+everything and shipped. `SURFACES` measures it, the old light palette fails it,
+and the floors are set where the dark palette actually sits.
+
+### js r32 — v1.0.0 (build 6) — 2026-09-03
+
+Tyler's second pass on r31: the small text is hard to read.
+
+**A type scale** (D-080). The app had nine distinct sizes below 15pt, most of
+them an accident rather than a decision, so "make the small text bigger" meant
+editing 58 sizes across 10 files. The palette carries `T.fs` now, with `T.lh`
+for leading beside it, and every step went up:
+
+| | was | now |
+|---|---|---|
+| `xs` overlines, tab labels, badges | 10, 10.5, 11 | 12 |
+| `sm` notes, hints, list metadata | 11.5, 12 | 13 |
+| `md` secondary body | 12.5, 13 | 14 |
+| `body` rows, controls, form labels | 13.5, 14 | 15 |
+
+Line heights moved with the sizes and into the scale with them; headings and
+amounts are untouched. `npm run test:type` fails on a literal `fontSize` below
+17pt, so the residue cannot grow back. The capture screen's privacy card gives
+back six points, which does not cover the dozen-odd the bigger text costs: that
+page has to keep fitting an iPhone 14, and whether it does is for Tyler to say.
+
+**Light mode's hint text was below AA** and is fixed in the same pass: `muted2`
+measured 3.3:1 at 12 and 13 points, where the bar is 4.5. The light greys darken
+(`muted` 5.5 -> 7.0, `muted2` 3.3 -> 4.8), the contrast check stops holding hint
+text to the large-text tier, and it now measures the gaps BETWEEN the text tiers
+too, and their direction: a symmetric ratio cannot tell a healthy gap from an
+inverted hierarchy.
+
+**One regression caught in review before it shipped.** Darkening the light greys
+took the full-screen zoom hint from 5.96:1 to 4.07:1, because it sits on a
+hardcoded black backdrop rather than a palette ground, so no pairing in the
+check could see it. It takes a fixed grey now, and the check carries that
+pairing.
+
+**Brighter greys, second pass** (D-080): `muted` 7.9:1 -> 10.1:1 and `muted2`
+5.1:1 -> 7.6:1 against the app background. The hierarchy still reads: 16.5,
+10.1, 7.6.
+
+**The appearance switch works on build 6** (D-081): tapping Light turns the app
+light, over the air, on a binary whose plist still pins dark. **The window
+override itself is still unverified**, and this entry first claimed otherwise:
+the palette swap is pure JS and would look identical either way. The test is a
+system alert while Light is selected. "System" is still dark until build 7.
+
 ### js r31 — v1.0.0 (build 6) — 2026-09-02
 
 **A Face ID app lock, on by default** (D-079). `expo-local-authentication` has

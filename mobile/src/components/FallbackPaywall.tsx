@@ -98,18 +98,18 @@ const makeStyles = styled((T) => ({
   body: { padding: 22, paddingTop: 64 },
   // Was '#fff', which is invisible on the light palette's near-white
   // background — on the purchase screen, of all places.
-  title: { color: T.text, fontSize: 26, fontWeight: '700' },
-  sub: { color: T.muted, fontSize: 15, marginTop: 8, marginBottom: 22, lineHeight: 21 },
+  title: { color: T.text, fontSize: 28, fontWeight: '700' },
+  sub: { color: T.muted, fontSize: T.fs.body, marginTop: 8, marginBottom: 22, lineHeight: T.lh.body },
   pkg: {
     backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1,
     borderRadius: 12, padding: 16, marginBottom: 10,
   },
-  pkgTitle: { color: T.text, fontSize: 16, fontWeight: '600' },
-  pkgPrice: { color: T.accent, fontSize: 14, marginTop: 4 },
-  legal: { color: T.muted2, fontSize: 11, lineHeight: 16, marginTop: 16 },
+  pkgTitle: { color: T.text, fontSize: T.fs.lg, fontWeight: '600' },
+  pkgPrice: { color: T.accent, fontSize: T.fs.body, marginTop: 4 },
+  legal: { color: T.muted2, fontSize: T.fs.xs, lineHeight: T.lh.xs, marginTop: 16 },
   links: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', marginTop: 20, gap: 8 },
-  link: { color: T.accent, fontSize: 13 },
-  dot: { color: T.muted2, fontSize: 13 },
+  link: { color: T.accent, fontSize: T.fs.md },
+  dot: { color: T.muted2, fontSize: T.fs.md },
   notNow: { alignSelf: 'center', marginTop: 26, padding: 10 },
-  notNowText: { color: T.muted, fontSize: 15 },
+  notNowText: { color: T.muted, fontSize: T.fs.body },
 }));

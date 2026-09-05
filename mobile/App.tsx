@@ -314,17 +314,20 @@ const makeStyles = styled((T) => ({
     paddingHorizontal: 16, paddingVertical: 12,
     borderBottomColor: T.line, borderBottomWidth: 1,
   },
-  brand: { color: T.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.4 },
+  brand: { color: T.text, fontSize: 22, fontWeight: '700', letterSpacing: -0.4 },
+  /* Filled with the card colour rather than left transparent. On the deeper
+   * light ground (D-083) a bordered-but-empty pill reads as an outline someone
+   * forgot to finish; filled, it reads as a badge in both palettes. */
   badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: T.card,
     borderColor: T.line, borderWidth: 1, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5,
   },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: T.good },
-  badgeText: { color: T.muted, fontSize: 10.5, fontWeight: '600', letterSpacing: 0.6 },
+  badgeText: { color: T.muted, fontSize: T.fs.xs, fontWeight: '600', letterSpacing: 0.6 },
   tabbar: {
     flexDirection: 'row', borderTopColor: T.line, borderTopWidth: 1,
     backgroundColor: T.bg2, paddingTop: 8,
   },
   tabBtn: { flex: 1, alignItems: 'center', gap: 2 },
-  tabLabel: { color: T.muted2, fontSize: 11, fontWeight: '600' },
+  tabLabel: { color: T.muted2, fontSize: T.fs.xs, fontWeight: '600' },
 }));

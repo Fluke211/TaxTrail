@@ -193,7 +193,7 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
         : (
           <Text style={{
             color: tone === 'danger' ? T.danger : tone === 'accent' ? T.accent : T.text,
-            fontSize: 14,
+            fontSize: T.fs.body,
           }}>{label}</Text>
         )}
     </Pressable>
@@ -247,9 +247,14 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
                 accessibilityState={{ selected: on }}
               >
                 {/* The selected label is `text`, not `accent`: accent on
-                    accentSoft over bg2 flattens to 4.10:1, under the AA bar
-                    this project holds every other label to. The accent border
-                    carries the selection instead, as SummaryScreen's chips do. */}
+                    accentSoft flattens to about 4.1:1, under the AA bar this
+                    project holds every other label to. The accent border
+                    carries the selection instead.
+
+                    SummaryScreen's range chips do recolour their label and sit
+                    at 3.47:1 because of it. That is older, it is Tyler's brand
+                    colour, and it belongs with the four baselined ratios he
+                    still has to rule on, not with a silent change here. */}
                 <Text style={[s.segmentText, on && { color: T.text, fontWeight: '700' }]}>{label}</Text>
               </Pressable>
             );
@@ -278,7 +283,7 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
           accessibilityLabel="Require Face ID to open TaxTrail"
           accessibilityState={{ checked: lockOn === true, disabled: !lockAvailable }}
         >
-          <Text style={{ color: lockAvailable ? T.text : T.muted2, fontSize: 14, flex: 1 }}>
+          <Text style={{ color: lockAvailable ? T.text : T.muted2, fontSize: T.fs.body, flex: 1 }}>
             Require Face ID to open
           </Text>
           <Icon
@@ -379,13 +384,13 @@ const makeStyles = styled((T) => ({
     backgroundColor: T.card, borderColor: T.line, borderWidth: 1, borderRadius: T.radius,
     padding: 14, marginTop: 12,
   },
-  title: { color: T.accent, fontSize: 11, letterSpacing: 0.8, fontWeight: '700', marginBottom: 8 },
-  status: { color: T.muted, fontSize: 13, marginBottom: 10 },
+  title: { color: T.accent, fontSize: T.fs.xs, letterSpacing: 0.8, fontWeight: '700', marginBottom: 8 },
+  status: { color: T.muted, fontSize: T.fs.md, marginBottom: 10 },
   row: {
     backgroundColor: T.card2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
     paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
   },
-  note: { color: T.muted2, fontSize: 11.5, lineHeight: 16, marginTop: 4 },
+  note: { color: T.muted2, fontSize: T.fs.sm, lineHeight: T.lh.sm, marginTop: 4 },
   // card2, not bg2: LIGHT.bg2 and LIGHT.card are both #ffffff, so an inset
   // drawn with bg2 vanishes into the card it sits on. card2 is the inset
   // colour in both palettes.
@@ -398,9 +403,9 @@ const makeStyles = styled((T) => ({
     borderColor: 'transparent', borderWidth: 1,
   },
   segmentBtnOn: { backgroundColor: T.accentSoft, borderColor: T.accentLine },
-  segmentText: { color: T.muted, fontSize: 13.5, fontWeight: '600' },
+  segmentText: { color: T.muted, fontSize: T.fs.body, fontWeight: '600' },
   // Composed with `row`, which has no flexDirection, so a label and a control
   // laid out with it alone stack vertically. Only the difference lives here.
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  version: { color: T.muted2, fontSize: 11, textAlign: 'center', marginTop: 14, letterSpacing: 0.3 },
+  version: { color: T.muted2, fontSize: T.fs.xs, textAlign: 'center', marginTop: 14, letterSpacing: 0.3 },
 }));

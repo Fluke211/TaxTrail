@@ -119,20 +119,41 @@ const PAIRS = [
   ['text', 'bg2', 4.5, 'body text on the tab bar'],
   ['muted', 'bg', 4.5, 'secondary text on the app background'],
   ['muted', 'card', 4.5, 'secondary text on a card'],
+  // The tab labels. The most persistently visible text in the app, and it had
+  // no row here until the type scale changed its size and review noticed.
+  ['muted2', 'bg2', 4.5, 'inactive tab labels'],
   ['accent', 'bg', 4.5, 'links and every tappable label'],
   ['accent', 'card', 4.5, 'links on a card'],
   ['accent', 'card2', 4.5, 'links on an inset control'],
   ['danger', 'card', 4.5, 'the Delete label in the danger zone'],
   ['good', 'card', 3.0, 'the business total'],
   ['warn', 'card', 3.0, 'warnings'],
-  // Hint text and disabled labels — large-text/secondary threshold.
-  ['muted2', 'bg', 3.0, 'hint text'],
-  ['muted2', 'card', 3.0, 'hint text on a card'],
-  ['muted2', 'card2', 3.0, 'hint text on an inset control'],
+  /*
+   * Hint text, at AA rather than the 3:1 tier it used to sit in.
+   *
+   * That tier is WCAG's threshold for text at 18pt, or 14pt bold, and for
+   * non-text. `muted2` renders at 12 and 13 points, so the bar is 4.5 and
+   * calling it "secondary" did not change that. Both palettes clear it now
+   * (D-080).
+   */
+  ['muted2', 'bg', 4.5, 'hint text'],
+  ['muted2', 'card', 4.5, 'hint text on a card'],
+  ['muted2', 'card2', 4.5, 'hint text on an inset control'],
   // Non-text: borders have to be visible or every card loses its edge.
   ['line', 'card', 1.2, 'card borders'],
   ['line', 'bg', 1.2, 'borders on the background'],
   ['dangerLine', 'card', 1.2, 'the danger-zone border'],
+];
+
+/*
+ * Pairings that owe nothing to the palette, and would otherwise be invisible
+ * here: every other row is token-against-token, so text on a hardcoded ground
+ * is never measured. That is exactly how darkening the light greys for AA
+ * (D-080) took the full-screen zoom hint from 5.96:1 to 4.07:1 without a single
+ * check going red.
+ */
+const FIXED = [
+  ['#b3bcca', '#000000', 4.5, 'the zoom hint on the photo backdrop'],
 ];
 
 // White-on-accent is a fixed pairing: the primary button and the delete action
@@ -178,6 +199,58 @@ const CRASH_PAIRS = [
   ['accent', 'bg', 4.5, 'Show technical details'],
 ];
 
+/*
+ * The steps between the text tiers, not only each tier against the ground.
+ *
+ * Brightening secondary text twice (D-078, D-080) moved `muted` and `muted2`
+ * closer together each time: 1.96 -> 1.53 -> 1.33. Three ratios measured
+ * against the same near-black ground stay ordered no matter how close the
+ * colours get, so the evidence used to justify "the hierarchy holds" could not
+ * have detected them converging. This can. A third brightening on the same
+ * trajectory is what it exists to stop.
+ */
+/*
+ * Do the surfaces separate from each other?
+ *
+ * Every other row here measures text against a ground. Nothing measured
+ * ground against ground, so the light palette shipped with `card` #ffffff on
+ * `bg` #f6f7f9 — 1.07:1 — and passed everything. Tyler's word for the result
+ * was "washed out" (D-083): a page of white boxes on a white page, with only a
+ * 10% hairline to say where one stopped.
+ *
+ * These are floors, not targets, and the DARK palette sits almost exactly on
+ * them. That is the point of writing them down: dark is as flat as this can get
+ * before it stops reading as layered, so a future palette tweak that goes below
+ * it fails rather than being noticed a month later on a phone.
+ *
+ * `bg2` is the tab bar, and it has a top border doing some of the work, so its
+ * floor is lower on purpose.
+ */
+const SURFACES = [
+  ['card', 'bg', 1.10, 'a card against the page under it'],
+  ['card2', 'card', 1.10, 'an inset control against the card it sits in'],
+  ['bg2', 'bg', 1.04, 'the tab bar against the page'],
+];
+
+const STEPS = [
+  ['text', 'muted', 1.3, 'body text against secondary text'],
+  ['muted', 'muted2', 1.25, 'secondary text against hint text'],
+];
+
+/*
+ * Distance is not direction, and this check needs both.
+ *
+ * `ratio()` is symmetric, so a `muted2` brightened clean past `text` measures a
+ * healthy gap and passes, while the error message talks about exactly that
+ * case. So each tier must also stand out from the background MORE than the tier
+ * below it. That works in both palettes without knowing which way is up: in
+ * dark the text is lighter than the ground, in light it is darker, and in each
+ * the ordering by contrast-with-ground is the same.
+ */
+function standsOut(p, token) {
+  return ratio(p[token], p.bg);
+}
+
 const palettes = { ...readPalettes(), ...readCrashPalette() };
 let failures = 0;
 let belowTarget = 0;
@@ -191,6 +264,8 @@ for (const [name, p] of Object.entries(palettes)) {
     : [
       ...PAIRS.map(([f, b, min, what]) => [p[f], p[b], min, `${f} on ${b}`, what]),
       ...ON_SOLID.map(([f, b, min, what]) => [f, p[b], min, `#fff on ${b}`, what]),
+      // FIXED only under the first palette: the pairing owes nothing to either.
+      ...(name === 'DARK' ? FIXED.map(([f, b, min, what]) => [f, b, min, `${f} on ${b}`, what]) : []),
     ];
   for (const [fg, bg, min, label, what] of rows) {
     if (!fg || !bg) {
@@ -218,6 +293,44 @@ for (const [name, p] of Object.entries(palettes)) {
     if (!ok) failures++;
     console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${label.padEnd(26)} ${r.toFixed(2)}:1  (min ${min})  ${what}`);
     if (!ok) console.log(`  ::error::${name}: ${what} is ${r.toFixed(2)}:1, needs ${min}:1 — ${fg} on ${bg}`);
+  }
+}
+
+for (const [name, p] of Object.entries(palettes)) {
+  if (name.startsWith('CRASH SCREEN')) continue;
+  console.log(`\n${name} · surfaces`);
+  for (const [a, b, min, what] of SURFACES) {
+    if (!p[a] || !p[b]) {
+      console.log(`  ::error::${name}: ${a} vs ${b} — a token in this pairing is missing from the palette`);
+      failures++;
+      continue;
+    }
+    const r = ratio(p[a], p[b]);
+    const ok = r >= min;
+    if (!ok) failures++;
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${`${a} vs ${b}`.padEnd(26)} ${r.toFixed(3)}:1  (min ${min})  ${what}`);
+    if (!ok) {
+      console.log(`  ::error::${name}: ${what} is only ${r.toFixed(3)}:1. At that distance the two surfaces read as one and the layout loses its edges — see D-083.`);
+    }
+  }
+  console.log(`\n${name} · steps between tiers`);
+  for (const [a, b, min, what] of STEPS) {
+    if (!p[a] || !p[b]) {
+      console.log(`  ::error::${name}: ${a} vs ${b} — a token in this pairing is missing from the palette`);
+      failures++;
+      continue;
+    }
+    const r = ratio(p[a], p[b]);
+    const ordered = standsOut(p, a) > standsOut(p, b);
+    const ok = r >= min && ordered;
+    if (!ok) failures++;
+    const note = ordered ? '' : '  ORDER INVERTED';
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${`${a} vs ${b}`.padEnd(26)} ${r.toFixed(2)}:1  (min ${min})  ${what}${note}`);
+    if (!ordered) {
+      console.log(`  ::error::${name}: ${b} stands out from the background more than ${a} does (${standsOut(p, b).toFixed(2)}:1 vs ${standsOut(p, a).toFixed(2)}:1). Brightening one tier past the next stops it being a tier.`);
+    } else if (!ok) {
+      console.log(`  ::error::${name}: ${what} is only ${r.toFixed(2)}:1 apart. Any closer and the two stop reading as different tiers.`);
+    }
   }
 }
 

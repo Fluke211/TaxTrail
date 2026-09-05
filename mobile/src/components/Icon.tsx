@@ -50,6 +50,10 @@ const GLYPH: Record<string, string> = {
   'lock-closed-outline': '▣',
   'information-circle-outline': 'ⓘ',
   checkbox: '☑', 'square-outline': '☐',
+  // The export formats. Distinct enough to tell apart in a vertical list, which
+  // is all they have to do when the font is missing.
+  'document-text-outline': '▤', 'grid-outline': '▦', 'calculator-outline': '▥',
+  'cloud-outline': '☁', 'archive-outline': '▧',
 };
 
 export default function Icon(

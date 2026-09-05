@@ -15,7 +15,8 @@
     "test:ota": "node scripts/check-ota-safety.js",
     "test:perms": "node scripts/check-permissions.js",
     "test:prose": "node scripts/check-prose.js",
-    "test:paths": "node scripts/check-image-paths.js"
+    "test:paths": "node scripts/check-image-paths.js",
+    "test:type": "node scripts/check-type-scale.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
