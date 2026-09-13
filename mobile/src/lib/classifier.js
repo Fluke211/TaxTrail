@@ -323,8 +323,24 @@
     return isNaN(v) ? null : v;
   }
 
+  /*
+   * Refunds print the amount with a TRAILING minus: "130.87-", sometimes with a
+   * tender letter after it ("124.99-P"). US retail has done this for decades.
+   *
+   * Every amount on such a receipt is marked that way, so the credit filter
+   * below rejected all of them and the total came back null. Tyler stored two
+   * AutoZone returns as zero because the app would not take a negative, which
+   * quietly dropped $172.75 of returned money out of his books (D-088).
+   */
+  function isCredit(line, m) {
+    if (!m) return false;
+    var after = line.slice(m.index + m[0].length, m.index + m[0].length + 2);
+    return /^-/.test(after);
+  }
+
   function extractTotal(lines) {
     var candidates = [];
+    var credits = [];
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
       var m = matchMoney(line);
@@ -333,12 +349,15 @@
           // amount may be on this line or the next
           var amtLine = m ? line : (lines[i + 1] || '');
           var m2 = matchMoney(amtLine);
-          // Ignore credits/discounts printed as "6.30-" or "6.30-A"
-          var isCredit = m2 && /-/.test(amtLine.slice(m2.index + m2[0].length, m2.index + m2[0].length + 2));
-          if (m2 && !isCredit) {
+          // Credits and discounts print as "6.30-" or "6.30-A". On an ordinary
+          // receipt those are savings lines and must never win. On a refund
+          // they are the only amounts there are, so they are kept aside rather
+          // than discarded.
+          var credit = isCredit(amtLine, m2);
+          if (m2) {
             var v = normalizeAmount(m2[1]);
             if (v !== null && v > 0 && v < 1000000) {
-              candidates.push({ value: v, priority: h, index: i });
+              (credit ? credits : candidates).push({ value: v, priority: h, index: i });
             }
           }
           break;
@@ -353,14 +372,36 @@
     }
     // Fallback: largest money amount on the receipt (skipping credit/discount lines)
     var max = null;
+    var creditMax = null;
     lines.forEach(function (line) {
       scanMoney(line).forEach(function (m) {
-        if (/-/.test(line.slice(m.index + m[0].length, m.index + m[0].length + 2))) return;
         var v = normalizeAmount(m[1]);
-        if (v !== null && v > 0 && v < 1000000 && (max === null || v > max)) max = v;
+        if (v === null || v <= 0 || v >= 1000000) return;
+        if (isCredit(line, m)) {
+          if (creditMax === null || v > creditMax) creditMax = v;
+          return;
+        }
+        if (max === null || v > max) max = v;
       });
     });
-    return max;
+    if (max !== null) return max;
+
+    /*
+     * Nothing positive anywhere on the receipt, and credits everywhere. That is
+     * a refund, and the answer is a negative number rather than no number.
+     *
+     * The test is "no positive amount exists at all", which is strict on
+     * purpose: an ordinary receipt always prints positive line items, so a
+     * discount line can never reach here. Largest magnitude wins, the same rule
+     * the positive path uses, because the grand total is the biggest figure on
+     * the slip. AutoZone prints it in a column, three separate tax lines above
+     * it, so there is nothing adjacent to a TOTAL label to read (D-088).
+     */
+    if (credits.length) {
+      credits.sort(function (a, b) { return a.priority - b.priority || b.value - a.value; });
+      return -credits[0].value;
+    }
+    return creditMax === null ? null : -creditMax;
   }
 
   // A tip is part of what the meal cost, so it belongs in the deductible total.

@@ -4491,3 +4491,45 @@ Three expectations record what is **right** rather than what he saved. He stored
 the two AutoZone refunds as zero because the app refuses negatives; the receipts
 say `130.87-` and `41.88-`. And Ross is pinned to 2026-07-25, the date on the
 receipt, not the 2009-01-05 the parser produced and he did not catch.
+
+## D-088
+
+**Refunds are negative, and the app could not hold one** (2026-09-13)
+
+From the same 24-receipt batch. Tyler: *"I had some refund receipts too, but
+negative amounts are not recognized."*
+
+Two AutoZone returns, `130.87-` and `41.88-`. US retail has printed credits with
+a **trailing** minus for decades, sometimes with a tender letter after it
+(`124.99-P`). The parser had a credit filter that recognised exactly this and
+**discarded** it, which is right on an ordinary receipt where a `6.30-` instant
+saving must never win, and wrong on a refund where every amount on the slip is
+marked that way. Both came back with no total at all, and he stored them as
+zero, which quietly dropped **$172.75 of returned money** out of his books.
+
+### The rule
+
+Credits are collected rather than discarded, and used only when **no positive
+amount exists anywhere on the receipt**. That test is strict on purpose: an
+ordinary receipt always prints positive line items, so a discount line can never
+reach the refund path. Largest magnitude wins, the same rule the positive path
+uses, because the grand total is the biggest figure on the slip.
+
+Reading the amount beside the TOTAL label was not enough. AutoZone prints in a
+column with three separate tax lines above the total, so there is nothing
+adjacent to that label at all, which is the same layout problem as D-087.
+
+### What is still missing, and it is not small
+
+The parser produces a negative now. **The app still cannot accept one by hand.**
+The total field uses `keyboardType="decimal-pad"`, which on iOS has no minus
+key, so a refund the parser gets wrong cannot be corrected and one it misses
+cannot be entered. The split control also refuses a non-positive total, which is
+correct behaviour with a message written for a different case.
+
+That is a UI change rather than a parser one, and it needs a decision about
+shape: a refund is a state of the receipt, not a typing detail, so a marked
+"this is a refund" control reads better than swapping in a keyboard with a minus
+on it. Tyler also asked for refunds to be associated with the purchase they
+reverse, which is the same feature seen from the other end. Left for its own
+change rather than half-built here.
