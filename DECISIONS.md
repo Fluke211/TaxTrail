@@ -4533,3 +4533,75 @@ shape: a refund is a state of the receipt, not a typing detail, so a marked
 on it. Tyler also asked for refunds to be associated with the purchase they
 reverse, which is the same feature seen from the other end. Left for its own
 change rather than half-built here.
+
+## D-089
+
+**The merchant name is chosen by score, not by being first** (2026-09-13)
+
+Four of the 24 receipts in Tyler's batch named the wrong thing as the store:
+
+| receipt | read as | why |
+|---|---|---|
+| a Hele gas station | "Star-advertiser Hawaii's Best 2020" | three award banners printed above the name |
+| City Mill | "House" | Tyler's own handwriting on the paper |
+| Costco | "Mitco" | OCR of the logo, and the vocabulary check missed |
+| Food Lion | "Food," | the header wrapped and OCR kept the comma |
+
+`extractMerchant` returned the first line that looked plausible. That is right on
+most receipts and wrong on every receipt that prints something above the name.
+
+### Scored instead
+
+Every viable header line becomes a candidate and the best one wins. The signals
+are ordinary and they discriminate:
+
+- **A name the receipt prints twice is the store.** Real merchants appear in the
+  header and again in the footer address block; handwriting and banners appear
+  once. This is what rescues City Mill.
+- A known brand beats an unknown string.
+- More words beats fewer, so "Food Lion #2507" beats "FOOD,".
+- A dangling comma is OCR damage, not a name.
+
+Ties go to the earlier line, so the old behaviour stands wherever the scores do
+not separate. Accolades are skipped outright: Hawaii prints them constantly and
+they are always ABOVE the name, which is exactly the case first-come loses.
+
+### Four things scoring broke, each found by measuring
+
+Preferring longer names made the address block competitive, and each fix is a
+rule that was almost right already:
+
+1. `ADDRESSY` wanted "Dr." with the period; OCR does not keep it. "515 PEPEEKEO
+   DR" became the merchant.
+2. Then the **city** won, because a city is printed twice on almost every
+   receipt, which is the same signal that rescued City Mill. `extractCity`
+   already knows how to find it; it only had to be refused.
+3. Hele prints its address broken across lines, `HONOLULU` / `, HI` / `96825`,
+   which `extractCity` cannot see. A bare state abbreviation or a ZIP on the
+   next line or two says what the line above it is.
+4. **`ADDRESSY` treats any five-digit run as a ZIP, and "HELE 61176" ends in
+   one.** The store's own name was classified as an address, so it was never a
+   candidate at all and the accolade won by default. The address and garbage
+   tests now run on the cleaned name, after the store number is stripped.
+
+Costco's fingerprint gained two markers that do not depend on a word being
+spelled right: a twelve-digit membership number, and the `**** TOTAL` it prints.
+The two existing markers were both written to survive OCR damage and were both
+damaged past: `Trm:` had been read as `in:` and `rn:`, and `TOTAL NUMBER OF ITEMS
+SOLD` as `TOTAL NUMBER CF TEMS SOLD`.
+
+### Dates, from the same batch
+
+Ross was dated **2009-01-05**. The MM-DD-YY pattern had matched "1-01-5" inside
+`Tender Detail #:1-01-5-09-001360`; the receipt says `Date: 07/25/26`. A date
+bounded by another digit or separator is part of a reference number, not a date.
+
+And `8SEP2026` now parses. Safeway and Food Lion print that compact form in the
+footer, and it is often the only unambiguous date on the slip, so it is read
+before the numeric forms, which cannot tell 08/09 from 09/08.
+
+### Where the corpus stands
+
+Thirty real receipts, **zero expectation mismatches**. Thirteen carry triage
+flags, which are to-dos rather than regressions, and most are category judgment
+calls. One is the receipt photographed upside down.

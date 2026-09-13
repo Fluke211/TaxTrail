@@ -29,7 +29,27 @@ takes the value before it. Both prove themselves rather than guessing, and
 neither needs the total to be right first, so the block **corrects** the total
 too: Costco had been reading $12.99 for a $172.37 receipt.
 
-**The corpus tripled**, nine receipts to thirty, all real. Three expectations
+**The merchant name is chosen by score rather than by being first** (D-089).
+Four receipts named the wrong thing: an award banner, Tyler's own handwriting,
+"Mitco" for Costco, and "Food," for Food Lion. Every viable header line is a
+candidate now, and the strongest signal turns out to be that **a name the
+receipt prints twice is the store**: real merchants appear in the header and
+again in the footer address, while handwriting and banners appear once.
+
+Preferring longer names then made the address block competitive, and four rules
+that were almost right had to be finished: `ADDRESSY` wanted "Dr." with the
+period, the city outscored the store by the same printed-twice signal, Hele
+breaks its address across three lines so `extractCity` could not see it, and
+`ADDRESSY` treats any five-digit run as a ZIP, so "HELE 61176" was classified as
+an address and never became a candidate at all.
+
+**Two date bugs.** Ross was dated 2009 because the MM-DD-YY pattern matched
+inside `Tender Detail #:1-01-5-09-001360`; a date bounded by another digit is
+part of a reference number. And `8SEP2026` parses now, the compact form Safeway
+and Food Lion print in the footer, often the only unambiguous date on the slip.
+
+**The corpus tripled**, nine receipts to thirty, all real, and now at **zero
+expectation mismatches**. Three expectations
 record what is right rather than what was saved: the two AutoZone refunds are
 pinned negative, and Ross is pinned to the date printed on it.
 

@@ -443,11 +443,33 @@
 
   var MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
 
+  /*
+   * A date is not a date when it is part of a longer run of digits.
+   *
+   * Ross prints "Tender Detail #:1-01-5-09-001360", and the MM-DD-YY pattern
+   * found "1-01-5" inside it and dated the receipt 2009-01-05. The actual line
+   * reads "Date: 07/25/26" (D-089). Reference numbers on receipts are full of
+   * hyphenated digit groups, so a match has to be bounded by something that is
+   * not another digit or separator.
+   */
+  function embeddedInDigits(text, m) {
+    var before = text.slice(Math.max(0, m.index - 2), m.index);
+    var after = text.slice(m.index + m[0].length, m.index + m[0].length + 2);
+    return /[\d][\/\-.]$/.test(before) || /^[\/\-.][\d]/.test(after);
+  }
+
   function extractDate(text) {
     var m, y, mo, d;
+    // "8SEP2026", "9AUG2026" — the compact form Safeway and Food Lion print in
+    // their footer, and often the only unambiguous date on the slip. Read first
+    // because the numeric forms below cannot tell 08/09 from 09/08.
+    m = text.match(/\b(0?[1-9]|[12][0-9]|3[01])\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(20[0-9]{2})\b/i);
+    if (m) return isoDate(+m[3], MONTHS[m[2].toLowerCase().slice(0, 3)], +m[1]);
     // MM/DD/YYYY or MM-DD-YY etc.
-    m = text.match(/\b(0?[1-9]|1[0-2])[\/\-.](0?[1-9]|[12][0-9]|3[01])[\/\-.](20[0-9]{2}|[0-9]{2})\b/);
-    if (m) {
+    var re = /\b(0?[1-9]|1[0-2])[\/\-.](0?[1-9]|[12][0-9]|3[01])[\/\-.](20[0-9]{2}|[0-9]{2})\b/g;
+    re.lastIndex = 0;
+    while ((m = re.exec(text)) !== null) {
+      if (embeddedInDigits(text, m)) continue;
       mo = +m[1]; d = +m[2]; y = +m[3]; if (y < 100) y += 2000;
       return isoDate(y, mo, d);
     }
@@ -473,7 +495,16 @@
   // Matches "receipt"/"invoice" anywhere, plus specific multi-word headers — but NOT bare
   // "check"/"copy" alone, which could be a real store name (e.g. "Copy Center").
   var NON_MERCHANT = /\b(receipt|invoice)\b|\b(guest\s+check|tax\s+invoice|(customer|merchant)\s+copy|itemized|subtotal)\b/i;
-  var ADDRESSY = /\b(street|st\.|ave|avenue|blvd|suite|ste\.?|drive|dr\.|road|rd\.|hwy|highway|\d{5}(-\d{4})?)\b/i;
+  var ADDRESSY = /\b(street|st\.|ave|avenue|blvd|suite|ste\.?|drive|dr\.?|road|rd\.?|lane|ln\.?|pkwy|parkway|hwy|highway|\d{5}(-\d{4})?)\b/i;
+  /*
+   * A street number then words is an address, whatever it abbreviates.
+   *
+   * "515 PEPEEKEO DR" was picked as the merchant once header scoring started
+   * preferring longer names: ADDRESSY wanted "Dr." with the period and OCR does
+   * not always keep it (D-089). Only applied below the first line, so a store
+   * genuinely named after a number ("99 Ranch Market") keeps its name.
+   */
+  var STREET_NUMBER = /^\d{2,6}[A-Za-z]?\s+[A-Za-z]/;
   var TIMEY = /\b\d{1,2}[:h]\d{2}\b/;
 
   // Gibberish detector: OCR of a logo/graphic yields strings with no real words,
@@ -497,23 +528,132 @@
   // i.e. it survives every "this isn't a name" filter (garbage logo text, a price,
   // a time, a date, an address). First survivor wins; the store name prints above
   // the address/city, so earliest-valid is the right pick.
+  /*
+   * Accolades printed above the store name.
+   *
+   * A Hele gas station leads with three of them, and the first line of the
+   * receipt was filed as the merchant: "Star-advertiser Hawaii's Best 2020"
+   * (D-089). Hawaii prints these constantly and they are always ABOVE the name,
+   * so taking the first plausible line is exactly wrong here.
+   */
+  var ACCOLADE = /(best\s+of\b|\bbest\s+\d{4}\b|award|voted|\bwinner\b|^#\s*1\b|top\s+\d+\b|magazine)/i;
+
+  /*
+   * The header, scored rather than taken first-come.
+   *
+   * Returning the first plausible line is right on most receipts and wrong on
+   * every receipt that prints something above the name: an award banner, a
+   * slogan, or in one case Tyler's own handwriting ("House" on a City Mill
+   * receipt). It also loses to OCR damage, taking "FOOD," over the "Food Lion
+   * #2507" on the line below.
+   *
+   * So every viable line in the header becomes a candidate and the best one
+   * wins. The signals are ordinary but they discriminate:
+   *
+   *  - a name the receipt prints TWICE is the store. Real merchants appear in
+   *    the header and again in the footer address block; handwriting and
+   *    banners appear once. This is what rescues City Mill.
+   *  - a known brand beats an unknown string.
+   *  - more words beats fewer, so "Food Lion #2507" beats "FOOD,".
+   *  - a dangling comma is OCR damage, not a name.
+   *
+   * Ties go to the earlier line, which keeps the old behaviour wherever the
+   * scores do not separate.
+   */
   function extractMerchant(lines) {
+    var whole = lines.join('\n').toLowerCase();
+    /*
+     * The city is not the merchant.
+     *
+     * Header scoring rewards a name the receipt prints twice, and a city is
+     * printed twice on almost every receipt: once under the store name and
+     * again in the footer address. On a Hele gas station that beat the actual
+     * name, which is one short word (D-089). `extractCity` already knows how to
+     * find it, so this only has to refuse it.
+     */
+    var cityWords = {};
+    var city = extractCity(lines);
+    if (city) {
+      city.replace(/\s+[a-z]{2}$/, '').split(/\s+/).forEach(function (w) {
+        if (w.length >= 3) cityWords[w] = true;
+      });
+    }
+    var best = null;
     for (var i = 0; i < Math.min(lines.length, 8); i++) {
       var line = lines[i].trim();
       if (line.length < 3 || line.length > 42) continue;
       if (MERCHANT_SKIP.test(line)) continue;
       if (NON_MERCHANT.test(line)) continue;        // "Sale Receipt", "Tax Invoice", etc.
+      if (ACCOLADE.test(line)) continue;
       if (MONEY.test(line)) continue;               // has a price → not the name
       if (TIMEY.test(line)) continue;               // a time stamp
       if (extractDate(line)) continue;              // a date line
-      if (ADDRESSY.test(line) && i > 0) continue;
-      if (looksLikeGarbage(line)) continue;
-      var letters = (line.match(/[A-Za-z]/g) || []).length;
-      var compact = line.replace(/\s/g, '').length;
+      var cleaned = titleCase(
+        line.replace(/[*#=_~|•]+/g, ' ').replace(/\s{2,}/g, ' ').trim()
+      );
+      // "Food Lion #2507", "AutoZone 06390": the store number is not the name.
+      // Only stripped when something is left, so a merchant whose whole name is
+      // a number keeps it.
+      //
+      // Stripped BEFORE the letter-ratio test below, not after. "HELE 61176" is
+      // four letters in nine characters, which that test rejects as mostly
+      // digits, so the one line carrying the store's name was never even a
+      // candidate and the accolade above it won by default (D-089).
+      cleaned = cleaned.replace(/\s+#?\d{2,6}$/, '') || cleaned;
+
+      /*
+       * The address and garbage tests run on the CLEANED name, after the store
+       * number is gone.
+       *
+       * ADDRESSY treats any five-digit run as a ZIP code, and "HELE 61176" ends
+       * in one, so the gas station's own name was classified as an address and
+       * the accolade above it won by default. Tested against "Hele" it passes,
+       * and "515 Pepeekeo Dr" still fails as it should (D-089).
+       */
+      if ((ADDRESSY.test(cleaned) || STREET_NUMBER.test(cleaned)) && i > 0) continue;
+      if (looksLikeGarbage(cleaned)) continue;
+
+      var letters = (cleaned.match(/[A-Za-z]/g) || []).length;
+      var compact = cleaned.replace(/\s/g, '').length;
       if (!compact || letters / compact < 0.55) continue; // mostly non-letters → skip
-      return titleCase(line.replace(/[*#=_~|]+/g, ' ').replace(/\s{2,}/g, ' ').trim());
+      if (!cleaned || cleaned.length < 3) continue;
+      if (cityWords[cleaned.toLowerCase()]) continue;
+      /*
+       * An address block broken across lines. Hele prints
+       *
+       *     HONOLULU
+       *     , HI
+       *     96825
+       *
+       * so `extractCity`, which wants "City, ST 12345" on one line, finds
+       * nothing and "Honolulu" scored above the store's own name. A bare state
+       * abbreviation or a ZIP on the next line or two says what this line is.
+       */
+      var addressNext = false;
+      for (var n = 1; n <= 2 && i + n < lines.length; n++) {
+        var nx = lines[i + n];
+        if (/^[,.\s]*[A-Z]{2}\s*$/.test(nx) || /^\s*\d{5}(-\d{4})?\s*$/.test(nx)) addressNext = true;
+      }
+      if (addressNext && i > 0) continue;
+
+      var score = 0;
+      var words = cleaned.split(/\s+/).filter(Boolean);
+      score += Math.min(words.length, 3);
+      if (/[,;:]$/.test(line.trim())) score -= 2;
+      for (var b = 0; b < BRANDS.length; b++) {
+        if (cleaned.toLowerCase().indexOf(BRANDS[b].toLowerCase()) !== -1) { score += 3; break; }
+      }
+      // Printed more than once? Count the two longest words together, so a
+      // footer reading "City Mill - Hawaii Kai" still counts for "CITY MILL".
+      var key = words.filter(function (w) { return w.length >= 4; })
+        .slice(0, 2).join(' ').toLowerCase();
+      if (key.length >= 4) {
+        var seen = whole.split(key).length - 1;
+        if (seen > 1) score += 2;
+      }
+      if (!best || score > best.score) best = { name: cleaned, score: score };
     }
-    return null;
+    return best ? best.name : null;
   }
 
   function titleCase(s) {
@@ -719,6 +859,13 @@
         /\btrm\s*[:#]\s*\d/i,
         /total\s+num\S*(\s+of)?\s+items\s+sold/i,     // OCR gives "TOTAL NUMP  ITEMS SOLD"
         /^\s*instant\s+s/im,                          // "INSTANT SAVINGS", OCR'd "INSTANT Sf a"
+        // Added after a Costco receipt was filed as "Mitco" (D-089). It scored
+        // one marker: "Trm:" had been read as "in:"/"rn:", and "TOTAL NUMBER OF
+        // ITEMS SOLD" as "TOTAL NUMBER CF TEMS SOLD", so both of the markers
+        // written to survive OCR damage were damaged past them. These two
+        // survive it because neither depends on a word being spelled right.
+        /\bmember\s*#?\s*\d{9,}/i,                     // 12-digit membership number
+        /^\s*\*{2,}\s*total/im,                        // Costco prints "**** TOTAL"
       ],
     },
   ];
