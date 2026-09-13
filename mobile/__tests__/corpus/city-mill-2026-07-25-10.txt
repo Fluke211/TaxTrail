@@ -1,0 +1,27 @@
+Sale Receipt
+CITY MILL
+Jul 25, 2026 02:48 PM
+Served by Sherwin G
+Trans # 0340477644|eNp5
+1 660117 | Bleach Awesome
+960z @ $2.47/Each
+1 327755/j Dr Bttm L-Shp 36 +
+Drip Cap Wht @ $14.99/Each
+Subtotal
+Tax
+Total
+2.47T
+14.99T
+visa *0856, exp. "/
+Auth# Stripe
+17.46
+0.83
+$18.29
+$18.29
+City Mill - Hawaii Kai
+333 Keahole Street
+Honolulu, HI 96825
+Thank you for shopping with us. Please visit
+www.citymill.com/return-policy for full details.
+0340477644
+Sale Receipt

@@ -4410,3 +4410,84 @@ down what each slot says, and writing slot 2 down meant reading the rule. **A
 plan that nobody has had to implement has never been checked**, and this one had
 been repeated across three canon files, which reads as corroboration and is
 actually one claim copied twice.
+
+## D-087
+
+**Sales tax was missed on two thirds of real receipts, and it was one bug**
+(2026-09-13)
+
+Tyler scanned a pile of 24 real receipts and sent the diagnostics dump. Running
+them back through the parser:
+
+| | before | after |
+|---|---|---|
+| sales tax wrong or missing | **12 of 18** | 1 of 18 |
+| total wrong | 3 of 18 | 1 of 18 |
+
+The one that remains in both columns is a receipt photographed upside down,
+whose OCR is mirrored gibberish that contains none of the figures. That is an
+image problem, not a parser problem.
+
+His report was "sales tax is being missed pretty often". It was two thirds, and
+it was a single defect.
+
+### What it was
+
+Apple Vision reads a two-column layout by emitting **every label first and every
+value after**. Safeway arrives as
+
+```
+TAX
+**** BALANCE
+You Pay
+4.99 B
+3.49 B
+0.40      <- the tax
+8.88
+```
+
+The parser looked for a label and a number near each other, and when that failed
+it scanned ahead for the "first plausible" amount, which is an item price.
+Scanning further does not help, because every amount is plausible. The question
+was never *where* the number is. It is *which one*.
+
+### The fix, and why it is a check rather than a heuristic
+
+Two strategies, both of which prove themselves:
+
+1. **Where a subtotal label exists**, find three values in order satisfying
+   `subtotal + tax = total`. A line item does not satisfy that by accident. The
+   values need not be adjacent, because AutoZone prints three separate tax lines
+   and OCR leaves their fragments in between. The total must be the largest
+   amount in the block, which Costco taught: without it the search found a
+   `5.00-` instant saving that completed an equation, and reported 5.00 as the
+   sales tax.
+2. **Where there is no subtotal at all** (Safeway prints only TAX and BALANCE),
+   anchor on the grand total, which is known independently, and take the value
+   immediately before it. That is the row order every receipt prints.
+
+Because strategy 1 does not need the total to already be right, it **corrects**
+it. On Costco and City Mill the stored total was a line item ($2.47 for an
+$18.29 receipt) and the block handed back the real one.
+
+### Two bugs inside the fix, both found by measuring rather than reading
+
+- The column reader was called before `grandTotal` was assigned. `var` hoisting
+  made it read `undefined`, so it silently did nothing and the failure looked
+  exactly like the block not matching. The score went **up** when the call
+  moved four lines down.
+- The label run ended at the first line that did not look like a label. A masked
+  card number, `************2-30`, has no letters and no money, so AutoZone's run
+  ended twelve lines early and the value column was never reached. The run ends
+  where the values begin, and nowhere else.
+
+### The corpus tripled
+
+Nine receipts to thirty, all real, all from one session. Three of Tyler's were
+left out as capture bugs rather than parser cases: two duplicate scans of the
+same receipt, and one whose OCR contains an entire second receipt appended.
+
+Three expectations record what is **right** rather than what he saved. He stored
+the two AutoZone refunds as zero because the app refuses negatives; the receipts
+say `130.87-` and `41.88-`. And Ross is pinned to 2026-07-25, the date on the
+receipt, not the 2009-01-05 the parser produced and he did not catch.

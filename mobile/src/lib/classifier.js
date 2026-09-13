@@ -755,11 +755,169 @@
     return items;
   }
 
+  /*
+   * The totals block when OCR splits it into a column of labels and a column
+   * of values.
+   *
+   * This is the single biggest defect the real corpus has ever shown: sales tax
+   * was wrong or missing on 12 of 18 receipts from one scanning session
+   * (D-087). Apple Vision reads a two-column layout by emitting every label
+   * first and every value after, so Safeway arrives as
+   *
+   *     TAX                      Subtotal            SUBTOTAL
+   *     **** BALANCE             Tax                 TAX
+   *     You Pay                  Total               **** TOTAL
+   *     4.99 B                   34.05               164.61
+   *     3.49 B                   1.61                7.76
+   *     0.40    <- the tax       $35.66
+   *     8.88                     $35.66
+   *
+   * The old code looked for a label and a number near each other, then scanned
+   * ahead for the "first plausible" amount when that failed, which lands on an
+   * item price. Looking further ahead does not help; the amounts are all
+   * plausible. What is needed is to know WHICH one.
+   *
+   * The alignment is positional, and the arithmetic proves it: in a block of
+   * `subtotal, tax, total` labels, exactly one window of consecutive values
+   * satisfies `subtotal + tax = total`. That is not a heuristic that usually
+   * works, it is a check the right answer passes and the wrong ones do not, so
+   * this returns null rather than a guess when nothing adds up.
+   *
+   * Returns { subtotal, tax, total } or null.
+   */
+  /** The block's total, but only when the arithmetic proved it. Strategy 2
+   *  anchors ON the grand total, so handing that back would be circular. */
+  function sub2total(col) {
+    return col.subtotal != null ? col.total : null;
+  }
+
+  function columnTotals(lines, grandTotal) {
+    function valueOf(line) {
+      var m = matchMoney(line);
+      if (!m) return null;
+      var rest = line.replace(m[0], '').replace(/[^A-Za-z]/g, '');
+      return rest.length > 6 ? null : normalizeAmount(m[1]);
+    }
+    function isLabel(line) {
+      return valueOf(line) === null && /[A-Za-z]{3}/.test(line);
+    }
+    var HEADER = /^(price|you\s*pay|amount|qty|each|item)\b/i;
+    var SUB = /sub\s*-?\s*total/i;
+    var TAX = /(total\s*tax|sales\s*tax|\btax\b|\bget\b|\bgst\b|\bhst\b|\bvat\b)/i;
+    var TOT = /\btotal\b|balance/i;
+
+    for (var i = 0; i < lines.length; i++) {
+      if (!TAX.test(lines[i]) || valueOf(lines[i]) !== null) continue;
+      if (/taxable/i.test(lines[i]) || /\bfsa\b/i.test(lines[i])) continue;
+
+      // Walk the labels from the tax line, remembering whether a subtotal came
+      // just before it and whether a total follows.
+      var sub = null;
+      for (var b = i - 1; b >= 0 && b >= i - 4 && isLabel(lines[b]); b--) {
+        if (SUB.test(lines[b])) { sub = b; break; }
+      }
+      /*
+       * The label run ends where the values begin, not at the first line that
+       * fails to look like a label. A masked card number ("************2-30")
+       * has no letters and no money, so treating it as a non-label ended
+       * AutoZone's run twelve lines early and the value column was never
+       * reached at all. Anything that is not an amount is part of the run.
+       */
+      var sawTotal = false;
+      var j = i;
+      for (; j < lines.length && valueOf(lines[j]) === null; j++) {
+        if (j > i && TOT.test(lines[j]) && !SUB.test(lines[j])) sawTotal = true;
+      }
+      if (!sawTotal) continue;
+
+      // The value run. OCR drops stray lines into it (a card number, "You Pay",
+      // an auth code), so a gap does not end the run as long as more amounts
+      // follow. Scanning stops at the first gap once enough values are in hand.
+      var values = [];
+      var gap = 0;
+      for (var k = j; k < lines.length && gap < 20; k++) {
+        var v = valueOf(lines[k]);
+        if (v === null) { gap++; continue; }
+        gap = 0;
+        values.push(v);
+        if (values.length > 24) break;
+      }
+      if (values.length < 2) continue;
+
+      /*
+       * The anchor is the grand total, which is known independently and
+       * reliably. Whatever sits immediately before it in the value column is
+       * the tax, because that is the row order every receipt prints.
+       *
+       * Where a subtotal label was also found, the arithmetic has to hold as
+       * well. That is the part that makes this a check rather than a guess.
+       */
+      /*
+       * Strategy 1, when a subtotal label is present: find the three values
+       * that satisfy `subtotal + tax = total`, in that order, anywhere in the
+       * run.
+       *
+       * Order plus arithmetic is a strong enough constraint to be a proof
+       * rather than a heuristic, and it does not need the grand total to
+       * already be right. That matters: on Costco and City Mill the total
+       * itself was wrong (the parser had picked a line item), so anchoring on
+       * it would have inherited the error. This finds all three and hands the
+       * total back corrected.
+       *
+       * The values need not be adjacent. AutoZone prints three separate tax
+       * lines and OCR leaves their fragments in between.
+       */
+      if (sub !== null) {
+        // The grand total is the largest amount in the block, essentially
+        // always. Without this the search happily finds a discount line that
+        // happens to complete an equation: Costco's "5.00-" instant saving
+        // satisfied one, and 5.00 was reported as the sales tax.
+        var biggest = 0;
+        for (var z = 0; z < values.length; z++) if (values[z] > biggest) biggest = values[z];
+        for (var g = values.length - 1; g >= 2; g--) {
+          var gv = values[g];
+          if (!(gv > 0) || gv < biggest - 0.005) continue;
+          for (var t1 = g - 1; t1 >= 1; t1--) {
+            var tv = values[t1];
+            if (!(tv > 0) || tv > gv * 0.25) continue;
+            for (var s1 = t1 - 1; s1 >= 0; s1--) {
+              var sv = values[s1];
+              if (!(sv > 0)) continue;
+              if (Math.abs(sv + tv - gv) < 0.02) {
+                return { subtotal: sv, tax: tv, total: gv };
+              }
+            }
+          }
+        }
+      }
+
+      /*
+       * Strategy 2, for receipts with no subtotal line at all. Safeway prints
+       * only TAX and BALANCE, so there is nothing to add up. The anchor is the
+       * grand total, which is known independently, and whatever sits
+       * immediately before it in the value column is the tax, because that is
+       * the row order every receipt prints.
+       */
+      if (!grandTotal) continue;
+      for (var t2 = values.length - 1; t2 >= 1; t2--) {
+        if (Math.abs(values[t2] - grandTotal) >= 0.02) continue;
+        var tax2 = values[t2 - 1];
+        if (tax2 == null || tax2 <= 0 || tax2 > grandTotal * 0.25) continue;
+        return { subtotal: null, tax: tax2, total: grandTotal };
+      }
+    }
+    return null;
+  }
+
   // Tax rate: an explicitly printed percentage (e.g. "A 4.712% GET") is the most
   // reliable source — survives even when the tax-name word is misread by OCR.
   // Falls back to taxTotal/subtotal, then tax/(total-tax).
   function extractTaxInfo(lines) {
     var subtotal = null, tax = null, printedRate = null;
+    // The column block first, when it is there. It is the only source here that
+    // proves itself arithmetically, so nothing below should be allowed to
+    // overwrite it (D-087).
+
     var moneyRe = MONEY;
     for (var p = 0; p < lines.length; p++) {
       var pm = lines[p].match(/(\d{1,2}(?:[.,]\d{1,4})?)\s*%/);
@@ -778,6 +936,17 @@
       return grandTotal ? v <= grandTotal * 0.25 : true;
     }
 
+    // The column block first, when it is there. It is the only source here that
+    // proves itself, so nothing below is allowed to overwrite it (D-087). It
+    // needs `grandTotal`, which is why it sits here and not at the top: `var`
+    // hoisting made an earlier call read it as undefined and silently do
+    // nothing, which looked exactly like the block not matching.
+    var col = columnTotals(lines, grandTotal);
+    if (col) {
+      tax = col.tax;
+      if (col.subtotal != null) subtotal = col.subtotal;
+    }
+
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
       var m = matchMoney(line);
@@ -793,6 +962,7 @@
         }
       }
       if (v === null || v < 0) continue;
+      if (col) continue;   // the column block already answered, and it checked
       if (/sub\s*-?\s*total|subtotal/i.test(line) && subtotal === null) subtotal = v;
       else if (/(total\s*tax|sales\s*tax|\btax\b|\bget\b|\bgst\b|\bhst\b|\bvat\b)/i.test(line) &&
                !/taxable/i.test(line) && !/\bfsa\b/i.test(line)) {   // FSA N/TAX AMT is not sales tax
@@ -828,7 +998,8 @@
       var grand = extractTotal(lines);
       if (grand && grand > tax * 2 && tax / (grand - tax) < 0.25) rate = tax / (grand - tax);
     }
-    return { subtotal: subtotal, tax: tax, rate: rate, printedRate: printedRate };
+    return { subtotal: subtotal, tax: tax, rate: rate, printedRate: printedRate,
+             columnTotal: col && sub2total(col) };
   }
 
   // City from the receipt's address block (line with a ZIP code, or "City ST" pattern).
@@ -1001,6 +1172,15 @@
     var category = classify(text, merchant);
     var items = extractLineItems(lines);
     var taxInfo = extractTaxInfo(lines);
+    /*
+     * A column block that proved itself arithmetically also knows the total,
+     * and it is worth more than the scan that produced `total`. On City Mill
+     * and Costco the scan had picked a line item ($2.47 for an $18.29 receipt),
+     * because in a column layout the first amount after the labels IS an item
+     * price. `subtotal + tax = total` is not something a line item satisfies by
+     * accident (D-087).
+     */
+    if (taxInfo.columnTotal != null) total = taxInfo.columnTotal;
     total = repairColumnTotal(lines, total, taxInfo.subtotal, taxInfo.tax);
     return {
       items: items,

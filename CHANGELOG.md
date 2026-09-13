@@ -11,6 +11,28 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r35 — v1.0.0 (build 7) — 2026-09-13
+
+**Sales tax was missed on two thirds of real receipts, and it was one bug**
+(D-087). Tyler scanned 24 real receipts and sent the diagnostics. Run back
+through the parser, sales tax was wrong or missing on **12 of 18**, and the
+total on 3. After this: 1 and 1, and that one receipt was photographed upside
+down so its OCR contains none of the figures.
+
+Apple Vision reads a two-column layout by emitting every label first and every
+value after, so the amount beside a TAX label is an item price. The parser
+scanned ahead for the first plausible number, which is exactly the wrong answer,
+because every amount is plausible. It now finds the three values satisfying
+`subtotal + tax = total`, which a line item does not satisfy by accident, and
+where a receipt prints no subtotal at all it anchors on the grand total and
+takes the value before it. Both prove themselves rather than guessing, and
+neither needs the total to be right first, so the block **corrects** the total
+too: Costco had been reading $12.99 for a $172.37 receipt.
+
+**The corpus tripled**, nine receipts to thirty, all real. Three expectations
+record what is right rather than what was saved: the two AutoZone refunds are
+pinned negative, and Ross is pinned to the date printed on it.
+
 ### build 7 — v1.0.0 — 2026-09-06 · built and submitted to TestFlight the same day
 
 **Native build. The last thing blocking App Store submission on its own.**
