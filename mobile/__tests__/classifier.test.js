@@ -1231,5 +1231,51 @@ check('memory: "Unknown merchant" is never learned',
 check('memory: one store does not answer for another',
   MM.lookup(MM.learn([], HELE_OCR, 'Hele'), OTHER_OCR) === null);
 
+/* ---------------------------------------------------------------------------
+ * D-093: two defects found by rescanning receipts already in the corpus
+ *
+ * A rescan is a different OCR of the same physical slip, so it is independent
+ * evidence. Both of these were invisible until Tyler scanned the same receipts
+ * a second time and the app disagreed with itself.
+ * ------------------------------------------------------------------------- */
+const totalOf = (txt) => C.parseReceipt(txt).total;
+const merchantOf = (txt) => C.parseReceipt(txt).merchant;
+
+// A savings-block "Total" is not the grand total. Safeway prints the coupon
+// savings under YOUR SAVINGS in the same column shape as a real total, and a
+// bare "total" is the strongest hint tier, so $0.50 of savings outranked the
+// $48.42 actually charged.
+check('savings-block Total does not win',
+  totalOf(['SAFEWAY', 'TAX', '**** BALANCE', '2.18', '48.42',
+           'YOUR SAVINGS', 'Member Savings', 'Total', '0.50', '0.50',
+           'PAYMENT AMOUNT', '48.42'].join('\n')) === 48.42,
+  String(totalOf(['SAFEWAY', 'TAX', '**** BALANCE', '2.18', '48.42',
+           'YOUR SAVINGS', 'Member Savings', 'Total', '0.50', '0.50',
+           'PAYMENT AMOUNT', '48.42'].join('\n'))));
+
+// The veto must NOT reach an ordinary receipt that happens to print its savings
+// on the line above the total. A probe caught this: the first version of the
+// rule threw the real total away here and fell back to the subtotal.
+check('savings directly above an INLINE total is untouched',
+  totalOf(['KROGER', 'SUBTOTAL 50.00', 'MEMBER SAVINGS 5.00', 'TOTAL 47.00'].join('\n')) === 47.00);
+
+check('savings two lines above the total is untouched',
+  totalOf(['SAFEWAY', 'SUBTOTAL 50.00', 'YOUR SAVINGS 5.00', 'TAX 2.00', 'TOTAL 47.00'].join('\n')) === 47.00);
+
+// An award banner dated by OCR as "2920" rather than 2020. The year gate used
+// to require (19|20), so the banner became the merchant name.
+const HELE_BANNER = ['STAR-A)VERTISER HAWAII\'S BEST 2920', 'KITV BEST OF HAMAII 2020',
+  'HONOLULU MAGAZINE BEST OF 2028', 'HELE 61176', '515 PEPEEKEO DR',
+  'HONOLULU', ', HI', '96825', 'FUEL TOTAL', '$', '28.68'].join('\n');
+check('an award banner with a mis-scanned year is skipped',
+  merchantOf(HELE_BANNER) === 'Hele', JSON.stringify(merchantOf(HELE_BANNER)));
+
+// The widened accolade must not reject real names containing "Best".
+[['BEST BUY 1234', 'Best Buy'], ['NATURES BEST', 'Natures Best'],
+ ['BEST WESTERN 2044', 'Best Western'], ['BEST BUY MOBILE 0421', 'Best Buy Mobile']].forEach(([header, want]) => {
+  const got = merchantOf([header, '123 MAIN STREET', 'AUSTIN', ', TX', '78701', 'TOTAL 10.80'].join('\n'));
+  check(`"${want}" survives the accolade filter`, (got || '').toLowerCase().includes(want.toLowerCase()), JSON.stringify(got));
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

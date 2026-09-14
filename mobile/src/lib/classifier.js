@@ -338,6 +338,45 @@
     return /^-/.test(after);
   }
 
+  /*
+   * A "Total" inside a savings or rewards block is not the grand total.
+   *
+   * Safeway prints, near the footer:
+   *     YOUR SAVINGS
+   *     Member Savings
+   *     Total
+   *     0.50
+   *     0.50
+   * A bare "total" is the STRONGEST hint tier there is, and candidates sort by
+   * tier before value, so $0.50 of coupon savings outranked the $48.42 actually
+   * charged on the line labelled PAYMENT AMOUNT. NOT_TOTAL already lists
+   * "savings", but it is tested against the label line alone and the word sits
+   * on the line ABOVE (D-093).
+   *
+   * Two things deliberately narrow it, and a probe caught the need for the
+   * second one.
+   *
+   * Only the IMMEDIATELY preceding line, so the ordinary layout where savings
+   * sit two rows above the real total is untouched:
+   *     SUBTOTAL      50.00
+   *     YOUR SAVINGS   5.00
+   *     TAX            2.00
+   *     TOTAL         47.00
+   *
+   * And only when the label carries NO amount of its own. That is what makes it
+   * a column-layout label, whose value is on a later line. Without this second
+   * gate a perfectly ordinary receipt lost its total outright:
+   *     MEMBER SAVINGS  5.00
+   *     TOTAL          47.00
+   * read 50.00, because the veto threw the real total away and the fallback
+   * found the subtotal. An inline "TOTAL 47.00" states its own amount and is
+   * never the savings figure printed above it.
+   */
+  function savingsLabelAbove(lines, i, hasOwnAmount) {
+    if (hasOwnAmount) return false;
+    return i > 0 && /\bsavings\b/i.test(lines[i - 1] || '');
+  }
+
   function extractTotal(lines) {
     var candidates = [];
     var credits = [];
@@ -345,7 +384,7 @@
       var line = lines[i];
       var m = matchMoney(line);
       for (var h = 0; h < TOTAL_HINTS.length; h++) {
-        if (TOTAL_HINTS[h].test(line) && !NOT_TOTAL.test(line)) {
+        if (TOTAL_HINTS[h].test(line) && !NOT_TOTAL.test(line) && !savingsLabelAbove(lines, i, !!m)) {
           // amount may be on this line or the next
           var amtLine = m ? line : (lines[i + 1] || '');
           var m2 = matchMoney(amtLine);
@@ -562,7 +601,13 @@
    * (D-089). Hawaii prints these constantly and they are always ABOVE the name,
    * so taking the first plausible line is exactly wrong here.
    */
-  var ACCOLADE = /(best\s+of\b|\bbest\s+(19|20)\d{2}\b|\bvoted\b|\bwinner\b|^#\s*1\b|\btop\s+\d+\b|\b(award|magazine)\w*\b[^\n]*\b(19|20)\d{2}\b)/i;
+  // `best\s+\d{4}` rather than a (19|20) year: OCR read "HAWAII'S BEST 2020" as
+  // "HAWAII'S BEST 2920", so the year gate let a newspaper award banner through
+  // and it beat the actual store name (D-093). Four digits straight after the
+  // word "best" is an award year however badly it scanned. It cannot catch a
+  // real name: "Best Buy 1234" puts a word between them, and no US retailer is
+  // called "Best" followed by a bare number.
+  var ACCOLADE = /(best\s+of\b|\bbest\s+\d{4}\b|\bvoted\b|\bwinner\b|^#\s*1\b|\btop\s+\d+\b|\b(award|magazine)\w*\b[^\n]*\b(19|20)\d{2}\b)/i;
 
   /*
    * The header, scored rather than taken first-come.
