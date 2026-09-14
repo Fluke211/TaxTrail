@@ -4726,3 +4726,83 @@ What the app CAN do is stop silently fusing two receipts into one, which is the
 real damage: one of Tyler's receipts has an entire second receipt's text
 appended to it. That needs a question when more than one page comes back, and it
 is a separate change rather than a guess bolted on here.
+
+---
+
+## D-092
+
+**A wrong remembered name is now escapable, and a correction actually replaces**
+(2026-09-14)
+
+D-091 stopped the app learning names the user never typed. It left the gap it
+named: **names already learned could not be unlearned**, so Tyler's gas station
+stays wrong on every future scan no matter how good the parser gets.
+
+Two things were wrong, not one.
+
+**There was no way to forget.** Added `memForget`, and an escape hatch on the
+merchant field that appears only when a name came from memory: *"Not this store?
+Use the scanned name ..."*. It drops the stored entry and falls back to what the
+receipt actually prints. It also moves `offeredMerchant` with it, so accepting
+the parser's name is still not treated as a correction.
+
+**And a correction did not replace.** `memLearn` removed only entries sharing
+the NEW name, so correcting "Mitco" to "Costco" left both stored against the
+same fingerprint, and the wrong one could still win on score. That is the same
+class of bug as D-091 and it was sitting next to it: the fix for one made the
+other reachable.
+
+The rules moved into `src/lib/merchantMemory.js` — plain JS, no storage — so the
+test harness can reach them. `memory.ts` is now only the AsyncStorage wrapper.
+Eleven tests cover it, and the replacement test fails against the old code,
+which is the point of writing it.
+
+### Multi-page capture: ask instead of guessing
+
+Tyler asked for capture to default to one receipt. It cannot:
+`maxNumDocuments` is **Android only** in
+`react-native-document-scanner-plugin@2.0.4`, read in its own type definitions,
+and the iOS side is Apple's `VNDocumentCameraViewController`, which is
+multi-page by design and reopens the camera after every page.
+
+The annoyance is not the damage. The damage is that two different receipts get
+concatenated into one block of text and parsed as a single purchase, silently —
+one of Tyler's 24 receipts carries an entire second receipt inside it and
+nothing said so. So when more than one page comes back the app asks: one
+receipt, or keep the first page only.
+
+### Refunds can be entered by hand
+
+The parser reads a credit (D-088) but the total field is a `decimal-pad`, which
+on iOS has **no minus key**, so a refund could never be typed or corrected. Both
+of Tyler's AutoZone returns were stored as zero, dropping $172.75 of returned
+money out of his books.
+
+A named "Refund" checkbox rather than a bare ±, on both the capture form and the
+receipt editor. The sign is not the point: a refund is a thing the receipt IS,
+and naming it that way also carries the **sales tax** back out with the total,
+which a minus on one field would not. `Pending` holds unsigned magnitudes and a
+flag, so the sign survives editing on a keypad that cannot type it.
+
+Saving a refund also offers to link it to the original purchase: same merchant,
+on or before that date, large enough to cover it. Written into the notes on both
+rows rather than a new column — the link is for the human reading the CPA
+export, and a schema change would have to migrate every stored receipt to gain
+nothing they would see.
+
+Also fixed while in there: `salesTax > 0` silently dropped a refund's sales tax,
+so a return recorded the money but not the tax.
+
+### Two layout bugs Tyler reported
+
+The keyboard covered the notes field with no way to scroll to it. The screen
+used `KeyboardAvoidingView behavior="padding"` **around** a ScrollView, which
+pads the container while the content scrolls under the keyboard regardless. It
+now uses the ScrollView's own `automaticallyAdjustKeyboardInsets`, plus a
+measured scroll on focus, because iOS scrolls only far enough to show the caret
+and notes is the last field on a long form.
+
+And the TOTAL and SALES TAX boxes sat at different heights, because
+"SALES TAX ($)" wraps to two lines in a third of the screen and the row's
+default `stretch` pushed its input down a line. Bottom-aligning the row keeps
+the three inputs level whatever the labels do. Both screens had it.

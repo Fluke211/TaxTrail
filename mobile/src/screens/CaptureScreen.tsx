@@ -2,7 +2,7 @@
 // at the top (scan controls hidden until Save or Discard — same UX as PWA v5.5).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable,
+  ActivityIndicator, Alert, Image, Platform, Pressable,
   ScrollView, Text, TextInput, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,9 +12,9 @@ import * as Clipboard from 'expo-clipboard';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { styled, useTheme } from '../lib/theme';
-import { addReceipt, countAll, countThisMonth, type Allocation, type Receipt } from '../lib/db';
+import { addReceipt, updateReceipt, countAll, countThisMonth, type Allocation, type Receipt } from '../lib/db';
 import { processReceiptPages } from '../lib/ocr';
-import { memLookup, memLearn, taxMemLookup, taxMemLearn } from '../lib/memory';
+import { memLookup, memLearn, memForget, taxMemLookup, taxMemLearn } from '../lib/memory';
 import { isPro, presentPaywall } from '../lib/purchases';
 import { FREE_SCANS_PER_MONTH, ASK_REVIEW_AFTER_SCANS } from '../lib/config';
 const G = require('../lib/gates.js');
@@ -33,6 +33,41 @@ const CATEGORY_NAMES: string[] = (C.CATEGORIES as { name: string }[]).map((c) =>
 /* Rows in the capture screen's Recent list. Short on purpose: this screen is
  * for scanning, and the Receipts tab is where a list belongs. */
 const RECENT_ROWS = 3;
+
+/*
+ * Ask what a multi-page scan actually is.
+ *
+ * Apple's document scanner reopens the camera after every page and there is no
+ * way to stop it: `maxNumDocuments` is Android only in
+ * react-native-document-scanner-plugin@2.0.4 (checked in its own type
+ * definitions, not assumed), and the iOS side is VNDocumentCameraViewController,
+ * which is multi-page by design. Tyler asked for a one-page default and it
+ * cannot be configured.
+ *
+ * What can be fixed is the damage, which is worse than the annoyance: two
+ * different receipts get concatenated into one block of text and parsed as a
+ * single purchase, silently. One of the 24 receipts he sent has an entire
+ * second receipt inside it and nothing said so. So ask.
+ */
+/* "-$130.87", never "$-130.87". A minus inside the amount reads as a typo. */
+function money(v: number): string {
+  return `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`;
+}
+
+function askPages(n: number): Promise<'all' | 'first' | null> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      `Scanned ${n} pages`,
+      'Is this one receipt, or did the camera keep going?',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) },
+        { text: 'Keep the first page only', onPress: () => resolve('first') },
+        { text: `One receipt, ${n} pages`, onPress: () => resolve('all') },
+      ],
+      { cancelable: false },
+    );
+  });
+}
 
 interface Pending {
   imagePath: string;
@@ -58,6 +93,16 @@ interface Pending {
    * memory wins over the parser by design.
    */
   offeredMerchant: string;
+  /* What the parser read, kept even when merchant memory overrode it. It is
+   * what "use the scanned name instead" offers, and without it there is no way
+   * back from a wrong remembered name. */
+  parsedMerchant: string;
+  /* `total` and `salesTax` are held as unsigned magnitudes and this carries the
+   * sign, rather than a minus living in the text. The field is a decimal-pad,
+   * which on iOS has no minus key, so a minus typed into the string could never
+   * be put back once edited away. A flag also carries the sales tax back out
+   * with the total, which a sign on one field would not. */
+  refund: boolean;
   city: string | null;
   // What the classifier said, frozen before the merchant-memory override and
   // before the user touches anything. Saved with the receipt so a correction
@@ -87,6 +132,21 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
   const [splitTax, setSplitTax] = useState(true);
   const [showSplits, setShowSplits] = useState(false);
   const [showSplitCats, setShowSplitCats] = useState(false);
+
+  /* Notes sits at the bottom of a long form, so the keyboard covers it unless
+   * the page is scrolled to it. Both offsets are needed: onLayout reports a
+   * position relative to the parent, and the notes field's parent is the review
+   * card, which itself sits below the pinned photo. */
+  const scrollRef = useRef<ScrollView>(null);
+  const reviewY = useRef(0);
+  const notesY = useRef(0);
+  const revealNotes = useCallback(() => {
+    // After the keyboard's own inset animation, or the scroll is computed
+    // against the pre-keyboard content size and lands short.
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, reviewY.current + notesY.current - 24), animated: true });
+    }, 180);
+  }, []);
 
   // Scans used this calendar month, for the free-tier meter. Recomputed
   // whenever the receipt list changes, which is what a save does.
@@ -159,6 +219,13 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
         // Empty means the user backed out of the scanner.
         if (!scannedImages?.length) return;
         uris = scannedImages;
+        // More than one page is ambiguous, and guessing wrong fuses two
+        // receipts into one. See askPages.
+        if (uris.length > 1) {
+          const choice = await askPages(uris.length);
+          if (!choice) return;
+          if (choice === 'first') uris = [uris[0]];
+        }
       } catch (e) {
         // Never let a scanner problem block capture — fall back to a plain photo.
         console.warn('document scanner unavailable, falling back to camera', e);
@@ -187,16 +254,23 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
       else if (parsed.taxRate) { taxRate = parsed.taxRate; rateSource = 'derived from receipt'; }
       else if (mem) { taxRate = mem.rate; rateSource = 'last used'; }
 
+      // A refund parses negative (D-088). The fields hold magnitudes and the
+      // flag holds the sign, so the minus survives editing on a keypad that
+      // has no minus key.
+      const refund = (parsed.total != null && parsed.total < 0)
+        || (parsed.taxTotal != null && parsed.taxTotal < 0);
       setPending({
         imagePath, thumbPath, ocrText: text,
         merchant,
         date: parsed.date || new Date().toISOString().slice(0, 10),
-        total: parsed.total != null ? parsed.total.toFixed(2) : '',
-        salesTax: parsed.taxTotal && parsed.taxTotal > 0 ? parsed.taxTotal.toFixed(2) : '',
+        total: parsed.total != null ? Math.abs(parsed.total).toFixed(2) : '',
+        salesTax: parsed.taxTotal ? Math.abs(parsed.taxTotal).toFixed(2) : '',
         taxRate, rateSource,
         category, confidence: parsed.confidence,
         merchantRemembered: !!remembered,
         offeredMerchant: merchant,
+        parsedMerchant: parsed.merchant || '',
+        refund,
         city: parsed.city,
         // `parsed`, not the values above: the merchant-memory override and the
         // tax-rate fallbacks are the app being helpful, and folding them in
@@ -240,6 +314,45 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
   const discard = useCallback(() => { setPending(null); dupOkRef.current = false; }, []);
 
   /*
+   * Drop a remembered name and fall back to what the receipt actually says.
+   *
+   * Merchant memory beats the parser by design, so before this there was no way
+   * out of a wrong name: the store was wrong on every future scan and no parser
+   * improvement could reach it (D-091). Tyler's gas station reads correctly now
+   * and was never getting asked.
+   */
+  const forgetRemembered = useCallback(async () => {
+    if (!pending) return;
+    const dropped = await memForget(pending.ocrText);
+    const next = pending.parsedMerchant;
+    // offeredMerchant moves with it: accepting the parser's name is still not a
+    // correction, so leaving it alone must not re-learn it.
+    setPending({ ...pending, merchant: next, offeredMerchant: next, merchantRemembered: false });
+    Alert.alert(
+      dropped ? `Forgot “${dropped}”` : 'Nothing was remembered',
+      next
+        ? `Reading the receipt instead: “${next}”. Change it if that is wrong and the new name is what gets remembered.`
+        : 'This receipt does not print a name the app can read. Type the right one and it will be remembered.',
+    );
+  }, [pending]);
+
+  /*
+   * Refunds.
+   *
+   * The parser reads a credit (D-088) but the total field is a decimal-pad,
+   * which on iOS has no minus key, so a refund could never be typed or
+   * corrected by hand. Tyler had two AutoZone returns and stored both as zero,
+   * dropping $172.75 of returned money out of his books.
+   *
+   * A named checkbox rather than a bare "±", because the sign is not the point:
+   * this is a thing the receipt IS, and saying so also carries the sales tax
+   * back out, which a minus on one field would not.
+   */
+  const toggleRefund = useCallback(() => {
+    setPending((p) => (p ? { ...p, refund: !p.refund } : p));
+  }, []);
+
+  /*
    * Was this receipt already scanned?
    *
    * Tyler asked for this and his own data proves the need: of 24 receipts in
@@ -260,17 +373,56 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
       && (r.merchant || '').trim().toLowerCase() === merchant.trim().toLowerCase());
   }, [receipts]);
 
+  /*
+   * The purchase a refund most likely cancels: same merchant, on or before the
+   * refund's date, big enough to cover it, most recent first. Deliberately
+   * loose on amount — a partial return is the common case, and returning one
+   * item from a five-item receipt is still that receipt's refund.
+   */
+  const originalPurchaseFor = useCallback((merchant: string, date: string, total: number) => {
+    const owed = Math.abs(total);
+    const name = merchant.trim().toLowerCase();
+    return receipts
+      .filter((r) => (r.merchant || '').trim().toLowerCase() === name
+        && r.total > 0
+        && Math.round(r.total * 100) >= Math.round(owed * 100) - 1
+        && r.date <= date)
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))[0];
+  }, [receipts]);
+
+  /* Written into the note on both rows rather than a new column: the link is
+   * for the human reading the CPA export, and a schema change would have to
+   * migrate every receipt already stored to gain nothing they would see. */
+  const linkRefund = useCallback(async (refundRow: Receipt, origin: Receipt) => {
+    const join = (existing: string | undefined, add: string) =>
+      (existing && existing.trim() ? existing.trim() + ' · ' : '') + add;
+    try {
+      await updateReceipt({
+        ...refundRow,
+        notes: join(refundRow.notes, `Refund against ${origin.merchant} ${origin.date} ${money(origin.total)}`),
+      });
+      await updateReceipt({
+        ...origin,
+        notes: join(origin.notes, `Refunded ${refundRow.date} ${money(Math.abs(refundRow.total))}`),
+      });
+      onSaved();
+    } catch (e) {
+      console.warn('could not link refund', e);
+    }
+  }, [onSaved]);
+
   const save = useCallback(async () => {
     if (!pending) return;
-    const total = parseFloat(pending.total) || 0;
-    const salesTax = parseFloat(pending.salesTax);
+    const sign = pending.refund ? -1 : 1;
+    const total = (parseFloat(pending.total) || 0) * sign;
+    const salesTax = Math.abs(parseFloat(pending.salesTax)) * sign;
     const merchant = pending.merchant.trim() || 'Unknown merchant';
 
     const dup = duplicateOf(merchant, pending.date, total);
     if (dup && !dupOkRef.current) {
       Alert.alert(
         'Already scanned?',
-        `${merchant} on ${pending.date} for $${total.toFixed(2)} is already saved. Save it again anyway?`,
+        `${merchant} on ${pending.date} for ${money(total)} is already saved. Save it again anyway?`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -294,7 +446,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
         ? [{ category: pending.category, scheduleC: SC_BY_NAME[pending.category] || '', amount: remainder }, ...allocs]
         : [...allocs])
       : [];
-    const id = await addReceipt({
+    const row: Receipt = {
       createdAt: new Date().toISOString(),
       merchant,
       date: pending.date,
@@ -302,7 +454,9 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
       category: pending.category,
       scheduleC: SC_BY_NAME[pending.category] || '',
       notes: notes.trim(),
-      salesTax: salesTax > 0 ? Math.round(salesTax * 100) / 100 : null,
+      // Not `> 0`: a refund's sales tax comes back out too, and the old test
+      // silently dropped it, so a return recorded the money but not the tax.
+      salesTax: Number.isFinite(salesTax) && salesTax !== 0 ? Math.round(salesTax * 100) / 100 : null,
       taxRate: pending.taxRate,
       allocations: fullAllocs,
       confidence: pending.confidence,
@@ -310,7 +464,8 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
       imagePath: pending.imagePath,
       thumbPath: pending.thumbPath,
       parsedSnapshot: pending.parsedSnapshot,
-    });
+    };
+    const id = await addReceipt(row);
     /*
      * Learn the name ONLY when the user changed it.
      *
@@ -330,7 +485,34 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
     await taxMemLearn(pending.city, pending.taxRate);
     setPending(null);
     onSaved();
-    Alert.alert('Saved ✓', learned ? `I'll remember this store as "${merchant}"` : `${merchant} · $${total.toFixed(2)}`);
+    /*
+     * A refund belongs to a purchase, and pairing them is the difference
+     * between books that balance and two rows a CPA has to reconcile by hand.
+     * Offered rather than automatic, and written into the note rather than a
+     * new column: the link is for a human reading the export, and a schema
+     * change here would have to migrate every existing receipt.
+     */
+    const origin = total < 0 ? originalPurchaseFor(merchant, row.date, total) : undefined;
+    if (origin) {
+      Alert.alert(
+        'Refund saved ✓',
+        `Is this a return against ${origin.merchant} on ${origin.date} for ${money(origin.total)}?`,
+        [
+          { text: 'Not related', style: 'cancel' },
+          {
+            text: 'Yes, link them',
+            onPress: () => { void linkRefund({ ...row, id }, origin); },
+          },
+        ],
+      );
+    } else {
+      Alert.alert(
+        total < 0 ? 'Refund saved ✓' : 'Saved ✓',
+        learned
+          ? `I'll remember this store as "${merchant}"`
+          : `${merchant} · ${money(total)}`,
+      );
+    }
     // Ratings flywheel: ask once, ever, after the Nth successful scan. Keyed on
     // the LIFETIME count with a persisted flag — the old `countThisMonth() === 3`
     // re-fired every month and could be skipped entirely (see gates.js).
@@ -347,14 +529,14 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
         StoreReview.requestReview();
       }
     } catch {}
-    // id used only to keep TS satisfied about the awaited insert
-    void id;
-  }, [pending, notes, allocs, onSaved, duplicateOf]);
+  }, [pending, notes, allocs, onSaved, duplicateOf, originalPurchaseFor, linkRefund]);
 
   // Declared here rather than just above the render, because addSplit needs the
   // receipt total to cap a split against it.
   const allocated = allocs.reduce((s, a) => s + a.amount, 0);
-  const totalNum = pending ? parseFloat(pending.total) || 0 : 0;
+  // Signed, so the `totalNum <= 0` guard in addSplit keeps refunds unsplittable:
+  // prorating a credit across categories is a question nobody has asked for yet.
+  const totalNum = pending ? (parseFloat(pending.total) || 0) * (pending.refund ? -1 : 1) : 0;
 
   const addSplit = useCallback(() => {
     if (!pending) return;
@@ -413,8 +595,24 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
   }, [pending, splitAmt, splitTax]);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <ScrollView style={s.wrap} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      ref={scrollRef}
+      style={s.wrap}
+      contentContainerStyle={{ paddingBottom: 120 }}
+      keyboardShouldPersistTaps="handled"
+      /*
+       * Replaces a KeyboardAvoidingView with behavior="padding", which does not
+       * work around a ScrollView: it pads the scroll container, and the content
+       * inside just scrolls under the keyboard anyway. Tyler could not see the
+       * notes field at all while typing in it.
+       *
+       * This is UIScrollView's own keyboard inset, so the content above the
+       * keyboard is genuinely reachable. `revealNotes` then scrolls to it,
+       * because iOS only auto-scrolls far enough to show the caret and the
+       * notes field is the last thing on a long form.
+       */
+      automaticallyAdjustKeyboardInsets
+    >
       {!pending && !busy && (
         <>
           {/* Concept A: the rectangle IS the button. There is no second
@@ -513,7 +711,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
         <>
           {/* Snapped photo stays pinned at top until Save or Discard */}
           {pinnedUri && <ZoomableImage uri={pinnedUri} style={s.pinned} />}
-          <View style={s.review}>
+          <View style={s.review} onLayout={(e) => { reviewY.current = e.nativeEvent.layout.y; }}>
             <Text style={s.h3}>Check the details</Text>
             <Text style={[s.conf, pending.merchantRemembered && { color: T.good }]}>
               {pending.merchantRemembered
@@ -526,6 +724,18 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
             <Text style={s.label}>MERCHANT</Text>
             <TextInput style={s.input} value={pending.merchant}
               onChangeText={(v) => setPending({ ...pending, merchant: v })} placeholder="Merchant name" placeholderTextColor={T.muted2} />
+            {/* The way out of a wrong remembered name. Memory beats the parser
+                by design, so without this a store named wrongly once stays
+                wrong forever, however much the parser improves (D-091). */}
+            {pending.merchantRemembered && (
+              <Pressable onPress={forgetRemembered} hitSlop={8}>
+                <Text style={s.fixLink} numberOfLines={2}>
+                  {pending.parsedMerchant && pending.parsedMerchant !== pending.merchant
+                    ? `Not this store? Use the scanned name “${pending.parsedMerchant}”`
+                    : 'Not this store? Forget this name'}
+                </Text>
+              </Pressable>
+            )}
 
             <View style={s.row3}>
               <View style={{ flex: 1.2 }}>
@@ -534,7 +744,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
                   onChangeText={(v) => setPending({ ...pending, date: v })} placeholder="YYYY-MM-DD" placeholderTextColor={T.muted2} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.label}>TOTAL ($)</Text>
+                <Text style={s.label}>{pending.refund ? 'REFUND ($)' : 'TOTAL ($)'}</Text>
                 <TextInput style={s.input} value={pending.total} keyboardType="decimal-pad"
                   onChangeText={(v) => setPending({ ...pending, total: v })} placeholder="0.00" placeholderTextColor={T.muted2} />
               </View>
@@ -544,7 +754,17 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
                   onChangeText={(v) => setPending({ ...pending, salesTax: v })} placeholder="0.00" placeholderTextColor={T.muted2} />
               </View>
             </View>
-            <Text style={s.hint}>Tax rate: {pending.taxRate ? `${(pending.taxRate * 100).toFixed(3).replace(/\.?0+$/, '')}%` : 'unknown'} ({pending.rateSource})</Text>
+            <View style={s.hintRow}>
+              <Text style={[s.hint, { flex: 1 }]} numberOfLines={2}>
+                Tax rate: {pending.taxRate ? `${(pending.taxRate * 100).toFixed(3).replace(/\.?0+$/, '')}%` : 'unknown'} ({pending.rateSource})
+              </Text>
+              {/* The only way to enter a credit: decimal-pad has no minus key. */}
+              <Pressable onPress={toggleRefund} hitSlop={10} style={s.refundToggle}>
+                <Text style={[s.refundLabel, pending.refund && { color: T.danger, fontWeight: '700' }]}>
+                  {pending.refund ? '☑' : '☐'} Refund
+                </Text>
+              </Pressable>
+            </View>
 
             <Text style={s.label}>MAIN TAX CATEGORY</Text>
             <Pressable style={s.input} onPress={() => setShowCats(!showCats)}>
@@ -612,9 +832,12 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
               </View>
             )}
 
-            <Text style={s.label}>NOTES</Text>
-            <TextInput style={[s.input, { minHeight: 60 }]} value={notes} onChangeText={setNotes} multiline
-              placeholder="e.g. Materials for the Nakamura job" placeholderTextColor={T.muted2} />
+            <View onLayout={(e) => { notesY.current = e.nativeEvent.layout.y; }}>
+              <Text style={s.label}>NOTES</Text>
+              <TextInput style={[s.input, { minHeight: 60 }]} value={notes} onChangeText={setNotes} multiline
+                onFocus={revealNotes}
+                placeholder="e.g. Materials for the Nakamura job" placeholderTextColor={T.muted2} />
+            </View>
 
             <Pressable onPress={() => setShowRaw(!showRaw)}>
               <Text style={[s.label, { color: T.accent, marginTop: 12 }]}>{showRaw ? 'HIDE RAW TEXT ▴' : 'SHOW RAW SCANNED TEXT ▾'}</Text>
@@ -641,7 +864,6 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
         </>
       )}
     </ScrollView>
-    </KeyboardAvoidingView>
   );
 }
 
@@ -732,8 +954,15 @@ const makeStyles = styled((T) => ({
     backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
     color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: T.fs.body,
   },
-  row3: { flexDirection: 'row', gap: 8 },
+  /* flex-end, because "SALES TAX ($)" wraps to two lines in a third of the
+     screen and stretch then pushed its box a line below the other two. Bottom
+     alignment keeps the three inputs on one line whatever the labels do. */
+  row3: { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
   hint: { color: T.muted2, fontSize: T.fs.sm, marginTop: 6 },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  refundToggle: { paddingVertical: 4, marginTop: 6 },
+  refundLabel: { color: T.muted2, fontSize: T.fs.sm, fontWeight: '600' },
+  fixLink: { color: T.accent, fontSize: T.fs.sm, marginTop: 6, fontWeight: '600' },
   splitBox: { backgroundColor: T.bg2, borderRadius: 10, padding: 10, gap: 8, borderColor: T.line, borderWidth: 1 },
   allocRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   taxToggle: { paddingHorizontal: 10, paddingVertical: 10 },

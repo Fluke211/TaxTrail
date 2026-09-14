@@ -114,7 +114,10 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
             <Text style={s.label}>MERCHANT</Text>
             <TextInput style={s.input} value={selected.merchant}
               onChangeText={(v) => setSelected({ ...selected, merchant: v })} />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            {/* alignItems, because "SALES TAX ($)" wraps to two lines in a
+                third of the screen and the default stretch then dropped its
+                box a line below the other two. */}
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
               <View style={{ flex: 1.2 }}>
                 <Text style={s.label}>DATE</Text>
                 <TextInput style={s.input} value={selected.date}
@@ -131,6 +134,23 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
                   onChangeValue={(v) => setSelected({ ...selected, salesTax: v })} />
               </View>
             </View>
+            {/* The only way to turn a receipt into a credit by hand: the money
+                fields are decimal-pads and iOS gives them no minus key. Flips
+                the sales tax with the total, because a return takes the tax
+                back out too. */}
+            <Pressable
+              hitSlop={10}
+              style={s.refundToggle}
+              onPress={() => setSelected({
+                ...selected,
+                total: -selected.total,
+                salesTax: selected.salesTax == null ? null : -selected.salesTax,
+              })}
+            >
+              <Text style={[s.refundLabel, selected.total < 0 && { color: T.danger, fontWeight: '700' }]}>
+                {selected.total < 0 ? '☑' : '☐'} Refund (negative amount)
+              </Text>
+            </Pressable>
             <Text style={s.label}>MAIN TAX CATEGORY</Text>
             <Pressable style={s.input} onPress={() => setShowCats(!showCats)}>
               <Text style={{ color: T.text }}>{selected.category} ▾</Text>
@@ -217,6 +237,8 @@ const makeStyles = styled((T) => ({
     color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: T.fs.body,
   },
   hint: { color: T.muted2, fontSize: T.fs.sm, marginTop: 6 },
+  refundToggle: { paddingVertical: 6, marginTop: 8, alignSelf: 'flex-start' },
+  refundLabel: { color: T.muted2, fontSize: T.fs.sm, fontWeight: '600' },
   dangerBtn: {
     flex: 1, borderColor: T.dangerLine, borderWidth: 1, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',

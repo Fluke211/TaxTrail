@@ -1156,5 +1156,80 @@ check('lock machine: with the lock off nothing covers and nothing locks',
 check('lock machine: an unknown event changes nothing',
   AL.reduce(AL.INITIAL, { type: 'nonsense', now: 1 }, ON) === AL.INITIAL);
 
+/* ---------------------------------------------------------------------------
+ * Merchant memory (D-091, D-092)
+ *
+ * The bug these cover cost more than any parser bug: a learned name beats the
+ * parser, so one wrong name made a store permanently unreadable and every
+ * later parser fix invisible on exactly the receipts already scanned.
+ * ------------------------------------------------------------------------- */
+const MM = require('../src/lib/merchantMemory.js');
+
+const HELE_OCR = [
+  'HELE 61176',
+  '1234 KAMEHAMEHA HIGHWAY',
+  'PEARL CITY, HI 96782',
+  'PUMP 04  REGULAR',
+  'GALLONS 11.204',
+  'THANK YOU FOR YOUR BUSINESS',
+].join('\n');
+
+// Same store, a later visit: the header repeats, the pump line does not.
+const HELE_AGAIN = [
+  'HELE 61176',
+  '1234 KAMEHAMEHA HIGHWAY',
+  'PEARL CITY, HI 96782',
+  'PUMP 02  REGULAR',
+  'GALLONS 9.881',
+  'THANK YOU FOR YOUR BUSINESS',
+].join('\n');
+
+const OTHER_OCR = [
+  'ISLAND TIRE AND SERVICE',
+  '98765 FARRINGTON HIGHWAY',
+  'WAIPAHU, HI 96797',
+  'MOUNT AND BALANCE FOUR',
+  'SHOP SUPPLIES CHARGE',
+].join('\n');
+
+let mem = [];
+mem = MM.learn(mem, HELE_OCR, 'Best Gas Prices On Oahu');
+check('memory: a name is stored', MM.lookup(mem, HELE_AGAIN) === 'Best Gas Prices On Oahu');
+
+// The correction. This is the case that was broken: the old code dropped only
+// entries sharing the NEW name, so the wrong one stayed and could win again.
+mem = MM.learn(mem, HELE_AGAIN, 'Hele');
+check('memory: a correction replaces rather than stacks', mem.length === 1, JSON.stringify(mem));
+check('memory: the corrected name is what comes back', MM.lookup(mem, HELE_OCR) === 'Hele');
+
+// Forgetting is the only way out when the parser is right and memory is not.
+const dropped = MM.forget(mem, HELE_AGAIN);
+check('memory: forget reports what it dropped', dropped.name === 'Hele', String(dropped.name));
+check('memory: a forgotten store is not remembered', MM.lookup(dropped.entries, HELE_OCR) === null);
+
+// Forgetting one store must not touch another.
+let two = MM.learn([], HELE_OCR, 'Hele');
+two = MM.learn(two, OTHER_OCR, 'Island Tire');
+check('memory: two stores are two entries', two.length === 2);
+const afterForget = MM.forget(two, HELE_OCR);
+check('memory: forgetting one store leaves the other',
+  afterForget.entries.length === 1 && MM.lookup(afterForget.entries, OTHER_OCR) === 'Island Tire');
+
+// Re-learning the same name is not a change, so it must not rewrite storage.
+check('memory: learning the same name again is a no-op',
+  MM.learn(two, HELE_OCR, 'Hele') === null);
+
+// Forgetting something never stored says so rather than dropping a neighbour.
+check('memory: forgetting an unknown receipt drops nothing',
+  MM.forget(two, 'ACME WIDGETS\n555 NOWHERE ROAD\nFARGO, ND 58102').name === null);
+
+// A placeholder is not a name worth keeping.
+check('memory: "Unknown merchant" is never learned',
+  MM.learn([], HELE_OCR, 'Unknown merchant') === null);
+
+// Different stores must not collide even though both are Hawaii gas receipts.
+check('memory: one store does not answer for another',
+  MM.lookup(MM.learn([], HELE_OCR, 'Hele'), OTHER_OCR) === null);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -103,6 +103,24 @@ what blocks what, not by size.
       (`wx TOTAL`). The first was a real defect — the total was recovered on
       only 12.6% of receipts carrying it — and is fixed; the second was
       already handled and is now pinned
+- [x] **A wrong remembered merchant name can be undone** (D-092). Memory beats
+      the parser by design, so one bad name made a store permanently unreadable
+      and every later parser fix invisible on it. The merchant field now offers
+      *"Not this store? Use the scanned name ..."* when the name came from
+      memory. A correction also replaces the old entry instead of stacking
+      beside it, which it had never done
+- [x] **Refunds can be entered by hand** (D-092) — a "Refund" checkbox on the
+      capture form and the receipt editor. iOS gives a `decimal-pad` no minus
+      key, so a credit could be parsed but never typed or corrected. It carries
+      the sales tax back out with the total, and saving one offers to link it
+      to the original purchase
+- [x] **Multi-page scans ask what they are** (D-092). `maxNumDocuments` is
+      Android only, so Apple's scanner cannot be capped to one page. The damage
+      was never the extra tap: it was two receipts silently concatenated into
+      one purchase
+- [x] **The keyboard covered the notes field** (D-092) — a
+      `KeyboardAvoidingView` wrapped around a ScrollView pads the container
+      while the content scrolls under the keyboard regardless
 - [x] **Receipt splitting could exceed the receipt** (D-049) — found while
       hardening something the export audit called unreachable. It was
       reachable: the negative came from subtraction, not from typing a minus
