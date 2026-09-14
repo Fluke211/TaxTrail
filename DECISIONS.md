@@ -4806,3 +4806,90 @@ And the TOTAL and SALES TAX boxes sat at different heights, because
 "SALES TAX ($)" wraps to two lines in a third of the screen and the row's
 default `stretch` pushed its input down a line. Bottom-aligning the row keeps
 the three inputs level whatever the labels do. Both screens had it.
+
+---
+
+## D-093
+
+**Rescanning the same receipt is how the app disagrees with itself**
+(2026-09-14)
+
+Tyler sent the full archive: 28 receipts with their OCR and their images. Four of
+them are **rescans made a day later of slips already scanned**, and that is what
+made this round possible. A rescan is a different OCR of the same physical
+receipt, so it is independent evidence with a known answer, and it found two live
+defects that 30 corpus receipts and thousands of synthetic ones did not.
+
+### A "Total" inside a savings block outranked the real total
+
+`0026-safeway-2026-03-22` parsed to **$0.50**. The correct total is $48.42, which
+the first scan of the same slip got right. This is the "multiple things wrong on
+the totals" Tyler reported and could not describe further.
+
+Safeway prints the coupon savings in the same column shape as a real total:
+
+```
+YOUR SAVINGS
+Member Savings
+Total
+0.50
+0.50
+```
+
+A bare `total` is the **strongest hint tier** in `TOTAL_HINTS`, and candidates
+sort by tier before value, so $0.50 of savings beat the $48.42 sitting under
+`PAYMENT AMOUNT` two tiers down. `NOT_TOTAL` already lists "savings", but it is
+tested against the label line alone and the word is on the line *above*.
+
+The sales tax was collateral: with the total wrong, the column reader could not
+confirm an arithmetic triple, so `2.18` was dropped too.
+
+**The first version of the fix was too wide, and a probe caught it.** Vetoing any
+total whose preceding line says "savings" destroys an ordinary layout:
+
+```
+MEMBER SAVINGS  5.00
+TOTAL          47.00
+```
+
+That receipt lost its total outright and fell back to the subtotal. The veto now
+also requires the label to carry **no amount of its own**, which is what makes it
+a column-layout label. An inline `TOTAL 47.00` states its own amount and is never
+the savings figure printed above it. Both cases are unit tests now.
+
+### An award banner dated 2920
+
+`0025-hele-2026-08-14` parsed its merchant as *"Star-a)vertiser Hawaii's Best"*.
+`ACCOLADE` skips award banners, which Hawaii receipts print constantly and always
+above the store name, but it required the year to match `(19|20)\d{2}` and OCR had
+read `2020` as **`2920`**. The two banners below it were caught; this one was not,
+so it won by being first.
+
+Now `\bbest\s+\d{4}\b`: four digits straight after the word "best" is an award year
+however badly it scanned. It cannot reach a real name, because every retailer that
+uses the word puts something between it and the number. Verified against Best Buy,
+Best Buy Mobile, Best Western and Natures Best, all with store numbers attached.
+
+### What the archive settled that was NOT a bug
+
+- **`0004-target`** is the fused-receipt case in the flesh: a Target receipt with
+  an entire Cabela's receipt concatenated after it. Its stored $25.00 was the
+  *subtotal*; the parser's $26.50 is right. r37's multi-page question is what stops
+  this happening again.
+- **`0020-autozone`** was photographed upside down. Its OCR is mirrored gibberish
+  (`O6890# IHO1S`, `IH 'ATATONOH`) containing none of the figures, and Tyler typed
+  the numbers by hand. There is nothing for the parser to do.
+- **`0007-times`** reads "Supermarkets" because OCR never captured the word
+  "TIMES" at all: line 0 is `•SUPERMARKETS`. That is the best answer available
+  from that text.
+
+### The corpus is 37 receipts
+
+Seven archive entries were absent from it, including all four rescans. Added with
+ground truth taken from the receipts themselves rather than from what Tyler
+stored, since his stored values are wrong on exactly the receipts that motivated
+this work. Both defects above were pinned as failures *first*, then fixed.
+
+**The lesson is about the data, not the code.** The corpus had 30 receipts and
+both of these defects were sitting inside stores it already covered. What exposed
+them was scanning the same slip twice and noticing the app gave two answers.

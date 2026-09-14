@@ -9,6 +9,19 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r38 (2026-09-14)
+
+- **A receipt's coupon savings could be read as its total.** Safeway prints
+  "YOUR SAVINGS / Member Savings / Total" in the same column shape as a real
+  total, and $0.50 of savings outranked the $48.42 actually charged. The sales
+  tax went with it (D-093).
+- **An award banner could become the merchant name.** OCR read "HAWAII'S BEST
+  2020" as "BEST 2920", which slipped past the year gate in the banner filter.
+- Corpus grown 30 to **37 real receipts**, including four rescans of slips
+  already covered. Both defects above were pinned as failures before being fixed.
+- Eight new unit tests, four of them guarding the new rules against firing on
+  ordinary receipts.
+
 ## js r37 (2026-09-14)
 
 - **A wrong remembered merchant name can be undone.** When a name comes from

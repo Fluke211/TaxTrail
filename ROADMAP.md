@@ -103,6 +103,16 @@ what blocks what, not by size.
       (`wx TOTAL`). The first was a real defect — the total was recovered on
       only 12.6% of receipts carrying it — and is fixed; the second was
       already handled and is now pinned
+- [x] **Rescans found two live parser defects** (D-093). A coupon-savings block
+      read as the grand total ($0.50 on a $48.42 Safeway receipt, which is the
+      "totals are wrong" report), and an award banner read as the merchant after
+      OCR dated it 2920. Corpus grown 30 to 37 real receipts, four of them
+      rescans, with both defects pinned as failures before being fixed
+- [ ] **Single-line "CITY ST ZIP" can still beat a store name.** Found while
+      probing D-093 and confirmed pre-existing: it happens with no award banner
+      present at all. None of the 37 real receipts hit it, because they print the
+      address across separate lines. Left alone rather than reopening D-089 on a
+      synthetic case
 - [x] **A wrong remembered merchant name can be undone** (D-092). Memory beats
       the parser by design, so one bad name made a store permanently unreadable
       and every later parser fix invisible on it. The merchant field now offers
