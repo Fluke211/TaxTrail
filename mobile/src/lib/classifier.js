@@ -601,13 +601,26 @@
    * (D-089). Hawaii prints these constantly and they are always ABOVE the name,
    * so taking the first plausible line is exactly wrong here.
    */
-  // `best\s+\d{4}` rather than a (19|20) year: OCR read "HAWAII'S BEST 2020" as
-  // "HAWAII'S BEST 2920", so the year gate let a newspaper award banner through
-  // and it beat the actual store name (D-093). Four digits straight after the
-  // word "best" is an award year however badly it scanned. It cannot catch a
-  // real name: "Best Buy 1234" puts a word between them, and no US retailer is
-  // called "Best" followed by a bare number.
-  var ACCOLADE = /(best\s+of\b|\bbest\s+\d{4}\b|\bvoted\b|\bwinner\b|^#\s*1\b|\btop\s+\d+\b|\b(award|magazine)\w*\b[^\n]*\b(19|20)\d{2}\b)/i;
+  /*
+   * The year gate stays at (19|20). Widening it to `best\s+\d{4}` was shipped in
+   * r38 and REVERTED in r39, because the claim in the comment that replaced this
+   * one was false (D-094).
+   *
+   * It was written to catch a banner OCR had dated "HAWAII'S BEST 2920", on the
+   * reasoning that no retailer is called "Best" followed by a bare number. But
+   * "<something>'s Best" followed by a store number is a whole class of real
+   * names, and the widened rule threw away the merchant on every one of them:
+   *     NATURE'S BEST 1234      AMERICA'S BEST 4412      BAKER'S BEST 0119
+   * America's Best is a national chain with hundreds of US stores. Losing a
+   * merchant name on every one of its receipts is far worse than one Hawaii gas
+   * receipt reading its award banner as the store.
+   *
+   * The probes that cleared the widened rule only ever put "best" FIRST
+   * ("Best Buy 1234", "Best Western 2044"). The breaking shape puts it LAST,
+   * right before the number, and was never tried. Both shapes are pinned below
+   * now, so the next attempt has to answer them.
+   */
+  var ACCOLADE = /(best\s+of\b|\bbest\s+(19|20)\d{2}\b|\bvoted\b|\bwinner\b|^#\s*1\b|\btop\s+\d+\b|\b(award|magazine)\w*\b[^\n]*\b(19|20)\d{2}\b)/i;
 
   /*
    * The header, scored rather than taken first-come.

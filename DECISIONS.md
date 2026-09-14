@@ -4893,3 +4893,91 @@ this work. Both defects above were pinned as failures *first*, then fixed.
 **The lesson is about the data, not the code.** The corpus had 30 receipts and
 both of these defects were sitting inside stores it already covered. What exposed
 them was scanning the same slip twice and noticing the app gave two answers.
+
+---
+
+## D-094
+
+**r38's merchant fix was wrong and shipped. The agents caught it, my probes did not**
+(2026-09-14)
+
+r38 widened the award-banner filter from `\bbest\s+(19|20)\d{2}\b` to
+`\bbest\s+\d{4}\b`, to catch a banner OCR had dated "HAWAII'S BEST **2920**". The
+comment justifying it said: *"It cannot catch a real name: 'Best Buy 1234' puts a
+word between them, and no US retailer is called 'Best' followed by a bare
+number."*
+
+That is false, and it was published to Tyler's phone before anyone tested the
+shape that breaks:
+
+```
+NATURE'S BEST 1234      ->  merchant lost entirely
+AMERICA'S BEST 4412     ->  merchant lost entirely
+BAKER'S BEST 0119       ->  merchant lost entirely
+MOM'S BEST 8842         ->  merchant lost entirely
+```
+
+**America's Best** is a national chain with hundreds of US stores. The rule threw
+away the merchant on every receipt from any of them, in exchange for one Hawaii
+gas receipt reading its award banner as the store name. Reverted in r39.
+
+### Why the probes missed it
+
+They were not weak, they were **aimed wrong**. Every case tried put "best" FIRST:
+`BEST BUY 1234`, `BEST WESTERN 2044`, `BEST BUY MOBILE 0421`, and a bare
+`NATURES BEST` with no store number. The breaking shape puts "best" **LAST**,
+immediately before the number, and it was never tried once.
+
+That is the D-090 failure repeating with the same signature: a rule cut slightly
+too wide, every harness green (254 unit tests, zero corpus mismatches, synthetic
+"no regressions"), because **no receipt in the corpus is named "... Best
+<number>"**. A green corpus is still only evidence about the corpus.
+
+### What actually caught it
+
+A parallel agent fan-out, launched to attack the fixes independently. It returned
+after the work had been verified by hand, merged and published. Its verdict on
+the shipped rule was blunt and correct, and it had measured the counterexamples
+rather than asserted them.
+
+Two lessons, and the second matters more:
+
+1. **When probing a rule that matches a word next to a number, try the word on
+   both sides of the number.** Both shapes are pinned in the unit tests now.
+2. **The adversarial pass is worth waiting for.** Merging before it returned is
+   what put a known-findable defect on a user's phone. The hand verification was
+   real work and it was not sufficient, because the thing it could not do was
+   disagree with its own framing.
+
+The savings-block fix from the same round **survived** the same review. The agents
+proved a vocabulary widening (`savings|saved|rewards`) destroys pay-at-pump fuel
+receipts, where the loyalty discount sits directly above the total. That widening
+was proposed but never shipped: r38 kept `\bsavings\b` and added a gate requiring
+the label to carry no amount of its own. Their own isolation table showed that
+combination clean on all seven fuel cases, and those cases are pinned now too.
+
+### The corpus was not what it said it was
+
+The same review found that "Corpus: 37 receipts" counted only **31 distinct
+texts**. Six files were byte-identical copies of another fixture under a different
+name, and three of those were added by the very change that quoted the number.
+
+Duplicates are worse than useless: they inflate the score, they make a defect
+found on one receipt look like it was found on two, and a regression against one
+counts twice. Collapsed to 31, keeping the descriptive legacy name in each group
+and merging the richer pin into it.
+
+`npm run test:corpus` now fails on any duplicate text, any fixture with no
+expectation, and any orphan expectation. It immediately found two fixtures that
+had been scored for weeks with nothing asserted about them. Both are pinned now,
+including the upside-down AutoZone photo, which is pinned to **null** on purpose:
+the assertion is that garbage in produces nothing out rather than an invented
+figure.
+
+### Still open
+
+`hele-2026-08-14-25.merchant` is a **known failure**, visible in every score run.
+The receipt's banner cannot be told from a real "<X>'s Best" name by the banner
+line alone, and the reverted rule is the safer of the two wrong answers. The pin
+records the truth rather than the current behaviour, so it stays red until it is
+genuinely fixed.

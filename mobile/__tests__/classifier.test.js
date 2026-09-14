@@ -874,7 +874,7 @@ check('feedback: a scan report and general feedback have distinguishable subject
 // these came out of the corpus wrong, and the merchant is what a CPA reads on
 // the export and what merchant-memory keys off.
 // ---------------------------------------------------------------------------
-const bp = C.parseReceipt(fx('corpus/basspro-2026-08-02.txt'));
+const bp = C.parseReceipt(fx('corpus/basspro-promo-footer-2026-08-02.txt'));
 check('merchant: Bass Pro from its domain, not the truncated header',
   bp.merchant === 'Bass Pro Shops', bp.merchant);
 
@@ -1262,20 +1262,71 @@ check('savings directly above an INLINE total is untouched',
 check('savings two lines above the total is untouched',
   totalOf(['SAFEWAY', 'SUBTOTAL 50.00', 'YOUR SAVINGS 5.00', 'TAX 2.00', 'TOTAL 47.00'].join('\n')) === 47.00);
 
-// An award banner dated by OCR as "2920" rather than 2020. The year gate used
-// to require (19|20), so the banner became the merchant name.
-const HELE_BANNER = ['STAR-A)VERTISER HAWAII\'S BEST 2920', 'KITV BEST OF HAMAII 2020',
-  'HONOLULU MAGAZINE BEST OF 2028', 'HELE 61176', '515 PEPEEKEO DR',
-  'HONOLULU', ', HI', '96825', 'FUEL TOTAL', '$', '28.68'].join('\n');
-check('an award banner with a mis-scanned year is skipped',
-  merchantOf(HELE_BANNER) === 'Hele', JSON.stringify(merchantOf(HELE_BANNER)));
+/*
+ * The veto looks at ONE row and at the word "savings" only, and both of those
+ * limits are load-bearing. An adversarial review of wider variants proved it
+ * (D-094).
+ *
+ * Requiring two consecutive savings rows breaks when OCR drops one, which it
+ * demonstrably does: the other scan of this same physical receipt lost both
+ * value lines from inside the block. Widening the vocabulary to saved/rewards
+ * destroys pay-at-pump fuel receipts and store-rewards footers, where those
+ * words sit directly above a real total.
+ */
+const SAFE_HEAD = ['SAFEWAY', 'TAX', '**** BALANCE', '2.18', '48.42'];
+const SAFE_TAIL = ['0.50', '0.50', 'PAYMENT AMOUNT', '48.42'];
+check('veto survives OCR dropping "Member Savings"',
+  totalOf(SAFE_HEAD.concat(['YOUR SAVINGS', 'Total'], SAFE_TAIL).join('\n')) === 48.42);
+check('veto survives OCR dropping "YOUR SAVINGS"',
+  totalOf(SAFE_HEAD.concat(['Member Savings', 'Total'], SAFE_TAIL).join('\n')) === 48.42);
 
-// The widened accolade must not reject real names containing "Best".
-[['BEST BUY 1234', 'Best Buy'], ['NATURES BEST', 'Natures Best'],
- ['BEST WESTERN 2044', 'Best Western'], ['BEST BUY MOBILE 0421', 'Best Buy Mobile']].forEach(([header, want]) => {
+// Fuel and rewards wording must NOT trigger it. On a pay-at-pump slip the
+// loyalty discount is part of the price math and prints right above the total,
+// so a veto here reads the pump pre-authorization hold as the purchase.
+check('pay-at-pump fuel receipt keeps its total',
+  totalOf(['KROGER FUEL CENTER #402', 'PUMP 05  REGULAR UNLEADED', 'PRE-AUTH AMT     $125.00',
+           'GALLONS          12.345', 'PRICE/GAL        $3.199', 'FUEL REWARDS SAVED   $0.30/GAL',
+           'YOU SAVED            $3.70', 'TOTAL', '$39.48'].join('\n')) === 39.48);
+check('a rewards balance above the total does not veto it',
+  totalOf(['AUTOZONE', 'WIPER BLADE', '50.00', 'Rewards Account 910100XXXX8804',
+           'Rewards Balance', 'TOTAL', '47.00'].join('\n')) === 47.00);
+check('"You Saved / Total Saved" above the total does not veto it',
+  totalOf(['STORE', 'ITEM', '50.00', 'You Saved', 'Total Saved', 'TOTAL DUE', '47.00'].join('\n')) === 47.00);
+
+/*
+ * D-094: the accolade filter must not eat real merchant names.
+ *
+ * r38 widened the award-banner year gate to `best\\s+\\d{4}` to catch a banner OCR
+ * had dated "HAWAII'S BEST 2920". The comment justifying it claimed no retailer
+ * is called "Best" followed by a bare number. That is false, and it cost the
+ * merchant name on an entire class of real receipts. Reverted in r39.
+ *
+ * "Best" FIRST was probed and passed; "Best" LAST, right before a store number,
+ * was never tried and is the shape that breaks. Both are pinned here so the next
+ * attempt has to answer them.
+ */
+[['BEST BUY 1234', 'Best Buy'],
+ ['BEST WESTERN 2044', 'Best Western'],
+ ['BEST BUY MOBILE 0421', 'Best Buy Mobile'],
+ ['NATURES BEST', 'Natures Best'],
+ // The shapes r38 broke. America's Best is a national chain.
+ ["NATURE'S BEST 1234", "Nature's Best"],
+ ['AMERICAS BEST 4412', 'Americas Best'],
+ ["BAKER'S BEST 0119", "Baker's Best"],
+ ['MOMS BEST 8842', 'Moms Best'],
+].forEach(([header, want]) => {
   const got = merchantOf([header, '123 MAIN STREET', 'AUSTIN', ', TX', '78701', 'TOTAL 10.80'].join('\n'));
   check(`"${want}" survives the accolade filter`, (got || '').toLowerCase().includes(want.toLowerCase()), JSON.stringify(got));
 });
+
+// A banner whose year OCR scanned intact is still skipped. Read from the real
+// fixture rather than hand-built: a synthetic body thin enough to type is not a
+// receipt, and the first attempt at this test failed on its own scaffolding
+// rather than on the rule it was checking.
+const HELE_CLEAN = require('fs').readFileSync(
+  require('path').join(__dirname, 'corpus', 'hele-61176-2026-08-14-8.txt'), 'utf8');
+check('an award banner with a readable year is still skipped',
+  merchantOf(HELE_CLEAN) === 'Hele', JSON.stringify(merchantOf(HELE_CLEAN)));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

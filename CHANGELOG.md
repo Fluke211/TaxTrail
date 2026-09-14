@@ -9,6 +9,22 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r39 (2026-09-14)
+
+- **Reverts an r38 change that lost the merchant name on real stores.** Widening
+  the award-banner filter to "best" plus any four digits also matched
+  "Nature's Best 1234", "America's Best 4412" and every other "<X>'s Best" with a
+  store number. America's Best is a national chain. The one Hawaii receipt it was
+  meant to fix is a known failure again, and pinned as one (D-094).
+- Corpus corrected from a claimed 37 receipts to **31 distinct** ones: six files
+  were byte-identical copies under different names, three of them added in r38.
+- **`npm run test:corpus`** is new and gating: no duplicate fixture, no fixture
+  without an expectation, no orphan expectation. It found two fixtures that had
+  been scored for weeks with nothing asserted about them.
+- The r38 savings-block fix is unchanged. It was reviewed against pay-at-pump
+  fuel receipts, where the loyalty discount sits directly above the total, and
+  holds on all of them. Those cases are pinned now.
+
 ## js r38 (2026-09-14)
 
 - **A receipt's coupon savings could be read as its total.** Safeway prints
