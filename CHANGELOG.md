@@ -9,6 +9,26 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r37 (2026-09-14)
+
+- **A wrong remembered merchant name can be undone.** When a name comes from
+  memory the merchant field offers *"Not this store? Use the scanned name ..."*,
+  which forgets it and falls back to the receipt. Before this, one bad name made
+  a store permanently unreadable (D-092).
+- **Correcting a name now replaces the old one** instead of storing both against
+  the same receipt, where the wrong one could win again.
+- **Multi-page scans ask what they are.** Apple's scanner keeps the camera open
+  and cannot be capped to one page, so the app asks rather than silently fusing
+  two receipts into one purchase.
+- **Refunds can be entered by hand.** A "Refund" checkbox on the capture form and
+  the receipt editor, because iOS gives a decimal-pad no minus key. It carries
+  the sales tax back out too, and saving one offers to link it to the original
+  purchase.
+- A refund's sales tax is no longer silently dropped on save.
+- The keyboard no longer covers the notes field.
+- TOTAL and SALES TAX sit level again; the wrapped label used to push one down.
+- Merchant-memory rules moved to `src/lib/merchantMemory.js` and gained 11 tests.
+
 ## iOS app
 
 ### js r36 — v1.0.0 (build 7) — 2026-09-14
