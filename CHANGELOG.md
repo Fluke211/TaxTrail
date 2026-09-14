@@ -11,6 +11,26 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r36 — v1.0.0 (build 7) — 2026-09-14
+
+**The app learned every guess, so the parser could never correct itself**
+(D-091). Tyler rescanned a gas station after the merchant fix shipped and got
+the old wrong name back; the parser was right this time and never got asked. A
+learned name wins over the parser by design, and the app learned on every save
+whether or not the name had been touched, so a guess was cached as a correction
+and a store scanned once with a bad guess could never be read correctly again.
+It now learns only what the user changed. That also stops the app announcing
+"I'll remember this store as ..." when nothing was typed, which Tyler had
+reported separately and which was the same bug seen from the front.
+
+**Duplicate detection.** Merchant, date and total together. Two pairs in his 24
+receipts were the same slip scanned twice with no warning. It asks rather than
+refuses: two identical purchases in a day are possible.
+
+**Saving stays on Capture** instead of jumping to Receipts. The receipt just
+saved is already in the Recent list, and someone working through a pile wants
+the scan button.
+
 ### js r35 — v1.0.0 (build 7) — 2026-09-13
 
 **Sales tax was missed on two thirds of real receipts, and it was one bug**

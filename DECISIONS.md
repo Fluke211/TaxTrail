@@ -4667,3 +4667,62 @@ activity from measuring, and not one the existing tooling does.
 The rules that survived are the ones that **prove themselves**: `subtotal + tax
 = total`, positional alignment, a name printed twice. The ones that needed
 fixing are the ones that pattern-match on a word.
+
+## D-091
+
+**The app learned every guess, so the parser could never correct itself**
+(2026-09-14)
+
+Tyler rescanned the Hele gas station after the merchant fix shipped and got the
+old wrong name back. The parser was right this time. It never got asked.
+
+`CaptureScreen` does `const merchant = remembered || parsed.merchant`, so a
+learned name wins over the parser by design, and `memLearn` ran on **every**
+save whether or not the name had been touched. Together those mean a parser
+guess is cached as though it were a correction, and **a store scanned once with
+a bad guess can never be read correctly again**, however much the parser
+improves. Every improvement is invisible on exactly the receipts the user
+already has.
+
+The fix is one line of intent: learn only what the user changed. Accepting what
+was offered is not a correction.
+
+This also closes something Tyler had reported separately as an annoyance, and it
+is the same bug seen from the front: the app announced *"I'll remember this
+store as ..."* when he had typed nothing. It was telling the truth, which was
+the problem.
+
+**What it does not fix:** names already learned from a guess. There is no way in
+the app to forget one. That is a real gap and it is the next piece of this.
+
+### Duplicate detection
+
+Also Tyler's ask, and his own data makes the case: of 24 receipts in one
+session, **two pairs were the same slip scanned twice** and nothing warned him.
+A duplicated receipt is a wrong deduction.
+
+Merchant, date and total together. Any two of those coincide constantly (two
+$4.99 coffees on one day are not a duplicate); all three agreeing is a re-scan
+often enough to be worth one question. It **asks** rather than refuses, because
+two genuinely identical purchases in a day are possible and the user is the one
+who knows.
+
+### Landing on Capture
+
+Saving used to jump to the Receipts tab. That was right when Capture had nothing
+to come back to, and wrong once it grew a Recent list: the receipt just saved is
+already visible there, and someone working through a pile wants the scan button.
+
+### What could not be done, and why
+
+Tyler also asked for capture to default to one receipt and offer a second page
+rather than leaving the camera running. **`maxNumDocuments` is Android only** in
+`react-native-document-scanner-plugin@2.0.4`, checked in its own type
+definitions. On iOS the scanner is Apple's `VNDocumentCameraViewController`,
+which always allows multiple pages and keeps the camera open, and no option
+exposed by the plugin changes that.
+
+What the app CAN do is stop silently fusing two receipts into one, which is the
+real damage: one of Tyler's receipts has an entire second receipt's text
+appended to it. That needs a question when more than one page comes back, and it
+is a separate change rather than a guess bolted on here.
