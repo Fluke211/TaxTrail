@@ -874,7 +874,7 @@ check('feedback: a scan report and general feedback have distinguishable subject
 // these came out of the corpus wrong, and the merchant is what a CPA reads on
 // the export and what merchant-memory keys off.
 // ---------------------------------------------------------------------------
-const bp = C.parseReceipt(fx('corpus/basspro-2026-08-02.txt'));
+const bp = C.parseReceipt(fx('corpus/basspro-promo-footer-2026-08-02.txt'));
 check('merchant: Bass Pro from its domain, not the truncated header',
   bp.merchant === 'Bass Pro Shops', bp.merchant);
 
@@ -1262,20 +1262,40 @@ check('savings directly above an INLINE total is untouched',
 check('savings two lines above the total is untouched',
   totalOf(['SAFEWAY', 'SUBTOTAL 50.00', 'YOUR SAVINGS 5.00', 'TAX 2.00', 'TOTAL 47.00'].join('\n')) === 47.00);
 
-// An award banner dated by OCR as "2920" rather than 2020. The year gate used
-// to require (19|20), so the banner became the merchant name.
-const HELE_BANNER = ['STAR-A)VERTISER HAWAII\'S BEST 2920', 'KITV BEST OF HAMAII 2020',
-  'HONOLULU MAGAZINE BEST OF 2028', 'HELE 61176', '515 PEPEEKEO DR',
-  'HONOLULU', ', HI', '96825', 'FUEL TOTAL', '$', '28.68'].join('\n');
-check('an award banner with a mis-scanned year is skipped',
-  merchantOf(HELE_BANNER) === 'Hele', JSON.stringify(merchantOf(HELE_BANNER)));
-
-// The widened accolade must not reject real names containing "Best".
-[['BEST BUY 1234', 'Best Buy'], ['NATURES BEST', 'Natures Best'],
- ['BEST WESTERN 2044', 'Best Western'], ['BEST BUY MOBILE 0421', 'Best Buy Mobile']].forEach(([header, want]) => {
+/*
+ * D-094: the accolade filter must not eat real merchant names.
+ *
+ * r38 widened the award-banner year gate to `best\\s+\\d{4}` to catch a banner OCR
+ * had dated "HAWAII'S BEST 2920". The comment justifying it claimed no retailer
+ * is called "Best" followed by a bare number. That is false, and it cost the
+ * merchant name on an entire class of real receipts. Reverted in r39.
+ *
+ * "Best" FIRST was probed and passed; "Best" LAST, right before a store number,
+ * was never tried and is the shape that breaks. Both are pinned here so the next
+ * attempt has to answer them.
+ */
+[['BEST BUY 1234', 'Best Buy'],
+ ['BEST WESTERN 2044', 'Best Western'],
+ ['BEST BUY MOBILE 0421', 'Best Buy Mobile'],
+ ['NATURES BEST', 'Natures Best'],
+ // The shapes r38 broke. America's Best is a national chain.
+ ["NATURE'S BEST 1234", "Nature's Best"],
+ ['AMERICAS BEST 4412', 'Americas Best'],
+ ["BAKER'S BEST 0119", "Baker's Best"],
+ ['MOMS BEST 8842', 'Moms Best'],
+].forEach(([header, want]) => {
   const got = merchantOf([header, '123 MAIN STREET', 'AUSTIN', ', TX', '78701', 'TOTAL 10.80'].join('\n'));
   check(`"${want}" survives the accolade filter`, (got || '').toLowerCase().includes(want.toLowerCase()), JSON.stringify(got));
 });
+
+// A banner whose year OCR scanned intact is still skipped. Read from the real
+// fixture rather than hand-built: a synthetic body thin enough to type is not a
+// receipt, and the first attempt at this test failed on its own scaffolding
+// rather than on the rule it was checking.
+const HELE_CLEAN = require('fs').readFileSync(
+  require('path').join(__dirname, 'corpus', 'hele-61176-2026-08-14-8.txt'), 'utf8');
+check('an award banner with a readable year is still skipped',
+  merchantOf(HELE_CLEAN) === 'Hele', JSON.stringify(merchantOf(HELE_CLEAN)));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

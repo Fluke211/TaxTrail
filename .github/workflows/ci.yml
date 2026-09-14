@@ -56,6 +56,15 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      # "Corpus: 37 receipts" was quoted to Tyler when only 31 of those files
+      # held distinct text: six were byte-identical copies under another name,
+      # three added by the very change that quoted the number (D-094). A
+      # duplicate fixture inflates the score and makes a defect found once look
+      # like it was found twice. Also catches a fixture with no expectation,
+      # which is scored but never asserted against.
+      - name: Corpus fixtures are distinct and pinned
+        run: npm run test:corpus
+
       # Ratchets against a committed baseline (D-041): a parser that gets worse
       # on the synthetic corpus fails, one that is merely imperfect does not.
       # Half a second, so there is no reason to leave it out.

@@ -108,6 +108,12 @@ what blocks what, not by size.
       "totals are wrong" report), and an award banner read as the merchant after
       OCR dated it 2920. Corpus grown 30 to 37 real receipts, four of them
       rescans, with both defects pinned as failures before being fixed
+- [ ] **The Hele award banner is unfixed again** (D-094). The banner line
+      "STAR-A)VERTISER HAWAII'S BEST 2920" cannot be told from a real name like
+      "Nature's Best 1234" by the line alone, and r38's attempt cost the merchant
+      on every America's Best receipt. Pinned as a failing expectation so it
+      stays visible. A real fix probably has to come from the candidate scoring
+      rather than from the banner filter
 - [ ] **Single-line "CITY ST ZIP" can still beat a store name.** Found while
       probing D-093 and confirmed pre-existing: it happens with no award banner
       present at all. None of the 37 real receipts hit it, because they print the
