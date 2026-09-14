@@ -1263,6 +1263,37 @@ check('savings two lines above the total is untouched',
   totalOf(['SAFEWAY', 'SUBTOTAL 50.00', 'YOUR SAVINGS 5.00', 'TAX 2.00', 'TOTAL 47.00'].join('\n')) === 47.00);
 
 /*
+ * The veto looks at ONE row and at the word "savings" only, and both of those
+ * limits are load-bearing. An adversarial review of wider variants proved it
+ * (D-094).
+ *
+ * Requiring two consecutive savings rows breaks when OCR drops one, which it
+ * demonstrably does: the other scan of this same physical receipt lost both
+ * value lines from inside the block. Widening the vocabulary to saved/rewards
+ * destroys pay-at-pump fuel receipts and store-rewards footers, where those
+ * words sit directly above a real total.
+ */
+const SAFE_HEAD = ['SAFEWAY', 'TAX', '**** BALANCE', '2.18', '48.42'];
+const SAFE_TAIL = ['0.50', '0.50', 'PAYMENT AMOUNT', '48.42'];
+check('veto survives OCR dropping "Member Savings"',
+  totalOf(SAFE_HEAD.concat(['YOUR SAVINGS', 'Total'], SAFE_TAIL).join('\n')) === 48.42);
+check('veto survives OCR dropping "YOUR SAVINGS"',
+  totalOf(SAFE_HEAD.concat(['Member Savings', 'Total'], SAFE_TAIL).join('\n')) === 48.42);
+
+// Fuel and rewards wording must NOT trigger it. On a pay-at-pump slip the
+// loyalty discount is part of the price math and prints right above the total,
+// so a veto here reads the pump pre-authorization hold as the purchase.
+check('pay-at-pump fuel receipt keeps its total',
+  totalOf(['KROGER FUEL CENTER #402', 'PUMP 05  REGULAR UNLEADED', 'PRE-AUTH AMT     $125.00',
+           'GALLONS          12.345', 'PRICE/GAL        $3.199', 'FUEL REWARDS SAVED   $0.30/GAL',
+           'YOU SAVED            $3.70', 'TOTAL', '$39.48'].join('\n')) === 39.48);
+check('a rewards balance above the total does not veto it',
+  totalOf(['AUTOZONE', 'WIPER BLADE', '50.00', 'Rewards Account 910100XXXX8804',
+           'Rewards Balance', 'TOTAL', '47.00'].join('\n')) === 47.00);
+check('"You Saved / Total Saved" above the total does not veto it',
+  totalOf(['STORE', 'ITEM', '50.00', 'You Saved', 'Total Saved', 'TOTAL DUE', '47.00'].join('\n')) === 47.00);
+
+/*
  * D-094: the accolade filter must not eat real merchant names.
  *
  * r38 widened the award-banner year gate to `best\\s+\\d{4}` to catch a banner OCR
