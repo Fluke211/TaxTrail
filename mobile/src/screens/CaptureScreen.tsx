@@ -47,6 +47,17 @@ interface Pending {
   category: string;
   confidence: string;
   merchantRemembered: boolean;
+  /*
+   * The merchant name as first shown, before the user touched anything.
+   *
+   * Needed because the app used to learn the name on EVERY save, edited or
+   * not, so a parser guess was cached as though it were a correction (D-091).
+   * Two consequences Tyler hit: the app claimed "I'll remember this store as
+   * ..." when he had not named anything, and once a wrong guess was learned no
+   * improvement to the parser could ever reach that store again, because
+   * memory wins over the parser by design.
+   */
+  offeredMerchant: string;
   city: string | null;
   // What the classifier said, frozen before the merchant-memory override and
   // before the user touches anything. Saved with the receipt so a correction
@@ -185,6 +196,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
         taxRate, rateSource,
         category, confidence: parsed.confidence,
         merchantRemembered: !!remembered,
+        offeredMerchant: merchant,
         city: parsed.city,
         // `parsed`, not the values above: the merchant-memory override and the
         // tax-rate fallbacks are the app being helpful, and folding them in
@@ -220,13 +232,57 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
     }
   }, [runScan]);
 
-  const discard = useCallback(() => { setPending(null); }, []);
+  /* Set when the user answers "Save anyway" to the duplicate question, so the
+   * re-entered save does not ask again. A ref rather than state: it is read on
+   * the very next call and must not wait for a render. */
+  const dupOkRef = useRef(false);
+
+  const discard = useCallback(() => { setPending(null); dupOkRef.current = false; }, []);
+
+  /*
+   * Was this receipt already scanned?
+   *
+   * Tyler asked for this and his own data proves the need: of 24 receipts in
+   * one session, two pairs were the same slip scanned twice (D-091). Nothing
+   * warned him, and a duplicated expense is a wrong deduction.
+   *
+   * Merchant, date and total together. Any two of those match by coincidence
+   * constantly — two $4.99 coffees on the same day are not a duplicate — but
+   * all three agreeing is a re-scan often enough to be worth one question. It
+   * asks rather than refuses, because two genuinely identical purchases on one
+   * day are possible and the user is the one who knows.
+   */
+  const duplicateOf = useCallback((merchant: string, date: string, total: number) => {
+    const cents = Math.round(total * 100);
+    return receipts.find((r) =>
+      Math.round((r.total || 0) * 100) === cents
+      && r.date === date
+      && (r.merchant || '').trim().toLowerCase() === merchant.trim().toLowerCase());
+  }, [receipts]);
 
   const save = useCallback(async () => {
     if (!pending) return;
     const total = parseFloat(pending.total) || 0;
     const salesTax = parseFloat(pending.salesTax);
     const merchant = pending.merchant.trim() || 'Unknown merchant';
+
+    const dup = duplicateOf(merchant, pending.date, total);
+    if (dup && !dupOkRef.current) {
+      Alert.alert(
+        'Already scanned?',
+        `${merchant} on ${pending.date} for $${total.toFixed(2)} is already saved. Save it again anyway?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Save anyway',
+            onPress: () => { dupOkRef.current = true; void save(); },
+          },
+        ],
+      );
+      return;
+    }
+    dupOkRef.current = false;
+
     // Splits are capped at the receipt total (D-049), so the leftover cannot be
     // negative. It CAN be exactly zero when the splits account for the whole
     // receipt — and a $0.00 allocation would then become a $0.00 line in the
@@ -255,7 +311,22 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
       thumbPath: pending.thumbPath,
       parsedSnapshot: pending.parsedSnapshot,
     });
-    const learned = await memLearn(pending.ocrText, merchant);
+    /*
+     * Learn the name ONLY when the user changed it.
+     *
+     * Accepting what was offered is not a correction, and storing it as one did
+     * real damage. A parser guess became a permanent answer, and since
+     * `memLookup` wins over the parser on the next scan, a store scanned once
+     * with a bad guess could never be read correctly again however much the
+     * parser improved. Tyler hit exactly that: rescanning a gas station after
+     * the merchant fix still returned the old wrong name (D-091).
+     *
+     * It also fixes the thing he reported as a separate annoyance, which turns
+     * out to be the same bug seen from the front: the app announced "I'll
+     * remember this store as ..." when he had typed nothing.
+     */
+    const edited = merchant !== pending.offeredMerchant.trim();
+    const learned = edited ? await memLearn(pending.ocrText, merchant) : false;
     await taxMemLearn(pending.city, pending.taxRate);
     setPending(null);
     onSaved();
@@ -278,7 +349,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
     } catch {}
     // id used only to keep TS satisfied about the awaited insert
     void id;
-  }, [pending, notes, allocs, onSaved]);
+  }, [pending, notes, allocs, onSaved, duplicateOf]);
 
   // Declared here rather than just above the render, because addSplit needs the
   // receipt total to cap a split against it.

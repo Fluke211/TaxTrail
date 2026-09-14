@@ -220,7 +220,14 @@ function Root() {
 
       <View style={{ flex: 1 }}>
         {tab === 'capture' && <CaptureScreen
-          onSaved={() => { refresh(); setTab('receipts'); }}
+          /*
+           * Stays on Capture. It used to jump to Receipts after every save,
+           * which was right when Capture had nothing to come back to and wrong
+           * since it grew a Recent list: the saved receipt is already visible
+           * there, and the next thing anyone scanning a pile wants is the scan
+           * button, not a list (D-091). Tyler asked for this directly.
+           */
+          onSaved={() => { refresh(); }}
           onSeeAll={(id) => { setOpenReceiptId(id ?? null); setTab('receipts'); }}
           receipts={receipts} pro={pro} onProChanged={refresh} />}
         {tab === 'receipts' && <ReceiptsScreen
