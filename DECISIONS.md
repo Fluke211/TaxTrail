@@ -4410,3 +4410,260 @@ down what each slot says, and writing slot 2 down meant reading the rule. **A
 plan that nobody has had to implement has never been checked**, and this one had
 been repeated across three canon files, which reads as corroboration and is
 actually one claim copied twice.
+
+## D-087
+
+**Sales tax was missed on two thirds of real receipts, and it was one bug**
+(2026-09-13)
+
+Tyler scanned a pile of 24 real receipts and sent the diagnostics dump. Running
+them back through the parser:
+
+| | before | after |
+|---|---|---|
+| sales tax wrong or missing | **12 of 18** | 1 of 18 |
+| total wrong | 3 of 18 | 1 of 18 |
+
+The one that remains in both columns is a receipt photographed upside down,
+whose OCR is mirrored gibberish that contains none of the figures. That is an
+image problem, not a parser problem.
+
+His report was "sales tax is being missed pretty often". It was two thirds, and
+it was a single defect.
+
+### What it was
+
+Apple Vision reads a two-column layout by emitting **every label first and every
+value after**. Safeway arrives as
+
+```
+TAX
+**** BALANCE
+You Pay
+4.99 B
+3.49 B
+0.40      <- the tax
+8.88
+```
+
+The parser looked for a label and a number near each other, and when that failed
+it scanned ahead for the "first plausible" amount, which is an item price.
+Scanning further does not help, because every amount is plausible. The question
+was never *where* the number is. It is *which one*.
+
+### The fix, and why it is a check rather than a heuristic
+
+Two strategies, both of which prove themselves:
+
+1. **Where a subtotal label exists**, find three values in order satisfying
+   `subtotal + tax = total`. A line item does not satisfy that by accident. The
+   values need not be adjacent, because AutoZone prints three separate tax lines
+   and OCR leaves their fragments in between. The total must be the largest
+   amount in the block, which Costco taught: without it the search found a
+   `5.00-` instant saving that completed an equation, and reported 5.00 as the
+   sales tax.
+2. **Where there is no subtotal at all** (Safeway prints only TAX and BALANCE),
+   anchor on the grand total, which is known independently, and take the value
+   immediately before it. That is the row order every receipt prints.
+
+Because strategy 1 does not need the total to already be right, it **corrects**
+it. On Costco and City Mill the stored total was a line item ($2.47 for an
+$18.29 receipt) and the block handed back the real one.
+
+### Two bugs inside the fix, both found by measuring rather than reading
+
+- The column reader was called before `grandTotal` was assigned. `var` hoisting
+  made it read `undefined`, so it silently did nothing and the failure looked
+  exactly like the block not matching. The score went **up** when the call
+  moved four lines down.
+- The label run ended at the first line that did not look like a label. A masked
+  card number, `************2-30`, has no letters and no money, so AutoZone's run
+  ended twelve lines early and the value column was never reached. The run ends
+  where the values begin, and nowhere else.
+
+### The corpus tripled
+
+Nine receipts to thirty, all real, all from one session. Three of Tyler's were
+left out as capture bugs rather than parser cases: two duplicate scans of the
+same receipt, and one whose OCR contains an entire second receipt appended.
+
+Three expectations record what is **right** rather than what he saved. He stored
+the two AutoZone refunds as zero because the app refuses negatives; the receipts
+say `130.87-` and `41.88-`. And Ross is pinned to 2026-07-25, the date on the
+receipt, not the 2009-01-05 the parser produced and he did not catch.
+
+## D-088
+
+**Refunds are negative, and the app could not hold one** (2026-09-13)
+
+From the same 24-receipt batch. Tyler: *"I had some refund receipts too, but
+negative amounts are not recognized."*
+
+Two AutoZone returns, `130.87-` and `41.88-`. US retail has printed credits with
+a **trailing** minus for decades, sometimes with a tender letter after it
+(`124.99-P`). The parser had a credit filter that recognised exactly this and
+**discarded** it, which is right on an ordinary receipt where a `6.30-` instant
+saving must never win, and wrong on a refund where every amount on the slip is
+marked that way. Both came back with no total at all, and he stored them as
+zero, which quietly dropped **$172.75 of returned money** out of his books.
+
+### The rule
+
+Credits are collected rather than discarded, and used only when **no positive
+amount exists anywhere on the receipt**. That test is strict on purpose: an
+ordinary receipt always prints positive line items, so a discount line can never
+reach the refund path. Largest magnitude wins, the same rule the positive path
+uses, because the grand total is the biggest figure on the slip.
+
+Reading the amount beside the TOTAL label was not enough. AutoZone prints in a
+column with three separate tax lines above the total, so there is nothing
+adjacent to that label at all, which is the same layout problem as D-087.
+
+### What is still missing, and it is not small
+
+The parser produces a negative now. **The app still cannot accept one by hand.**
+The total field uses `keyboardType="decimal-pad"`, which on iOS has no minus
+key, so a refund the parser gets wrong cannot be corrected and one it misses
+cannot be entered. The split control also refuses a non-positive total, which is
+correct behaviour with a message written for a different case.
+
+That is a UI change rather than a parser one, and it needs a decision about
+shape: a refund is a state of the receipt, not a typing detail, so a marked
+"this is a refund" control reads better than swapping in a keyboard with a minus
+on it. Tyler also asked for refunds to be associated with the purchase they
+reverse, which is the same feature seen from the other end. Left for its own
+change rather than half-built here.
+
+## D-089
+
+**The merchant name is chosen by score, not by being first** (2026-09-13)
+
+Four of the 24 receipts in Tyler's batch named the wrong thing as the store:
+
+| receipt | read as | why |
+|---|---|---|
+| a Hele gas station | "Star-advertiser Hawaii's Best 2020" | three award banners printed above the name |
+| City Mill | "House" | Tyler's own handwriting on the paper |
+| Costco | "Mitco" | OCR of the logo, and the vocabulary check missed |
+| Food Lion | "Food," | the header wrapped and OCR kept the comma |
+
+`extractMerchant` returned the first line that looked plausible. That is right on
+most receipts and wrong on every receipt that prints something above the name.
+
+### Scored instead
+
+Every viable header line becomes a candidate and the best one wins. The signals
+are ordinary and they discriminate:
+
+- **A name the receipt prints twice is the store.** Real merchants appear in the
+  header and again in the footer address block; handwriting and banners appear
+  once. This is what rescues City Mill.
+- A known brand beats an unknown string.
+- More words beats fewer, so "Food Lion #2507" beats "FOOD,".
+- A dangling comma is OCR damage, not a name.
+
+Ties go to the earlier line, so the old behaviour stands wherever the scores do
+not separate. Accolades are skipped outright: Hawaii prints them constantly and
+they are always ABOVE the name, which is exactly the case first-come loses.
+
+### Four things scoring broke, each found by measuring
+
+Preferring longer names made the address block competitive, and each fix is a
+rule that was almost right already:
+
+1. `ADDRESSY` wanted "Dr." with the period; OCR does not keep it. "515 PEPEEKEO
+   DR" became the merchant.
+2. Then the **city** won, because a city is printed twice on almost every
+   receipt, which is the same signal that rescued City Mill. `extractCity`
+   already knows how to find it; it only had to be refused.
+3. Hele prints its address broken across lines, `HONOLULU` / `, HI` / `96825`,
+   which `extractCity` cannot see. A bare state abbreviation or a ZIP on the
+   next line or two says what the line above it is.
+4. **`ADDRESSY` treats any five-digit run as a ZIP, and "HELE 61176" ends in
+   one.** The store's own name was classified as an address, so it was never a
+   candidate at all and the accolade won by default. The address and garbage
+   tests now run on the cleaned name, after the store number is stripped.
+
+Costco's fingerprint gained two markers that do not depend on a word being
+spelled right: a twelve-digit membership number, and the `**** TOTAL` it prints.
+The two existing markers were both written to survive OCR damage and were both
+damaged past: `Trm:` had been read as `in:` and `rn:`, and `TOTAL NUMBER OF ITEMS
+SOLD` as `TOTAL NUMBER CF TEMS SOLD`.
+
+### Dates, from the same batch
+
+Ross was dated **2009-01-05**. The MM-DD-YY pattern had matched "1-01-5" inside
+`Tender Detail #:1-01-5-09-001360`; the receipt says `Date: 07/25/26`. A date
+bounded by another digit or separator is part of a reference number, not a date.
+
+And `8SEP2026` now parses. Safeway and Food Lion print that compact form in the
+footer, and it is often the only unambiguous date on the slip, so it is read
+before the numeric forms, which cannot tell 08/09 from 09/08.
+
+### Where the corpus stands
+
+Thirty real receipts, **zero expectation mismatches**. Thirteen carry triage
+flags, which are to-dos rather than regressions, and most are category judgment
+calls. One is the receipt photographed upside down.
+
+## D-090
+
+**The review of D-087 to D-089 found thirteen defects in them** (2026-09-14)
+
+Tyler asked for a review before merging. It was worth asking for. The parser
+work measured well against his 24 receipts and the synthetic corpus reported "No
+regressions", and it still carried thirteen real defects, several severe. The
+corpus and the generator both said the work was fine because **they only test
+the receipts that exist**.
+
+The worst three:
+
+1. **A tip was reported as sales tax.** `total + tip = amount paid` is as true
+   as `subtotal + tax = total`, and a restaurant slip prints both. The search
+   found the tip triple and returned an 18.5% rate, which `CaptureScreen` then
+   learned as that city's tax rate for every future split. Business Meals is a
+   core category. Fixed with a 13% ceiling, which no US jurisdiction reaches and
+   no tip stays under, plus positional alignment that does not require the total
+   to be the largest number on the slip: on a tipped receipt the amount paid is.
+2. **A stray positive beat a labelled refund.** One ordinary figure anywhere on
+   a return slip, a rewards balance or a restocking fee, and the $130 credit
+   became $1.05. That is the same money loss D-088 was written to stop,
+   reintroduced one line lower down, because the credit check sat below the
+   unlabelled max scan instead of above it.
+3. **`sanitizeMoneyText` stripped the sign.** A refund rendered as "-130.87",
+   and the first keystroke in the field made it 130.87. A credit became an
+   expense silently, with no way to type the sign back.
+
+### The pattern in the other ten
+
+Almost all of them are **a new rule being slightly too wide**, and each one was
+invisible because the corpus has no receipt that triggers it:
+
+- `ADDRESSY` gained bare `dr`, `rd`, `ln`, `parkway`, which threw away Lane
+  Bryant and Parkway Grill entirely.
+- `ACCOLADE` matched `award` and `magazine` unanchored, so Seaward Marine and
+  Magazine Street Cafe became unknown merchants.
+- Scoring a point per word let a slogan beat the store: "Quality Service Since"
+  over "Island Tire".
+- `[a-z]*` after a month name let "REG 5 JUNIOR 2026" date a receipt to June.
+- Reading the compact date form first let "POLICY EXPIRES ON 15NOV2026" beat the
+  transaction date. Home Depot prints that block on every slip.
+- Running the garbage filter on the *cleaned* string undid it: cleaning strips
+  the punctuation the filter counts, so "\*\*\* WELCOME TO \*\*\*" became a
+  merchant candidate.
+- `plausibleTax` compared against a total that can now be negative, so a refund
+  recorded no sales tax at all.
+- `if (col) continue` suppressed the subtotal as well as the tax, which silently
+  disabled `repairColumnTotal` on the receipts that needed it most.
+
+### What to take from it
+
+**A green corpus is evidence about the corpus.** Thirty real receipts and two
+thousand synthetic ones both passed every version of this work, including the
+version that reported a tip as sales tax. The failures were found by someone
+constructing the receipt that would break each new rule, which is a different
+activity from measuring, and not one the existing tooling does.
+
+The rules that survived are the ones that **prove themselves**: `subtotal + tax
+= total`, positional alignment, a name printed twice. The ones that needed
+fixing are the ones that pattern-match on a word.

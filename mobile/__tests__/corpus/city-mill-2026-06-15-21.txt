@@ -1,0 +1,38 @@
+Sale Receipt
+CITY MILL
+Jun 15, 2026 06:26 PM
+Served by Tim N
+Trans # 0240098511|St7F
+1 C1008980 | CDS Chlorinator Pool
+Shock @ $7.99/Each
+1 C1008980 | CDS Chlorinator Pool
+Shock @ $7.99/Each
+1 720458 | Butane Fuel Cartridge
+80z @ $6.79/Each
+1 720458 | Butane Fuel Cartridge
+80z @ $6.79/Each
+1 C1022770 | Nerd Clusters Peg 50z
+@
+$4.49/Each
+Houst
+7.99T
+7.99T
+6.79T
+6.79T
+4.49T
+Subtotal
+Tax
+Total
+visa *0856, exp. **/**
+Auth# Stripe
+34.05
+1.61
+$35.66
+$35.66
+City Mill - Hawaii Kai
+333 Keahole Street
+Honolulu, HI 96925
+Thank you for shopping with us. Please visit
+www.citymill.com/return-policy for full details.
+0240098511
+Sale Receipt

@@ -25,7 +25,7 @@ export interface ParsedReceipt {
 export function parseReceipt(rawText: string): ParsedReceipt;
 export function classify(text: string, merchant: string | null): { name: string; scheduleC: string; confidence: string; hits: string[] };
 export function extractLineItems(lines: string[]): LineItem[];
-export function extractTaxInfo(lines: string[]): { subtotal: number | null; tax: number | null; rate: number | null; printedRate: number | null };
+export function extractTaxInfo(lines: string[]): { subtotal: number | null; tax: number | null; rate: number | null; printedRate: number | null; columnTotal: number | null };
 export function extractCity(lines: string[]): string | null;
 export function diceSimilarity(a: string, b: string): number;
 export function taxFormOf(cat: string): string;

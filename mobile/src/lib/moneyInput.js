@@ -34,6 +34,19 @@ function sanitizeMoneyText(raw) {
   var s = String(raw == null ? '' : raw);
   // Some keyboards and locales produce a comma for the decimal separator.
   s = s.replace(/,/g, '.');
+  /*
+   * A leading minus survives, because a total can be negative now.
+   *
+   * Refunds parse as negative (D-088), and this function used to strip the
+   * sign: a refund rendered as "-130.87", and the first keystroke in the field
+   * turned it into 130.87. A $130 credit silently became a $130 expense, with
+   * no warning and no way to type the sign back, because the field is a
+   * decimal-pad and iOS does not put a minus on it.
+   *
+   * Only a LEADING minus, and only one. A minus anywhere else is OCR noise or a
+   * trailing credit marker, and neither belongs in a field being typed into.
+   */
+  var negative = /^\s*-/.test(s);
   // Anything that is not a digit or a separator cannot be part of an amount.
   s = s.replace(/[^0-9.]/g, '');
   // Keep only the first separator; later ones are typos, not new decimals.
@@ -48,7 +61,7 @@ function sanitizeMoneyText(raw) {
   // Strip a run of leading zeros ("007" -> "7") but never the single zero that
   // makes "0.40" typable.
   s = s.replace(/^0+(?=[0-9])/, '');
-  return s;
+  return negative && s !== '' ? '-' + s : s;
 }
 
 /**

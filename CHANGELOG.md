@@ -11,6 +11,60 @@ visible version, and it gets recorded here.
 
 ## iOS app
 
+### js r35 — v1.0.0 (build 7) — 2026-09-13
+
+**Sales tax was missed on two thirds of real receipts, and it was one bug**
+(D-087). Tyler scanned 24 real receipts and sent the diagnostics. Run back
+through the parser, sales tax was wrong or missing on **12 of 18**, and the
+total on 3. After this: 1 and 1, and that one receipt was photographed upside
+down so its OCR contains none of the figures.
+
+Apple Vision reads a two-column layout by emitting every label first and every
+value after, so the amount beside a TAX label is an item price. The parser
+scanned ahead for the first plausible number, which is exactly the wrong answer,
+because every amount is plausible. It now finds the three values satisfying
+`subtotal + tax = total`, which a line item does not satisfy by accident, and
+where a receipt prints no subtotal at all it anchors on the grand total and
+takes the value before it. Both prove themselves rather than guessing, and
+neither needs the total to be right first, so the block **corrects** the total
+too: Costco had been reading $12.99 for a $172.37 receipt.
+
+**The merchant name is chosen by score rather than by being first** (D-089).
+Four receipts named the wrong thing: an award banner, Tyler's own handwriting,
+"Mitco" for Costco, and "Food," for Food Lion. Every viable header line is a
+candidate now, and the strongest signal turns out to be that **a name the
+receipt prints twice is the store**: real merchants appear in the header and
+again in the footer address, while handwriting and banners appear once.
+
+Preferring longer names then made the address block competitive, and four rules
+that were almost right had to be finished: `ADDRESSY` wanted "Dr." with the
+period, the city outscored the store by the same printed-twice signal, Hele
+breaks its address across three lines so `extractCity` could not see it, and
+`ADDRESSY` treats any five-digit run as a ZIP, so "HELE 61176" was classified as
+an address and never became a candidate at all.
+
+**Two date bugs.** Ross was dated 2009 because the MM-DD-YY pattern matched
+inside `Tender Detail #:1-01-5-09-001360`; a date bounded by another digit is
+part of a reference number. And `8SEP2026` parses now, the compact form Safeway
+and Food Lion print in the footer, often the only unambiguous date on the slip.
+
+**The corpus tripled**, nine receipts to thirty, all real, and now at **zero
+expectation mismatches**.
+
+**A review before merge found thirteen defects in the above** (D-090), and it is
+worth recording that the corpus and the synthetic generator both reported the
+work as clean while it carried them. A tip was being reported as sales tax,
+because `total + tip = amount paid` is as true as `subtotal + tax = total` and a
+restaurant slip prints both; the rate was then learned as that city's. A stray
+positive figure on a refund slip beat the labelled credit, turning a $130 return
+into $1.05. `sanitizeMoneyText` stripped the minus, so the first keystroke in a
+refund's total field turned a credit into an expense. The rest were new rules
+cut slightly too wide: bare road words threw away Lane Bryant, an unanchored
+`award` threw away Seaward Marine, a point per word let a slogan beat the store,
+and a policy-expiry date beat the transaction date on every Home Depot slip. Three expectations
+record what is right rather than what was saved: the two AutoZone refunds are
+pinned negative, and Ross is pinned to the date printed on it.
+
 ### build 7 — v1.0.0 — 2026-09-06 · built and submitted to TestFlight the same day
 
 **Native build. The last thing blocking App Store submission on its own.**
