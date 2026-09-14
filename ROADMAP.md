@@ -90,10 +90,12 @@ what blocks what, not by size.
 - [x] **Tips count toward the total** (D-042) — Tyler's call. Added only when
       the receipt prints the post-tip figure, so a total that already includes
       the tip is never double-counted and a deduction is never inflated.
-- [ ] **Grow the real corpus.** Tyler scans real receipts, exports Summary ->
-      *Parser diagnostics*, and the dump lands in `mobile/__tests__/corpus/`.
-      Still the only on-distribution data — synthetic supplements it, never
-      replaces it.
+- [x] **Grow the real corpus** — 9 receipts to **30**, 2026-09-13, from one
+      scanning session of Tyler's. It immediately found four real defects that
+      thousands of synthetic receipts had not: sales tax missed on 12 of 18
+      (D-087), refunds unreadable (D-088), and the merchant wrong on 4 (D-089).
+      That is the case for real data in one line. Keep growing it; the dump is
+      Settings -> *Parser diagnostics*, behind seven taps on the version stamp
 - [x] **Made the synthetic corpus adversarial again** (D-045). It had reached
       100% on every axis, which measures the generator rather than the parser.
       Two new axes taken from artifacts in the real corpus: a decimal point

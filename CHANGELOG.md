@@ -49,7 +49,19 @@ part of a reference number. And `8SEP2026` parses now, the compact form Safeway
 and Food Lion print in the footer, often the only unambiguous date on the slip.
 
 **The corpus tripled**, nine receipts to thirty, all real, and now at **zero
-expectation mismatches**. Three expectations
+expectation mismatches**.
+
+**A review before merge found thirteen defects in the above** (D-090), and it is
+worth recording that the corpus and the synthetic generator both reported the
+work as clean while it carried them. A tip was being reported as sales tax,
+because `total + tip = amount paid` is as true as `subtotal + tax = total` and a
+restaurant slip prints both; the rate was then learned as that city's. A stray
+positive figure on a refund slip beat the labelled credit, turning a $130 return
+into $1.05. `sanitizeMoneyText` stripped the minus, so the first keystroke in a
+refund's total field turned a credit into an expense. The rest were new rules
+cut slightly too wide: bare road words threw away Lane Bryant, an unanchored
+`award` threw away Seaward Marine, a point per word let a slogan beat the store,
+and a policy-expiry date beat the transaction date on every Home Depot slip. Three expectations
 record what is right rather than what was saved: the two AutoZone refunds are
 pinned negative, and Ross is pinned to the date printed on it.
 

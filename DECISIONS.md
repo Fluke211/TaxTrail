@@ -4605,3 +4605,65 @@ before the numeric forms, which cannot tell 08/09 from 09/08.
 Thirty real receipts, **zero expectation mismatches**. Thirteen carry triage
 flags, which are to-dos rather than regressions, and most are category judgment
 calls. One is the receipt photographed upside down.
+
+## D-090
+
+**The review of D-087 to D-089 found thirteen defects in them** (2026-09-14)
+
+Tyler asked for a review before merging. It was worth asking for. The parser
+work measured well against his 24 receipts and the synthetic corpus reported "No
+regressions", and it still carried thirteen real defects, several severe. The
+corpus and the generator both said the work was fine because **they only test
+the receipts that exist**.
+
+The worst three:
+
+1. **A tip was reported as sales tax.** `total + tip = amount paid` is as true
+   as `subtotal + tax = total`, and a restaurant slip prints both. The search
+   found the tip triple and returned an 18.5% rate, which `CaptureScreen` then
+   learned as that city's tax rate for every future split. Business Meals is a
+   core category. Fixed with a 13% ceiling, which no US jurisdiction reaches and
+   no tip stays under, plus positional alignment that does not require the total
+   to be the largest number on the slip: on a tipped receipt the amount paid is.
+2. **A stray positive beat a labelled refund.** One ordinary figure anywhere on
+   a return slip, a rewards balance or a restocking fee, and the $130 credit
+   became $1.05. That is the same money loss D-088 was written to stop,
+   reintroduced one line lower down, because the credit check sat below the
+   unlabelled max scan instead of above it.
+3. **`sanitizeMoneyText` stripped the sign.** A refund rendered as "-130.87",
+   and the first keystroke in the field made it 130.87. A credit became an
+   expense silently, with no way to type the sign back.
+
+### The pattern in the other ten
+
+Almost all of them are **a new rule being slightly too wide**, and each one was
+invisible because the corpus has no receipt that triggers it:
+
+- `ADDRESSY` gained bare `dr`, `rd`, `ln`, `parkway`, which threw away Lane
+  Bryant and Parkway Grill entirely.
+- `ACCOLADE` matched `award` and `magazine` unanchored, so Seaward Marine and
+  Magazine Street Cafe became unknown merchants.
+- Scoring a point per word let a slogan beat the store: "Quality Service Since"
+  over "Island Tire".
+- `[a-z]*` after a month name let "REG 5 JUNIOR 2026" date a receipt to June.
+- Reading the compact date form first let "POLICY EXPIRES ON 15NOV2026" beat the
+  transaction date. Home Depot prints that block on every slip.
+- Running the garbage filter on the *cleaned* string undid it: cleaning strips
+  the punctuation the filter counts, so "\*\*\* WELCOME TO \*\*\*" became a
+  merchant candidate.
+- `plausibleTax` compared against a total that can now be negative, so a refund
+  recorded no sales tax at all.
+- `if (col) continue` suppressed the subtotal as well as the tax, which silently
+  disabled `repairColumnTotal` on the receipts that needed it most.
+
+### What to take from it
+
+**A green corpus is evidence about the corpus.** Thirty real receipts and two
+thousand synthetic ones both passed every version of this work, including the
+version that reported a tip as sales tax. The failures were found by someone
+constructing the receipt that would break each new rule, which is a different
+activity from measuring, and not one the existing tooling does.
+
+The rules that survived are the ones that **prove themselves**: `subtotal + tax
+= total`, positional alignment, a name printed twice. The ones that needed
+fixing are the ones that pattern-match on a word.

@@ -384,23 +384,26 @@
         if (max === null || v > max) max = v;
       });
     });
-    if (max !== null) return max;
-
     /*
-     * Nothing positive anywhere on the receipt, and credits everywhere. That is
-     * a refund, and the answer is a negative number rather than no number.
+     * A credit found under a TOTAL-ish label outranks any unlabelled positive.
      *
-     * The test is "no positive amount exists at all", which is strict on
-     * purpose: an ordinary receipt always prints positive line items, so a
-     * discount line can never reach here. Largest magnitude wins, the same rule
-     * the positive path uses, because the grand total is the biggest figure on
-     * the slip. AutoZone prints it in a column, three separate tax lines above
-     * it, so there is nothing adjacent to a TOTAL label to read (D-088).
+     * This used to sit below the max scan, so one stray positive figure on a
+     * refund slip — a rewards balance, a restocking fee, a line item whose
+     * trailing minus OCR dropped — booked $1.05 instead of a $130 credit. That
+     * is the same money loss D-088 exists to stop, reintroduced one line lower
+     * down. A labelled answer beats an unlabelled one regardless of sign.
      */
     if (credits.length) {
       credits.sort(function (a, b) { return a.priority - b.priority || b.value - a.value; });
       return -credits[0].value;
     }
+    if (max !== null) return max;
+
+    /*
+     * Nothing labelled and nothing positive: credits everywhere. Largest
+     * magnitude wins, the same rule the positive path uses, because the grand
+     * total is the biggest figure on the slip.
+     */
     return creditMax === null ? null : -creditMax;
   }
 
@@ -460,11 +463,28 @@
 
   function extractDate(text) {
     var m, y, mo, d;
-    // "8SEP2026", "9AUG2026" — the compact form Safeway and Food Lion print in
-    // their footer, and often the only unambiguous date on the slip. Read first
-    // because the numeric forms below cannot tell 08/09 from 09/08.
-    m = text.match(/\b(0?[1-9]|[12][0-9]|3[01])\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(20[0-9]{2})\b/i);
-    if (m) return isoDate(+m[3], MONTHS[m[2].toLowerCase().slice(0, 3)], +m[1]);
+    /*
+     * "8SEP2026", "9AUG2026" — the compact form Safeway and Food Lion print in
+     * their footer, and often the only unambiguous date on the slip. Read first
+     * because the numeric forms below cannot tell 08/09 from 09/08.
+     *
+     * Two things this must not do, both found in review:
+     *
+     *  - `[a-z]*` after the month let an ordinary word be swallowed. "REG 5
+     *    JUNIOR 2026" parsed as 5 June 2026 and dated the whole receipt. The
+     *    month abbreviation now has to end where it ends.
+     *  - Reading it FIRST made it beat the receipt's own transaction date, so
+     *    "RETURN POLICY EXPIRES ON 15NOV2026" and "Coupon valid thru 30SEP2026"
+     *    won. Home Depot prints a policy-expiry block on every slip. A date
+     *    introduced by expiry wording is a deadline, not a purchase.
+     */
+    var EXPIRY_CONTEXT = /(expir|valid|thru|through|policy|coupon|redeem|good\s+(until|thru)|by\s*$)/i;
+    var compact = /\b(0?[1-9]|[12][0-9]|3[01])\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?![a-z])\.?\s*(20[0-9]{2})\b/gi;
+    compact.lastIndex = 0;
+    while ((m = compact.exec(text)) !== null) {
+      if (EXPIRY_CONTEXT.test(text.slice(Math.max(0, m.index - 44), m.index))) continue;
+      return isoDate(+m[3], MONTHS[m[2].toLowerCase().slice(0, 3)], +m[1]);
+    }
     // MM/DD/YYYY or MM-DD-YY etc.
     var re = /\b(0?[1-9]|1[0-2])[\/\-.](0?[1-9]|[12][0-9]|3[01])[\/\-.](20[0-9]{2}|[0-9]{2})\b/g;
     re.lastIndex = 0;
@@ -495,7 +515,13 @@
   // Matches "receipt"/"invoice" anywhere, plus specific multi-word headers — but NOT bare
   // "check"/"copy" alone, which could be a real store name (e.g. "Copy Center").
   var NON_MERCHANT = /\b(receipt|invoice)\b|\b(guest\s+check|tax\s+invoice|(customer|merchant)\s+copy|itemized|subtotal)\b/i;
-  var ADDRESSY = /\b(street|st\.|ave|avenue|blvd|suite|ste\.?|drive|dr\.?|road|rd\.?|lane|ln\.?|pkwy|parkway|hwy|highway|\d{5}(-\d{4})?)\b/i;
+  /*
+   * Bare "dr", "rd", "ln", "parkway" were added here and taken straight back
+   * out: they threw away Lane Bryant, Parkway Grill and anything else whose
+   * name contains a road word. STREET_NUMBER below already covers the case
+   * that prompted it ("515 PEPEEKEO DR"), without the collateral damage.
+   */
+  var ADDRESSY = /\b(street|st\.|ave|avenue|blvd|suite|ste\.?|drive|dr\.|road|rd\.|hwy|highway|\d{5}(-\d{4})?)\b/i;
   /*
    * A street number then words is an address, whatever it abbreviates.
    *
@@ -536,7 +562,7 @@
    * (D-089). Hawaii prints these constantly and they are always ABOVE the name,
    * so taking the first plausible line is exactly wrong here.
    */
-  var ACCOLADE = /(best\s+of\b|\bbest\s+\d{4}\b|award|voted|\bwinner\b|^#\s*1\b|top\s+\d+\b|magazine)/i;
+  var ACCOLADE = /(best\s+of\b|\bbest\s+(19|20)\d{2}\b|\bvoted\b|\bwinner\b|^#\s*1\b|\btop\s+\d+\b|\b(award|magazine)\w*\b[^\n]*\b(19|20)\d{2}\b)/i;
 
   /*
    * The header, scored rather than taken first-come.
@@ -611,7 +637,14 @@
        * and "515 Pepeekeo Dr" still fails as it should (D-089).
        */
       if ((ADDRESSY.test(cleaned) || STREET_NUMBER.test(cleaned)) && i > 0) continue;
-      if (looksLikeGarbage(cleaned)) continue;
+      /*
+       * On the RAW line, not the cleaned one. `looksLikeGarbage` counts
+       * punctuation, and cleaning strips exactly the punctuation it counts:
+       * "*** WELCOME TO ***" passes as "Welcome To" and was beating "KONA HUT"
+       * on the line below. Only the ADDRESSY test above needed the cleaned
+       * form, for the five-digit store number.
+       */
+      if (looksLikeGarbage(line)) continue;
 
       var letters = (cleaned.match(/[A-Za-z]/g) || []).length;
       var compact = cleaned.replace(/\s/g, '').length;
@@ -638,7 +671,18 @@
 
       var score = 0;
       var words = cleaned.split(/\s+/).filter(Boolean);
-      score += Math.min(words.length, 3);
+      /*
+       * One point for having more than one word, not one per word.
+       *
+       * Scoring per word let a slogan beat the store: "ISLAND TIRE / QUALITY
+       * SERVICE SINCE 1985" named the merchant "Quality Service Since", and
+       * "MAHALO CAFE / HAVE A NICE DAY" named it "Have A Nice Day". Local one-
+       * and two-word merchants are exactly the long tail this scorer is for.
+       * Now it only separates "Food Lion #2507" from "FOOD,", which is all it
+       * was ever needed for, and everything else falls to the earlier-line
+       * tie-break the old code used.
+       */
+      if (words.length > 1) score += 1;
       if (/[,;:]$/.test(line.trim())) score -= 2;
       for (var b = 0; b < BRANDS.length; b++) {
         if (cleaned.toLowerCase().indexOf(BRANDS[b].toLowerCase()) !== -1) { score += 3; break; }
@@ -989,7 +1033,6 @@
     function isLabel(line) {
       return valueOf(line) === null && /[A-Za-z]{3}/.test(line);
     }
-    var HEADER = /^(price|you\s*pay|amount|qty|each|item)\b/i;
     var SUB = /sub\s*-?\s*total/i;
     var TAX = /(total\s*tax|sales\s*tax|\btax\b|\bget\b|\bgst\b|\bhst\b|\bvat\b)/i;
     var TOT = /\btotal\b|balance/i;
@@ -1021,6 +1064,15 @@
       // The value run. OCR drops stray lines into it (a card number, "You Pay",
       // an auth code), so a gap does not end the run as long as more amounts
       // follow. Scanning stops at the first gap once enough values are in hand.
+      /*
+       * The value run. OCR drops stray lines into it (a card number, "You Pay",
+       * an auth code), and Safeway puts fourteen footer lines between the label
+       * block and the column it belongs to, so a gap cannot end the run.
+       *
+       * That width is what makes the rate ceiling below necessary rather than
+       * optional: the run reaches the payment tail, and strategy 1 searches
+       * every triple in it.
+       */
       var values = [];
       var gap = 0;
       for (var k = j; k < lines.length && gap < 20; k++) {
@@ -1055,6 +1107,41 @@
        * The values need not be adjacent. AutoZone prints three separate tax
        * lines and OCR leaves their fragments in between.
        */
+      /*
+       * Strategy 1a: the labels and the values line up, position for position.
+       *
+       * This is the strongest evidence available, and unlike the search below
+       * it does not care which value is largest. A restaurant slip prints
+       * `SUB-TOTAL / STATE TAX / TOTAL / TIP / AMOUNT PAID` over five values,
+       * and the answer is the first three: the total is NOT the biggest number
+       * on that receipt, the amount paid is. Requiring the maximum, which is
+       * what stops the search below picking a discount line, is exactly wrong
+       * here.
+       */
+      if (sub !== null) {
+        // From the SUBTOTAL line itself, not from a guess at where it is.
+        var labels = [];
+        for (var q = sub; q < j && q < lines.length; q++) {
+          if (q < 0) continue;
+          if (/^(price|you\s*pay|qty|each|item)\s*$/i.test(lines[q])) continue;
+          labels.push(lines[q]);
+        }
+        var pSub = -1, pTax = -1, pTot = -1;
+        for (var a2 = 0; a2 < labels.length; a2++) {
+          if (pSub < 0 && SUB.test(labels[a2])) pSub = a2;
+          else if (pSub >= 0 && pTax < 0 && TAX.test(labels[a2])) pTax = a2;
+          else if (pTax >= 0 && pTot < 0 && TOT.test(labels[a2]) && !SUB.test(labels[a2])) pTot = a2;
+        }
+        if (pSub >= 0 && pTax >= 0 && pTot >= 0) {
+          for (var st = 0; st + pTot < values.length; st++) {
+            var sA = values[st + pSub], tA = values[st + pTax], gA = values[st + pTot];
+            if (!(sA > 0) || !(tA > 0) || !(gA > 0)) continue;
+            if (tA > gA * 0.13) continue;
+            if (Math.abs(sA + tA - gA) < 0.02) return { subtotal: sA, tax: tA, total: gA };
+          }
+        }
+      }
+
       if (sub !== null) {
         // The grand total is the largest amount in the block, essentially
         // always. Without this the search happily finds a discount line that
@@ -1067,7 +1154,19 @@
           if (!(gv > 0) || gv < biggest - 0.005) continue;
           for (var t1 = g - 1; t1 >= 1; t1--) {
             var tv = values[t1];
-            if (!(tv > 0) || tv > gv * 0.25) continue;
+            /*
+             * 13%, not 25%, and this is the whole defence against tips.
+             *
+             * `total + tip = amount paid` is as true as `subtotal + tax =
+             * total`, and a restaurant slip prints both, so the search found
+             * the tip triple and reported an 18.5% "sales tax" — which
+             * CaptureScreen then learned as that city's rate for every future
+             * split. No US jurisdiction charges sales tax above about 11.5%, so
+             * a rate a tip can reach and a tax cannot is the line that separates
+             * them. Hawaii GET is 4.7% and Virginia 6%, so the corpus is
+             * nowhere near this ceiling.
+             */
+            if (!(tv > 0) || tv > gv * 0.13) continue;
             for (var s1 = t1 - 1; s1 >= 0; s1--) {
               var sv = values[s1];
               if (!(sv > 0)) continue;
@@ -1102,10 +1201,6 @@
   // Falls back to taxTotal/subtotal, then tax/(total-tax).
   function extractTaxInfo(lines) {
     var subtotal = null, tax = null, printedRate = null;
-    // The column block first, when it is there. It is the only source here that
-    // proves itself arithmetically, so nothing below should be allowed to
-    // overwrite it (D-087).
-
     var moneyRe = MONEY;
     for (var p = 0; p < lines.length; p++) {
       var pm = lines[p].match(/(\d{1,2}(?:[.,]\d{1,4})?)\s*%/);
@@ -1121,7 +1216,10 @@
     var grandTotal = extractTotal(lines);
     function plausibleTax(v) {
       if (v === null || v <= 0) return false;
-      return grandTotal ? v <= grandTotal * 0.25 : true;
+      // Math.abs, because extractTotal returns a negative on a refund now
+      // (D-088). Without it every candidate failed `v <= -32.72` and a return
+      // never reversed the sales tax the purchase had added.
+      return grandTotal ? v <= Math.abs(grandTotal) * 0.25 : true;
     }
 
     // The column block first, when it is there. It is the only source here that
@@ -1150,8 +1248,18 @@
         }
       }
       if (v === null || v < 0) continue;
-      if (col) continue;   // the column block already answered, and it checked
       if (/sub\s*-?\s*total|subtotal/i.test(line) && subtotal === null) subtotal = v;
+      /*
+       * The column block answered, so this loop must not overwrite the tax.
+       *
+       * It still runs for the SUBTOTAL line above, though. Suppressing the
+       * whole loop left `subtotal` null whenever strategy 2 answered, which
+       * silently disabled `repairColumnTotal` on exactly the receipts that
+       * needed it. And letting the tax branch run undid strategy 2's answer,
+       * because its largest-wins rule picked an item price. Neither half of the
+       * loop is right for both cases; they are split.
+       */
+      else if (col) continue;
       else if (/(total\s*tax|sales\s*tax|\btax\b|\bget\b|\bgst\b|\bhst\b|\bvat\b)/i.test(line) &&
                !/taxable/i.test(line) && !/\bfsa\b/i.test(line)) {   // FSA N/TAX AMT is not sales tax
         var cand = v;
@@ -1368,7 +1476,23 @@
      * price. `subtotal + tax = total` is not something a line item satisfies by
      * accident (D-087).
      */
-    if (taxInfo.columnTotal != null) total = taxInfo.columnTotal;
+    /*
+     * ...but never over a tip the receipt itself confirmed.
+     *
+     * The block proves `subtotal + tax = total`, which on a restaurant slip is
+     * the PRE-tip total and not the deductible amount. Overriding here dropped
+     * a $20 tip off a meal, which is precisely the under-deduction applyTip
+     * exists to prevent (D-042).
+     *
+     * So the override only ever RAISES the total, never lowers it. That is the
+     * case it was built for: Costco reading $12.99 for a $172.37 receipt,
+     * because in a column layout the first amount after the labels is an item
+     * price. A total already larger than subtotal plus tax includes something
+     * the block cannot see, and a tip is exactly that.
+     */
+    if (taxInfo.columnTotal != null && (total === null || taxInfo.columnTotal > total)) {
+      total = taxInfo.columnTotal;
+    }
     total = repairColumnTotal(lines, total, taxInfo.subtotal, taxInfo.tax);
     return {
       items: items,
