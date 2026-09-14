@@ -108,6 +108,18 @@ what blocks what, not by size.
       "totals are wrong" report), and an award banner read as the merchant after
       OCR dated it 2920. Corpus grown 30 to 37 real receipts, four of them
       rescans, with both defects pinned as failures before being fixed
+- [ ] **The expiry-date veto guards only one of four date branches.**
+      `EXPIRY_CONTEXT` is applied in the compact `15NOV2026` loop
+      (`classifier.js:524`) and nowhere else: the numeric loop, the
+      `YYYY-MM-DD` branch and both month-name branches have no guard. Latent,
+      not live. It is harmless today only because those branches return the
+      FIRST date in document order and real receipts print the transaction date
+      above the policy expiry. Three of the 31 corpus receipts already carry a
+      qualifying date that is only ordered out of the way: Home Depot's
+      "POLICY EXPIRES ON 11/15/2026" and Safeway's "Points expiring 03/31/26",
+      twice. Found by the D-094 agent review while refuting a different
+      proposal. **Deliberately not fixed the same night it was found** — that
+      is the mistake D-094 records, and no real receipt is currently wrong
 - [ ] **The Hele award banner is unfixed again** (D-094). The banner line
       "STAR-A)VERTISER HAWAII'S BEST 2920" cannot be told from a real name like
       "Nature's Best 1234" by the line alone, and r38's attempt cost the merchant
