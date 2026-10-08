@@ -24,7 +24,10 @@ visible version, and it gets recorded here.
 - **A restaurant tip was being recorded as sales tax on a fourth receipt too.**
   Mamaya charged $0.72 of GET and the app stored $2.29, the tip. A line that is
   only a percentage was being counted as a row, which shifted every alignment.
-- Eighteen new unit tests. Three of them pin regressions the adversarial review
+- **A gratuity percentage can no longer become a city's sales-tax rate.** The
+  plausibility bound was 25%, which let an "18%" line through. The US ceiling is
+  about 11.5% combined, so it is 12% now.
+- Twenty-two new unit tests. Five of them pin regressions the adversarial review
   found before this merged: a three-item check whose item prices sum to the
   subtotal, a card surcharge slip the OCR repair would have deleted $2.00 from,
   and a Honolulu receipt whose correct printed rate the first version of the rate

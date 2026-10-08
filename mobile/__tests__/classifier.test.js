@@ -1441,5 +1441,35 @@ const tiny = C.parseReceipt(['SHOP', 'BAG FEE 0.50', 'SUBTOTAL', 'SALES TAX 8.75
 check('cent rounding on a tiny subtotal does not veto the rate',
   Math.abs((tiny.taxRatePrinted || 0) - 0.0875) < 1e-9, String(tiny.taxRatePrinted));
 
+/* ---------------------------------------------------------------------------
+ * Round two of the review: the bare-percentage rule had to earn its result.
+ * ------------------------------------------------------------------------- */
+
+// Dropping the rate line unconditionally closed the gap between the tax and
+// total labels, so the exact test started matching on (item, item, subtotal),
+// which is the universal identity. City Mill really prints this layout.
+const cmRate = C.parseReceipt(['Sale Receipt', 'CITY MILL', 'Jul 25, 2026 02:48 PM',
+  '1 A @ $39.95/Each', '1 B @ $2.47/Each', 'Subtotal', 'Tax', '4.712%', 'Total',
+  '39.95T', '2.47T', 'Auth# Stripe', '42.42', '2.00', '$44.42', '$44.42'].join('\n'));
+check('a dropped rate line must corroborate the triple',
+  cmRate.total === 44.42 && cmRate.taxTotal === 2.00,
+  cmRate.total + '/' + cmRate.taxTotal);
+check('and the receipt keeps its printed rate',
+  Math.abs((cmRate.taxRatePrinted || 0) - 0.04712) < 1e-9, String(cmRate.taxRatePrinted));
+
+// An intermediate row labelled only by its rate: the ungated second pass finds
+// it, so the gratuity is not booked as sales tax.
+const autoGrat = C.parseReceipt(['MAMAYA HONOLULU', '725 BISHOP ST',
+  'HONOLULU, HI 968134431', 'PARTY OF 8', 'CATERING TRAY', 'PLATTER',
+  '$60.00', '$60.00', 'Subtotal', 'GET', '18%', 'Total', 'CREDIT CARD SALE',
+  '$120.00', '$5.65', '$21.60', '$147.25'].join('\n'));
+check('an auto-gratuity row is not the sales tax',
+  autoGrat.total === 147.25 && autoGrat.taxTotal === 5.65, autoGrat.total + '/' + autoGrat.taxTotal);
+
+// 18% is not a US sales-tax rate. The old 25% bound let a autoGratuity be stored
+// as a city rate, which is the same poisoning in another costume.
+check('a rate above 12% is never taken as the tax rate', autoGrat.taxRatePrinted == null,
+  String(autoGrat.taxRatePrinted));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

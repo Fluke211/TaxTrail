@@ -1238,29 +1238,59 @@
        * what stops the search below picking a discount line, is exactly wrong
        * here.
        */
-      if (sub !== null) {
+      /*
+       * TWO passes over the label run, and the order is load-bearing.
+       *
+       * A line that is ONLY a percentage usually annotates the row above it
+       * rather than being a row of its own. Mamaya prints
+       *     Subtotal / GET / 4.712% / Total / Tip
+       * over five values, so counting the rate as a label made six labels for
+       * five values and every alignment landed a row late: the pre-tip total
+       * became the "subtotal" and the TIP became the sales tax, $2.29 where the
+       * receipt charged $0.72.
+       *
+       * Dropping it unconditionally was WRONG, and review proved it on a layout
+       * City Mill really prints: Subtotal / Tax / Total, then the item prices,
+       * then the totals column. Dropping the rate line closes the gap between
+       * the tax and total labels from two rows to one, so the exact test starts
+       * aligning on (item, item, subtotal) -- the universal identity "the items
+       * sum to the subtotal" -- and matched at the first offset. It booked an
+       * item price as sales tax, lost $2.00 off the purchase, and then let the
+       * derived 6.18% veto the receipt's own printed 4.712% and poison Honolulu.
+       *
+       * So the dropped percentage has to EARN it. The number being thrown away
+       * is itself the evidence: pass 0 drops the line but accepts a triple only
+       * when `tax / subtotal` matches the dropped rate. On Mamaya the correct
+       * triple derives 0.72/15.28 = 4.712% and agrees exactly; on City Mill the
+       * spurious one derives 2.47/39.95 = 6.18% against a printed 4.712% and is
+       * refused. Pass 1 is the old alignment, ungated, so nothing that worked
+       * before this rule existed can be lost to it (D-096).
+       */
+      for (var drop = 1; sub !== null && drop >= 0; drop--) {
         // From the SUBTOTAL line itself, not from a guess at where it is.
         var labels = [];
+        var dropRate = null;
         for (var q = sub; q < j && q < lines.length; q++) {
           if (q < 0) continue;
           if (/^(price|you\s*pay|qty|each|item)\s*$/i.test(lines[q])) continue;
-          /*
-           * A line that is ONLY a percentage annotates the row above it, it is
-           * not a row of its own. Mamaya prints
-           *     Subtotal / GET / 4.712% / Total / Tip
-           * over five values, so counting the rate as a label made six labels
-           * for five values and every alignment landed one row late: the
-           * pre-tip total became the "subtotal" and the TIP became the sales
-           * tax, $2.29 where the receipt charged $0.72. Tyler stored that
-           * figure, so it reached his books as sales tax (D-096).
-           *
-           * Safe because the exact arithmetic still has to close afterwards. If
-           * dropping the line were wrong, no triple would balance and the
-           * search falls through to where it was.
-           */
-          if (/^\s*\d{1,2}(?:[.,]\d{1,4})?\s*%\s*$/.test(lines[q])) continue;
+          var bare = lines[q].match(/^\s*(\d{1,2}(?:[.,]\d{1,4})?)\s*%\s*$/);
+          if (bare && drop) { dropRate = parseFloat(bare[1].replace(',', '.')) / 100; continue; }
           labels.push(lines[q]);
         }
+        // Pass 0 only exists to try the drop. With nothing dropped it is a
+        // duplicate of pass 1, so skip straight there.
+        if (drop && dropRate === null) continue;
+        /*
+         * Pass 0 must corroborate: the triple's own ratio has to match the
+         * percentage that was removed. Scaled slop, same as the printed-rate
+         * veto, because tax prints to the cent.
+         */
+        var gate = drop
+          ? function (sV, tV) {
+              if (!(sV > 0) || !(tV > 0) || dropRate === null) return false;
+              return Math.abs(tV / sV - dropRate) <= Math.max(0.005, 0.01 / sV);
+            }
+          : function () { return true; };
         var pSub = -1, pTax = -1, pTip = -1, pTot = -1;
         // A bare tip row inside the totals block, which a restaurant prints
         // between the tax and the total.
@@ -1289,7 +1319,9 @@
             var sE = values[sx + pSub], tE = values[sx + pTax], gE = values[sx + pTot];
             if (!(sE > 0) || !(tE > 0) || !(gE > 0)) continue;
             if (tE > gE * 0.13) continue;
-            if (Math.abs(sE + tE - gE) < 0.02) return { subtotal: sE, tax: tE, total: gE };
+            if (Math.abs(sE + tE - gE) < 0.02 && gate(sE, tE)) {
+              return { subtotal: sE, tax: tE, total: gE };
+            }
           }
           /*
            * The loose branches scan from the LAST offset backwards, because the
@@ -1326,7 +1358,7 @@
             for (var pm = pTax + 1; pm < pTot; pm++) {
               if (st + pm >= values.length) break;
               var mA = values[st + pm];
-              if (mA > 0 && Math.abs(sA + tA + mA - gA) < 0.02) {
+              if (mA > 0 && Math.abs(sA + tA + mA - gA) < 0.02 && gate(sA, tA)) {
                 return { subtotal: sA, tax: tA, total: gA };
               }
             }
@@ -1346,7 +1378,7 @@
              */
             var sum = Math.round((sA + tA) * 100) / 100;
             var off = Math.abs(sum - gA);
-            if (off >= 0.02 && off < gA * 0.02) {
+            if (off >= 0.02 && off < gA * 0.02 && gate(sA, tA)) {
               for (var w2 = 0; w2 < values.length; w2++) {
                 if (Math.abs(values[w2] - sum) < 0.005) {
                   return { subtotal: sA, tax: tA, total: sum };
@@ -1421,7 +1453,14 @@
       var pm = lines[p].match(/(\d{1,2}(?:[.,]\d{1,4})?)\s*%/);
       if (pm) {
         var pr = parseFloat(pm[1].replace(',', '.')) / 100;
-        if (pr > 0 && pr < 0.25) { printedRate = pr; break; }   // sane sales-tax range
+        /*
+         * 12%, not 25%. The US ceiling is about 11.5% combined state and local,
+         * so anything above that is not a sales-tax rate: it is a gratuity
+         * ("18%"), a service charge, a discount or a finance rate. The old 25%
+         * bound let an 18% auto-gratuity line be stored as a city's tax rate,
+         * which is the D-095 poisoning in another costume.
+         */
+        if (pr > 0 && pr <= 0.12) { printedRate = pr; break; }
       }
     }
     // Sales tax is a small fraction of the bill. Anything above a quarter of the

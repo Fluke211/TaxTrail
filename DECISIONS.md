@@ -5227,6 +5227,41 @@ where it was.
 record of what the app did. Three of the earlier pins were corrected for this
 reason (D-093) and this one slipped through anyway.
 
+### Round two of the review broke the bare-percentage rule, which was mine
+
+The percentage rule was the one change the first reviewers never saw, so it got
+its own round. It was wrong, on a layout City Mill really prints: `Subtotal / Tax
+/ Total`, then the item prices, then the totals column.
+
+Dropping the rate line closes the gap between the tax and total labels from two
+rows to one, so the exact test starts aligning on **(item, item, subtotal)**,
+which is the universal identity the first review had already warned about. It
+matched at the first offset and booked an item price as sales tax, lost $2.00 off
+the purchase, and then let the derived 6.18% veto the receipt's own printed
+4.712% and poison Honolulu. Exactly the failure the rate guard exists to prevent,
+caused by the rule meant to help it. The review measured it as deterministic:
+every receipt in that shape, not a sampling.
+
+**The fix is that the dropped percentage has to earn it.** The number being
+thrown away is itself the evidence. Pass 0 drops the line but accepts a triple
+only when `tax / subtotal` matches the dropped rate: on Mamaya the correct triple
+derives 4.712% and agrees exactly, on City Mill the spurious one derives 6.18%
+against a printed 4.712% and is refused. Pass 1 is the old alignment, ungated, so
+nothing that worked before the rule existed can be lost to it.
+
+That also restored a rescue the rule had silently disabled: with the gap closed
+to one row, the loop over intermediate rows could not execute at all, so a
+gratuity or surcharge labelled only by its rate went back to being booked as
+sales tax.
+
+### And the printed-rate bound was too loose all along
+
+Testing the above surfaced a separate poisoning the 25% bound had always allowed:
+an `18%` auto-gratuity line was taken as a city's sales-tax rate. The US ceiling
+is about 11.5% combined state and local, so the bound is **12%** now. A rate above
+that is a gratuity, a service charge, a discount or a finance rate, never a sales
+tax. It also stops a stray `18%` on one of Tyler's own Safeway receipts.
+
 ### What this round did not fix
 
 A **fee row** between the subtotal and the total (`SUBTOTAL / TAX / BAG FEE /
