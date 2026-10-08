@@ -21,8 +21,14 @@ visible version, and it gets recorded here.
   city's sales-tax rate.** One bar receipt had taught the app that Sacramento
   charges 4%, and one pizza slip that it charges 2%, for every later receipt
   there. The arithmetic the receipt proves now overrules a scanned percentage.
-- Eleven new unit tests, including the food-exempt grocery case that the first
-  version of the rate rule would have broken.
+- **A restaurant tip was being recorded as sales tax on a fourth receipt too.**
+  Mamaya charged $0.72 of GET and the app stored $2.29, the tip. A line that is
+  only a percentage was being counted as a row, which shifted every alignment.
+- Eighteen new unit tests. Three of them pin regressions the adversarial review
+  found before this merged: a three-item check whose item prices sum to the
+  subtotal, a card surcharge slip the OCR repair would have deleted $2.00 from,
+  and a Honolulu receipt whose correct printed rate the first version of the rate
+  veto threw away in favour of a 14.3% rate read off a tip.
 
 ## js r39 (2026-09-14)
 

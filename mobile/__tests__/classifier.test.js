@@ -1383,5 +1383,63 @@ const plain = C.parseReceipt(['ACME HARDWARE', '123 MAIN ST', 'AUSTIN', ', TX', 
 check('a receipt with no tip is untouched', plain.total === 10.80 && plain.taxTotal === 0.80,
   plain.total + '/' + plain.taxTotal);
 
+/* ---------------------------------------------------------------------------
+ * The three regressions the adversarial review found in the D-096 fixes, before
+ * they merged. Every one is pinned by its own reproduction.
+ * ------------------------------------------------------------------------- */
+
+// The loose three-term match used to return before the loop reached the exact
+// two-term one. "The item prices sum to the subtotal" is true on every itemised
+// receipt, so a three-item check matched at offset 0 and reported the first item
+// as the subtotal and the second as the sales tax.
+const check3 = C.parseReceipt(['BURGER BARN', '1200 J St', 'Sacramento, CA 95814',
+  '1 BACON BURGER', '1 FRIES', '1 FOUNTAIN SODA',
+  'Subtotal', 'Tax', 'Tip', 'Total',
+  '18.00', '2.50', '3.50', '24.00', '2.10', '0.00', '26.10', 'AMOUNT: $26.10'].join('\n'));
+check('an exact subtotal+tax match beats a loose one at any offset',
+  check3.total === 26.10 && check3.taxTotal === 2.10, check3.total + '/' + check3.taxTotal);
+
+// Card networks require a surcharge slip to print "Amount / Surcharge / Total",
+// where Amount IS subtotal + tax. A tip-specific test left that gap unexplained,
+// so the OCR repair deleted the surcharge and under-reported the purchase.
+const surcharge = C.parseReceipt(['MIDTOWN CYCLE WORKS', '2131 J STREET',
+  'Sacramento, CA 95816', 'TUBE 700X25C', 'CHAIN LUBE', 'LABOR',
+  'Subtotal', 'Tax', 'Amount:', 'Surcharge:', 'Total:',
+  '91.95', '8.05', '100.00', '2.00', '102.00'].join('\n'));
+check('a card surcharge is not deleted by the OCR repair',
+  surcharge.total === 102.00 && surcharge.taxTotal === 8.05,
+  surcharge.total + '/' + surcharge.taxTotal);
+
+const procFee = C.parseReceipt(['HALEKULANI PLUMBING LLC', '1240 KALANI STREET',
+  'Honolulu, HI 96817', 'Subtotal', 'Tax', 'Amount:', 'Processing Fee:', 'Total:',
+  '1240.00', '102.30', '1342.30', '25.00', '1367.30'].join('\n'));
+check('a $25 processing fee survives on a $1367 invoice', procFee.total === 1367.30,
+  String(procFee.total));
+
+// `tax / subtotal` is only a tax rate when the block actually read a tax row.
+// Mamaya's rate prints on its own line, which shifted the alignment so the TIP
+// became the tax; the derived 14.3% then vetoed the correct printed 4.712% and
+// poisoned Honolulu with a rate worse than the ones the veto exists to stop.
+const mamaya = fxRec('mamaya-2026-10-05-35');
+check('a bare percentage line does not shift the alignment',
+  mamaya.taxTotal === 0.72 && mamaya.total === 18.29, mamaya.taxTotal + '/' + mamaya.total);
+check('that receipt keeps its printed GET rate',
+  Math.abs((mamaya.taxRatePrinted || 0) - 0.04712) < 1e-9, String(mamaya.taxRatePrinted));
+
+// An implausible derived rate is evidence the block misread a row, not evidence
+// against the printed rate. No US jurisdiction reaches 11.5%.
+const tip12 = C.parseReceipt(['CAFE', 'Sacramento, CA 95814', '1 PLATE',
+  'Subtotal', 'SALES TAX', '8.750%', 'Total', 'Tip',
+  '40.00', '3.50', '43.50', '5.22', '48.72'].join('\n'));
+check('a 12% tip does not veto a printed rate',
+  Math.abs((tip12.taxRatePrinted || 0) - 0.0875) < 1e-9, String(tip12.taxRatePrinted));
+
+// The slop has to scale: tax prints to the cent, so on a sub-dollar subtotal
+// rounding alone moves the ratio by whole points.
+const tiny = C.parseReceipt(['SHOP', 'BAG FEE 0.50', 'SUBTOTAL', 'SALES TAX 8.750%',
+  'TOTAL', '0.50', '0.05', '0.55'].join('\n'));
+check('cent rounding on a tiny subtotal does not veto the rate',
+  Math.abs((tiny.taxRatePrinted || 0) - 0.0875) < 1e-9, String(tiny.taxRatePrinted));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -5160,6 +5160,63 @@ now, rejecting only a printed rate materially **below** the derived one, which i
 a rate the receipt demonstrably did not charge. Both poisoned cases miss by 4.8
 and 6.8 points. That grocery case is a unit test.
 
+### The review found three regressions in the above, before any of it merged
+
+This is the first round where the adversarial pass finished **before** the merge,
+which is the whole point of D-094. It was worth the wait: it broke three of the
+four changes, and one of them on a receipt already in the corpus.
+
+**The loose match pre-empted the exact one.** The new tip branch sat inside the
+offset loop, so a three-term match at an early offset returned before the loop
+reached the exact `subtotal + tax == total` at a later one. The three-term
+equation is the universal identity *"the item prices sum to the subtotal"*, true
+on every itemised receipt by definition. A three-item restaurant check therefore
+matched at offset 0 and reported the first item as the subtotal and the second as
+the sales tax. Coin Op escaped only by accident of having **one** item. The exact
+test gets its own complete pass first now.
+
+**The tip-specific test let a card surcharge be deleted.** Card networks require
+a surcharging slip to print `Amount / Surcharge / Total`, where `Amount` *is*
+subtotal plus tax. With no tip row to explain the gap, the OCR repair found that
+`Amount` row, took it for the receipt's second opinion, and returned it as the
+total: a $2.00 surcharge silently removed, or $25.00 on a $1367 plumbing invoice.
+The test is keyed on **position** now, not on the word "tip": any aligned row
+between the tax and the total that closes the equation explains the gap, and the
+printed total stands. That covers a tip, a gratuity, a surcharge, a bag fee, a
+bottle deposit and a round-up donation with one rule instead of five.
+
+**The rate veto poisoned Honolulu, which is exactly what it exists to prevent.**
+`tax / subtotal` is a tax rate only if `col.tax` is a tax amount. Mamaya prints
+its rate on its own line, which added a label owning no value and shifted every
+alignment by a row, so the block resolved the pre-tip total as the "subtotal" and
+the **tip** as the tax. Derived became 14.3%, which vetoed the receipt's own
+correctly printed 4.712% GET and stored 14.3% against the city, three times worse
+than the 4% and 2% this veto was built to stop.
+
+Two guards. A derived rate above **11.5%** is evidence the block misread a row,
+not evidence against the printed rate, since no US jurisdiction reaches it. And
+the slop now scales: tax prints to the cent, so on a sub-dollar subtotal rounding
+alone moves the ratio by whole points (0.05 on 0.50 is 10% where the rate is
+8.75%).
+
+### A fourth money defect, found by the review and not by me
+
+Mamaya's sales tax was **$2.29**, which is the tip. The receipt charged **$0.72**.
+Tyler stored the tip as sales tax, and my first corpus pin copied his value as
+ground truth, so the measurement agreed with the bug.
+
+The cause is that `4.712%` line: a line that is **only** a percentage annotates
+the row above it rather than being a row of its own. Dropping it from the label
+run makes six labels into five for five values, the exact arithmetic closes
+(15.28 + 0.72 = 16.00), and the tip is then added by the tip reader to give the
+18.29 actually charged. Safe because the exact arithmetic still has to close: if
+dropping the line were wrong, no triple balances and the search falls through to
+where it was.
+
+**Lesson: a pin copied from what the user saved is not ground truth.** It is a
+record of what the app did. Three of the earlier pins were corrected for this
+reason (D-093) and this one slipped through anyway.
+
 ### What this round did not fix
 
 A **fee row** between the subtotal and the total (`SUBTOTAL / TAX / BAG FEE /
