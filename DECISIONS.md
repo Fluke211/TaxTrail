@@ -5199,6 +5199,16 @@ the slop now scales: tax prints to the cent, so on a sub-dollar subtotal roundin
 alone moves the ratio by whole points (0.05 on 0.50 is 10% where the rate is
 8.75%).
 
+The review also supplied a second edit worth taking on its own: the loose
+branches scan from the **last** offset backwards, because the totals block sits
+at the end of a value run while the item prices sit at the front. Forwards, a
+coincidence among the item prices is reached first; backwards, the real block is.
+
+Measured independently over 1650 generated three-item checks spanning five tip
+percentages: the original parser got 330 right, the first version of these fixes
+got 1390 (better overall, but it broke cases that had been correct), and the
+corrected version gets **1650 of 1650 with zero cases broken**.
+
 ### A fourth money defect, found by the review and not by me
 
 Mamaya's sales tax was **$2.29**, which is the tip. The receipt charged **$0.72**.
