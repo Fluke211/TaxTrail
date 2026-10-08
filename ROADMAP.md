@@ -108,6 +108,13 @@ what blocks what, not by size.
       "totals are wrong" report), and an award banner read as the merchant after
       OCR dated it 2920. Corpus grown 30 to 37 real receipts, four of them
       rescans, with both defects pinned as failures before being fixed
+- [ ] **The 2026-10-08 batch: three money defects, all unfixed** (D-095). An
+      $11.00 tip dropped from a business meal, a Costco subtotal read as the
+      total, and a suggested-tip percentage read as a city sales-tax rate on two
+      receipts. Plus a service fee learned as a 4% tax rate, a missed tax, a
+      missed date and two wrong merchant names. All ten pinned red in the corpus.
+      **This is the next piece of work.** Restaurants and bars were absent from
+      the corpus until now, and they are where the deductible meals are
 - [ ] **The expiry-date veto guards only one of four date branches.**
       `EXPIRY_CONTEXT` is applied in the compact `15NOV2026` loop
       (`classifier.js:524`) and nowhere else: the numeric loop, the

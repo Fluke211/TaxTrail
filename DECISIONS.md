@@ -4981,3 +4981,105 @@ The receipt's banner cannot be told from a real "<X>'s Best" name by the banner
 line alone, and the reverted rule is the safer of the two wrong answers. The pin
 records the truth rather than the current behaviour, so it stays red until it is
 genuinely fixed.
+
+---
+
+## D-095
+
+**The tip receipt finally arrived, and it came with two tax-rate poisonings**
+(2026-10-08)
+
+Tyler sent a 36-receipt archive, eight of them new. He had said he owned no
+receipt with a tip on it. He now owns three, and they found the worst defects of
+any batch so far: **three of the eight get money wrong**, and two of those teach
+the app a wrong tax rate for a whole city.
+
+Corpus 31 to 39. Every defect below is pinned as a failing expectation first.
+
+### A $11.00 tip dropped from a business meal (`0031-toms-watch-bar`)
+
+The slip prints the post-tip figure, which is the exact condition D-042 requires
+before a tip may be added:
+
+```
+85 Amount
+86 + Tip:
+87 = Total:
+88 $61.61
+89 11.00
+90 72.61
+```
+
+`applyTip` looks for a tip label then takes money from that line or the next. Line
+86 carries no amount and line 87 is another label, so it finds nothing and
+returns the pre-tip figure. **Column layout again**, the same shape as D-087: all
+labels, then all values. The deductible cost is $72.61 and the app recorded
+$61.61.
+
+### A service fee learned as a city tax rate (`0031`)
+
+The same receipt prints `Srv Fee (4.00%)`, and `taxRatePrinted` came back
+**0.04**. That is not a tax rate, and `taxMemLearn` stores it against the city, so
+every future Sacramento receipt inherits a 4% rate that no jurisdiction charges.
+
+This is D-090's tip-as-tax defect in a new costume. That one was caught by review
+before shipping; this one shipped, because no receipt in the corpus had a service
+fee until now.
+
+### A suggested-tip percentage learned as a city tax rate (`0032`, `0033`)
+
+Worse, because it is two receipts and the number is absurd. Coin Op prints:
+
+```
+43 Suggested Additional Tip:
+44 + 2%: (Tip $0.09 Total $4.44)
+```
+
+`taxRatePrinted` came back **0.02** on both. The real rate is the 8.75%
+Sacramento rate the receipts actually charge.
+
+And the reported tax is the **Tip**, not the tax: $0.87 instead of $0.35, and
+$2.17 instead of $0.87. The label block is `Subtotal / Tax / Tip / Total` with an
+item price sitting ahead of the value run, so the alignment is off by one row and
+lands on the tip every time.
+
+### A subtotal read as the total (`0029-costco`)
+
+```
+34 SUBTOTAL      37 126.41
+35 TAX           38 5.82
+36 **** TOTAL    39 132.41
+```
+
+The parser returned **126.41**. The truth is $132.23: the receipt prints
+`AMOUNT: $132.23`, and 126.41 + 5.82 = 132.23 exactly. The `132.41` in the column
+is an OCR misread of that same figure, which is why the arithmetic self-proof
+could not confirm the block and the next-line rule fell back to the first value in
+the value column, which belongs to SUBTOTAL.
+
+### Sales tax missed (`0030-starbucks`)
+
+An airport Starbucks, labels `Subtotal / Other / Tax / Payment / Change Due` and
+values nine rows below. Same column layout, tax came back null. Also carries a
+`CHARGED TIP` of $3.00 already inside the $22.06, so the total is right.
+
+### Two merchant names and a date
+
+- `Tom's Watch Bar` reads as **"Watch Bar"**: the logo splits `TOM'S` and
+  `WATCH BAR` across two lines, and the full name sits on the third
+  (`Tom's Watch Bar - SACRAMENTO`), unused.
+- Coin Op reads as **"Street"**, off vertical signage `STREET / GAME / COIN-OP /
+  ROOM`, with `Coin Op - Sacramento` ignored on line 5 and `908 K Street` below.
+- Mamaya has **no date**: it prints `05-Oct-2026`, and the month-name patterns all
+  require whitespace separators while the compact form allows none. Hyphens match
+  nothing.
+
+### What this batch says
+
+Every single defect here is a **column-layout** failure or a **percentage read as
+a tax rate**. Both are families the parser already has machinery for, and both
+were previously measured only on receipts that happen not to print a service fee,
+a suggested tip, or a tip line with its value two rows down.
+
+Restaurants and bars are where this app's user keeps his deductible meals, and
+until this batch the corpus had none of them.
