@@ -1328,5 +1328,148 @@ const HELE_CLEAN = require('fs').readFileSync(
 check('an award banner with a readable year is still skipped',
   merchantOf(HELE_CLEAN) === 'Hele', JSON.stringify(merchantOf(HELE_CLEAN)));
 
+/* ---------------------------------------------------------------------------
+ * D-095: three money defects from the 2026-10-08 batch, and the two tax-rate
+ * poisonings that came with them.
+ *
+ * Restaurants and bars were absent from the corpus until that batch, and every
+ * one of these defects needed one.
+ * ------------------------------------------------------------------------- */
+const fxRec = (n) => C.parseReceipt(
+  require('fs').readFileSync(require('path').join(__dirname, 'corpus', n + '.txt'), 'utf8'));
+
+// An $11.00 tip in a column block: "Amount / + Tip: / = Total:" then the three
+// values. The tip label carries no amount and nor does the line after it.
+const toms = fxRec('toms-watch-bar-2026-09-21-31');
+check('a tip in a column block is added to the total', toms.total === 72.61, String(toms.total));
+check('that receipt still reports its real sales tax', toms.taxTotal === 4.96, String(toms.taxTotal));
+
+// A subtotal read as the total, because the column's own total line OCR'd as
+// 132.41 while 126.41 + 5.82 = 132.23 is printed twice lower down.
+const costco29 = fxRec('costco-2026-09-16-29');
+check('an OCR-damaged total is repaired from the arithmetic', costco29.total === 132.23, String(costco29.total));
+
+// Subtotal / Tax / Tip / Total, where the Total already includes the tip so
+// subtotal + tax can never equal it. The parser reported the Tip as the tax.
+const coin32 = fxRec('coin-op-2026-09-22-32');
+const coin33 = fxRec('coin-op-2026-09-22-33');
+check('a tip row does not become the sales tax (1)',
+  coin32.taxTotal === 0.35 && coin32.total === 5.22, coin32.taxTotal + '/' + coin32.total);
+check('a tip row does not become the sales tax (2)',
+  coin33.taxTotal === 0.87 && coin33.total === 13.04, coin33.taxTotal + '/' + coin33.total);
+
+// A service fee and a suggested-tip percentage were being stored as the city's
+// sales-tax rate, which poisons every later receipt in that city.
+check('a service-fee percentage is not a tax rate', toms.taxRatePrinted == null, String(toms.taxRatePrinted));
+check('a suggested-tip percentage is not a tax rate', coin32.taxRatePrinted == null, String(coin32.taxRatePrinted));
+
+// The rate test has to be ONE-SIDED. tax/subtotal can only understate the true
+// rate, because untaxed items sit inside the subtotal. A symmetric test was
+// written first and threw away the correct rate on any food-exempt grocery
+// bill, which is a regression this pins against.
+const grocery = C.parseReceipt(['SUPERMART', 'MILK 2 GAL', '3.49', 'BREAD', '2.50',
+  'CANDY BAR', '2.00', 'SUBTOTAL', 'TAX', 'TOTAL', '7.99', '0.17', '8.16',
+  '8.700% SALES TAX'].join('\n'));
+check('a printed rate above the derived one survives (untaxed food)',
+  Math.abs((grocery.taxRatePrinted || 0) - 0.087) < 1e-9, String(grocery.taxRatePrinted));
+
+// A receipt whose total already includes the tip must not have it added twice.
+check('a tip already inside the total is not added again',
+  coin32.total === 5.22 && coin33.total === 13.04);
+
+// And a plain receipt with no tip anywhere is untouched.
+const plain = C.parseReceipt(['ACME HARDWARE', '123 MAIN ST', 'AUSTIN', ', TX', '78701',
+  'SUBTOTAL', 'TAX', 'TOTAL', '10.00', '0.80', '10.80'].join('\n'));
+check('a receipt with no tip is untouched', plain.total === 10.80 && plain.taxTotal === 0.80,
+  plain.total + '/' + plain.taxTotal);
+
+/* ---------------------------------------------------------------------------
+ * The three regressions the adversarial review found in the D-096 fixes, before
+ * they merged. Every one is pinned by its own reproduction.
+ * ------------------------------------------------------------------------- */
+
+// The loose three-term match used to return before the loop reached the exact
+// two-term one. "The item prices sum to the subtotal" is true on every itemised
+// receipt, so a three-item check matched at offset 0 and reported the first item
+// as the subtotal and the second as the sales tax.
+const check3 = C.parseReceipt(['BURGER BARN', '1200 J St', 'Sacramento, CA 95814',
+  '1 BACON BURGER', '1 FRIES', '1 FOUNTAIN SODA',
+  'Subtotal', 'Tax', 'Tip', 'Total',
+  '18.00', '2.50', '3.50', '24.00', '2.10', '0.00', '26.10', 'AMOUNT: $26.10'].join('\n'));
+check('an exact subtotal+tax match beats a loose one at any offset',
+  check3.total === 26.10 && check3.taxTotal === 2.10, check3.total + '/' + check3.taxTotal);
+
+// Card networks require a surcharge slip to print "Amount / Surcharge / Total",
+// where Amount IS subtotal + tax. A tip-specific test left that gap unexplained,
+// so the OCR repair deleted the surcharge and under-reported the purchase.
+const surcharge = C.parseReceipt(['MIDTOWN CYCLE WORKS', '2131 J STREET',
+  'Sacramento, CA 95816', 'TUBE 700X25C', 'CHAIN LUBE', 'LABOR',
+  'Subtotal', 'Tax', 'Amount:', 'Surcharge:', 'Total:',
+  '91.95', '8.05', '100.00', '2.00', '102.00'].join('\n'));
+check('a card surcharge is not deleted by the OCR repair',
+  surcharge.total === 102.00 && surcharge.taxTotal === 8.05,
+  surcharge.total + '/' + surcharge.taxTotal);
+
+const procFee = C.parseReceipt(['HALEKULANI PLUMBING LLC', '1240 KALANI STREET',
+  'Honolulu, HI 96817', 'Subtotal', 'Tax', 'Amount:', 'Processing Fee:', 'Total:',
+  '1240.00', '102.30', '1342.30', '25.00', '1367.30'].join('\n'));
+check('a $25 processing fee survives on a $1367 invoice', procFee.total === 1367.30,
+  String(procFee.total));
+
+// `tax / subtotal` is only a tax rate when the block actually read a tax row.
+// Mamaya's rate prints on its own line, which shifted the alignment so the TIP
+// became the tax; the derived 14.3% then vetoed the correct printed 4.712% and
+// poisoned Honolulu with a rate worse than the ones the veto exists to stop.
+const mamaya = fxRec('mamaya-2026-10-05-35');
+check('a bare percentage line does not shift the alignment',
+  mamaya.taxTotal === 0.72 && mamaya.total === 18.29, mamaya.taxTotal + '/' + mamaya.total);
+check('that receipt keeps its printed GET rate',
+  Math.abs((mamaya.taxRatePrinted || 0) - 0.04712) < 1e-9, String(mamaya.taxRatePrinted));
+
+// An implausible derived rate is evidence the block misread a row, not evidence
+// against the printed rate. No US jurisdiction reaches 11.5%.
+const tip12 = C.parseReceipt(['CAFE', 'Sacramento, CA 95814', '1 PLATE',
+  'Subtotal', 'SALES TAX', '8.750%', 'Total', 'Tip',
+  '40.00', '3.50', '43.50', '5.22', '48.72'].join('\n'));
+check('a 12% tip does not veto a printed rate',
+  Math.abs((tip12.taxRatePrinted || 0) - 0.0875) < 1e-9, String(tip12.taxRatePrinted));
+
+// The slop has to scale: tax prints to the cent, so on a sub-dollar subtotal
+// rounding alone moves the ratio by whole points.
+const tiny = C.parseReceipt(['SHOP', 'BAG FEE 0.50', 'SUBTOTAL', 'SALES TAX 8.750%',
+  'TOTAL', '0.50', '0.05', '0.55'].join('\n'));
+check('cent rounding on a tiny subtotal does not veto the rate',
+  Math.abs((tiny.taxRatePrinted || 0) - 0.0875) < 1e-9, String(tiny.taxRatePrinted));
+
+/* ---------------------------------------------------------------------------
+ * Round two of the review: the bare-percentage rule had to earn its result.
+ * ------------------------------------------------------------------------- */
+
+// Dropping the rate line unconditionally closed the gap between the tax and
+// total labels, so the exact test started matching on (item, item, subtotal),
+// which is the universal identity. City Mill really prints this layout.
+const cmRate = C.parseReceipt(['Sale Receipt', 'CITY MILL', 'Jul 25, 2026 02:48 PM',
+  '1 A @ $39.95/Each', '1 B @ $2.47/Each', 'Subtotal', 'Tax', '4.712%', 'Total',
+  '39.95T', '2.47T', 'Auth# Stripe', '42.42', '2.00', '$44.42', '$44.42'].join('\n'));
+check('a dropped rate line must corroborate the triple',
+  cmRate.total === 44.42 && cmRate.taxTotal === 2.00,
+  cmRate.total + '/' + cmRate.taxTotal);
+check('and the receipt keeps its printed rate',
+  Math.abs((cmRate.taxRatePrinted || 0) - 0.04712) < 1e-9, String(cmRate.taxRatePrinted));
+
+// An intermediate row labelled only by its rate: the ungated second pass finds
+// it, so the gratuity is not booked as sales tax.
+const autoGrat = C.parseReceipt(['MAMAYA HONOLULU', '725 BISHOP ST',
+  'HONOLULU, HI 968134431', 'PARTY OF 8', 'CATERING TRAY', 'PLATTER',
+  '$60.00', '$60.00', 'Subtotal', 'GET', '18%', 'Total', 'CREDIT CARD SALE',
+  '$120.00', '$5.65', '$21.60', '$147.25'].join('\n'));
+check('an auto-gratuity row is not the sales tax',
+  autoGrat.total === 147.25 && autoGrat.taxTotal === 5.65, autoGrat.total + '/' + autoGrat.taxTotal);
+
+// 18% is not a US sales-tax rate. The old 25% bound let a autoGratuity be stored
+// as a city rate, which is the same poisoning in another costume.
+check('a rate above 12% is never taken as the tax rate', autoGrat.taxRatePrinted == null,
+  String(autoGrat.taxRatePrinted));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

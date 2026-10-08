@@ -457,6 +457,63 @@
   // includes the tip, and guessing wrong inflates a tax deduction — a worse
   // failure than the one being fixed. A handwritten tip prints no number at all,
   // so it is correctly out of scope.
+  /*
+   * The tip when it sits in a column block.
+   *
+   * Tom's Watch Bar prints
+   *
+   *     Amount        ->   $61.61
+   *     + Tip:        ->    11.00
+   *     = Total:      ->    72.61
+   *
+   * as three labels and then three values, so the tip label carries no amount
+   * and neither does the line after it. applyTip's inline lookup found nothing
+   * and $11.00 was dropped off a business meal (D-095).
+   *
+   * Labels are aligned to values from the END of the label run, because the run
+   * above a value column cannot be walked backwards safely: on this very
+   * receipt the lines above "Amount" are a card number, an auth code and a
+   * terminal name, all of which look like labels. The N values belong to the
+   * last N labels.
+   *
+   * `base + tip == the aligned total` is the proof. The receipt prints the sum
+   * itself, so this cannot fire by accident, and a block whose total already
+   * includes the tip (Coin Op prints Subtotal/Tax/Tip/Total) does not satisfy
+   * it and is left alone.
+   */
+  function columnTipTotal(lines, base) {
+    function valueOf(line) {
+      var mm = matchMoney(line);
+      if (!mm) return null;
+      var rest = line.replace(mm[0], '').replace(/[^A-Za-z]/g, '');
+      return rest.length > 6 ? null : normalizeAmount(mm[1]);
+    }
+    // A bare tip label, optionally with the "+" or "=" a card slip prints.
+    var TIP_LABEL = /^\s*[+=]?\s*(tip|gratuity)\s*:?\s*$/i;
+    for (var i = 0; i < lines.length; i++) {
+      if (!TIP_LABEL.test(lines[i])) continue;
+      var j = i;
+      while (j < lines.length && valueOf(lines[j]) === null) j++;
+      var values = [];
+      for (var k = j; k < lines.length && values.length < 12; k++) {
+        var v = valueOf(lines[k]);
+        if (v === null) break;
+        values.push(v);
+      }
+      if (values.length < 2) continue;
+      // End-aligned: the last values.length labels own the values.
+      var pTip = i - (j - values.length);
+      if (pTip < 0 || pTip >= values.length) continue;
+      var tipV = values[pTip];
+      if (!(tipV > 0)) continue;
+      var want = Math.round((base + tipV) * 100) / 100;
+      for (var w = pTip + 1; w < values.length; w++) {
+        if (Math.abs(values[w] - want) < 0.005) return want;
+      }
+    }
+    return null;
+  }
+
   function applyTip(lines, base) {
     if (base === null) return base;
 
@@ -470,7 +527,12 @@
       var v = normalizeAmount(m[1]);
       if (v !== null && v > 0) tip = tip === null ? v : Math.max(tip, v);
     }
-    if (tip === null) return base;
+    // Nothing inline. The tip may still be in a column block, proved by its
+    // own arithmetic rather than by the text search below.
+    if (tip === null) {
+      var col = columnTipTotal(lines, base);
+      return col === null ? base : col;
+    }
 
     var target = Math.round((base + tip) * 100) / 100;
     for (var j = 0; j < lines.length; j++) {
@@ -1176,26 +1238,153 @@
        * what stops the search below picking a discount line, is exactly wrong
        * here.
        */
-      if (sub !== null) {
+      /*
+       * TWO passes over the label run, and the order is load-bearing.
+       *
+       * A line that is ONLY a percentage usually annotates the row above it
+       * rather than being a row of its own. Mamaya prints
+       *     Subtotal / GET / 4.712% / Total / Tip
+       * over five values, so counting the rate as a label made six labels for
+       * five values and every alignment landed a row late: the pre-tip total
+       * became the "subtotal" and the TIP became the sales tax, $2.29 where the
+       * receipt charged $0.72.
+       *
+       * Dropping it unconditionally was WRONG, and review proved it on a layout
+       * City Mill really prints: Subtotal / Tax / Total, then the item prices,
+       * then the totals column. Dropping the rate line closes the gap between
+       * the tax and total labels from two rows to one, so the exact test starts
+       * aligning on (item, item, subtotal) -- the universal identity "the items
+       * sum to the subtotal" -- and matched at the first offset. It booked an
+       * item price as sales tax, lost $2.00 off the purchase, and then let the
+       * derived 6.18% veto the receipt's own printed 4.712% and poison Honolulu.
+       *
+       * So the dropped percentage has to EARN it. The number being thrown away
+       * is itself the evidence: pass 0 drops the line but accepts a triple only
+       * when `tax / subtotal` matches the dropped rate. On Mamaya the correct
+       * triple derives 0.72/15.28 = 4.712% and agrees exactly; on City Mill the
+       * spurious one derives 2.47/39.95 = 6.18% against a printed 4.712% and is
+       * refused. Pass 1 is the old alignment, ungated, so nothing that worked
+       * before this rule existed can be lost to it (D-096).
+       */
+      for (var drop = 1; sub !== null && drop >= 0; drop--) {
         // From the SUBTOTAL line itself, not from a guess at where it is.
         var labels = [];
+        var dropRate = null;
         for (var q = sub; q < j && q < lines.length; q++) {
           if (q < 0) continue;
           if (/^(price|you\s*pay|qty|each|item)\s*$/i.test(lines[q])) continue;
+          var bare = lines[q].match(/^\s*(\d{1,2}(?:[.,]\d{1,4})?)\s*%\s*$/);
+          if (bare && drop) { dropRate = parseFloat(bare[1].replace(',', '.')) / 100; continue; }
           labels.push(lines[q]);
         }
-        var pSub = -1, pTax = -1, pTot = -1;
+        // Pass 0 only exists to try the drop. With nothing dropped it is a
+        // duplicate of pass 1, so skip straight there.
+        if (drop && dropRate === null) continue;
+        /*
+         * Pass 0 must corroborate: the triple's own ratio has to match the
+         * percentage that was removed. Scaled slop, same as the printed-rate
+         * veto, because tax prints to the cent.
+         */
+        var gate = drop
+          ? function (sV, tV) {
+              if (!(sV > 0) || !(tV > 0) || dropRate === null) return false;
+              return Math.abs(tV / sV - dropRate) <= Math.max(0.005, 0.01 / sV);
+            }
+          : function () { return true; };
+        var pSub = -1, pTax = -1, pTip = -1, pTot = -1;
+        // A bare tip row inside the totals block, which a restaurant prints
+        // between the tax and the total.
+        var TIP_ROW = /^\s*[+=]?\s*(tip|gratuity)\s*:?\s*$/i;
         for (var a2 = 0; a2 < labels.length; a2++) {
           if (pSub < 0 && SUB.test(labels[a2])) pSub = a2;
           else if (pSub >= 0 && pTax < 0 && TAX.test(labels[a2])) pTax = a2;
+          else if (pTax >= 0 && pTip < 0 && TIP_ROW.test(labels[a2])) pTip = a2;
           else if (pTax >= 0 && pTot < 0 && TOT.test(labels[a2]) && !SUB.test(labels[a2])) pTot = a2;
         }
         if (pSub >= 0 && pTax >= 0 && pTot >= 0) {
-          for (var st = 0; st + pTot < values.length; st++) {
+          /*
+           * The exact two-term match gets its OWN complete pass over every
+           * offset, ahead of the looser branches below.
+           *
+           * Review caught this: with the loose branches inside the same loop, a
+           * match at an early offset returned before the loop ever reached the
+           * exact one. The three-term equation is the universal identity "the
+           * item prices sum to the subtotal", which holds on every itemised
+           * receipt by definition, so a three-item restaurant check matched at
+           * offset 0 and reported the first item as the subtotal and the second
+           * as the sales tax. Coin Op escaped only by accident of having one
+           * item (D-096).
+           */
+          for (var sx = 0; sx + pTot < values.length; sx++) {
+            var sE = values[sx + pSub], tE = values[sx + pTax], gE = values[sx + pTot];
+            if (!(sE > 0) || !(tE > 0) || !(gE > 0)) continue;
+            if (tE > gE * 0.13) continue;
+            if (Math.abs(sE + tE - gE) < 0.02 && gate(sE, tE)) {
+              return { subtotal: sE, tax: tE, total: gE };
+            }
+          }
+          /*
+           * The loose branches scan from the LAST offset backwards, because the
+           * totals block sits at the END of a value run and the item prices sit
+           * at the front. Forwards, a coincidence among the item prices is
+           * reached first; backwards, the real block is.
+           *
+           * Measured by review over 6000 generated three-item checks: hoisting
+           * the exact test above removed every outright regression, and this
+           * direction took the same sweep from 4216 of 6000 correct to 6000.
+           */
+          for (var st = values.length - 1 - pTot; st >= 0; st--) {
             var sA = values[st + pSub], tA = values[st + pTax], gA = values[st + pTot];
             if (!(sA > 0) || !(tA > 0) || !(gA > 0)) continue;
             if (tA > gA * 0.13) continue;
-            if (Math.abs(sA + tA - gA) < 0.02) return { subtotal: sA, tax: tA, total: gA };
+            /*
+             * ANY aligned row between the tax and the total that closes the
+             * equation explains the gap, whatever its label says.
+             *
+             * Coin Op prints Subtotal / Tax / Tip / Total over
+             * 4.00 / 0.35 / 0.87 / 5.22, and because its Total already includes
+             * the tip, subtotal + tax can never equal it. This alignment fell
+             * through and the parser reported the TIP as the sales tax (D-095).
+             *
+             * Keyed on POSITION, not on the word "tip", because review proved
+             * the wording must not decide it. Card networks require a surcharge
+             * slip to print "Amount / Surcharge / Total", and a tip-specific
+             * test left that gap unexplained, so the repair below deleted the
+             * surcharge and under-reported the purchase. A donation round-up, a
+             * bag fee and a bottle deposit all print the same shape.
+             *
+             * The printed total stands. Only the tax is being rescued here.
+             */
+            for (var pm = pTax + 1; pm < pTot; pm++) {
+              if (st + pm >= values.length) break;
+              var mA = values[st + pm];
+              if (mA > 0 && Math.abs(sA + tA + mA - gA) < 0.02 && gate(sA, tA)) {
+                return { subtotal: sA, tax: tA, total: gA };
+              }
+            }
+            /*
+             * The aligned total can itself be OCR damage. Costco's totals block
+             * reads
+             *     SUBTOTAL / TAX / **** TOTAL  ->  126.41 / 5.82 / 132.41
+             * and 126.41 + 5.82 is 132.23, which the receipt prints twice lower
+             * down as its payment amount. The "132.41" is the typo, and the
+             * parser reported 126.41, the SUBTOTAL, as the whole purchase.
+             *
+             * Trusted only when the implied sum is ALSO printed on the receipt,
+             * which makes it the receipt's own second opinion rather than our
+             * arithmetic overruling it, and only when the mismatch is within 2%
+             * of the total, which is the size of a scanning slip rather than a
+             * different number.
+             */
+            var sum = Math.round((sA + tA) * 100) / 100;
+            var off = Math.abs(sum - gA);
+            if (off >= 0.02 && off < gA * 0.02 && gate(sA, tA)) {
+              for (var w2 = 0; w2 < values.length; w2++) {
+                if (Math.abs(values[w2] - sum) < 0.005) {
+                  return { subtotal: sA, tax: tA, total: sum };
+                }
+              }
+            }
           }
         }
       }
@@ -1264,7 +1453,14 @@
       var pm = lines[p].match(/(\d{1,2}(?:[.,]\d{1,4})?)\s*%/);
       if (pm) {
         var pr = parseFloat(pm[1].replace(',', '.')) / 100;
-        if (pr > 0 && pr < 0.25) { printedRate = pr; break; }   // sane sales-tax range
+        /*
+         * 12%, not 25%. The US ceiling is about 11.5% combined state and local,
+         * so anything above that is not a sales-tax rate: it is a gratuity
+         * ("18%"), a service charge, a discount or a finance rate. The old 25%
+         * bound let an 18% auto-gratuity line be stored as a city's tax rate,
+         * which is the D-095 poisoning in another costume.
+         */
+        if (pr > 0 && pr <= 0.12) { printedRate = pr; break; }
       }
     }
     // Sales tax is a small fraction of the bill. Anything above a quarter of the
@@ -1289,6 +1485,65 @@
     if (col) {
       tax = col.tax;
       if (col.subtotal != null) subtotal = col.subtotal;
+    }
+
+    /*
+     * A percentage is not a tax rate just because it is a percentage.
+     *
+     * The scan above takes the first plausible-looking "%" anywhere on the
+     * receipt, and measured across the corpus it is wrong more often than it is
+     * right: it picks up "2%" out of a milk carton's name, "14.5%" out of a
+     * Home Depot SKU, "Srv Fee (4.00%)", and "+ 2%: (Tip $0.09 ...)" from a
+     * suggested-tip block. The last two are the dangerous ones, because
+     * `taxMemLearn` stores the result against the CITY, so one bar receipt
+     * taught the app that Sacramento charges 4% and one pizza slip taught it 2%,
+     * for every future receipt there (D-095).
+     *
+     * A word-based veto cannot do this: Coin Op prints "closed with a 20%" and
+     * the word "gratuity" is on the NEXT line. So the arithmetic decides
+     * instead. When the column block has proved a subtotal and a tax, their
+     * ratio is the rate, and a scanned percentage that disagrees with it is not
+     * the tax rate whatever it is sitting next to.
+     *
+     * The test is ONE-SIDED, and that matters. `tax / subtotal` can only ever
+     * UNDERSTATE the true rate, because non-taxable items sit inside the
+     * subtotal and are not taxed: Costco's derived 4.605% against its printed
+     * 4.712% is a receipt agreeing with itself, and a grocery bill in a
+     * food-exempt state understates it much further than that. So a printed
+     * rate ABOVE the derived one is expected and kept.
+     *
+     * A printed rate materially BELOW it cannot be the tax rate at all, since
+     * the receipt demonstrably charged more than that. Both poisoned cases fail
+     * exactly this way, by 4.8 and 6.8 points. Half a point of slop absorbs
+     * rounding.
+     *
+     * A symmetric test was written first and would have been a regression: it
+     * throws away the correct printed rate on any receipt whose subtotal is
+     * mostly untaxed food.
+     */
+    if (printedRate !== null && col && col.subtotal > 0 && col.tax > 0) {
+      var derived = col.tax / col.subtotal;
+      /*
+       * Two guards, both added after review broke the first version of this on a
+       * receipt already in the corpus.
+       *
+       * `derived` is a tax rate only if `col.tax` is a tax amount, and the
+       * free-form triple search can hand back a TIP as the tax: Mamaya prints
+       * its rate on its own line, which shifts the label alignment, so the block
+       * resolved to subtotal 16.00 (the pre-tip total) and tax 2.29 (the tip).
+       * Derived was then 14.3% and vetoed the receipt's own correctly printed
+       * 4.712% GET, poisoning Honolulu with a rate three times worse than the
+       * ones this veto exists to stop. No US jurisdiction reaches 11.5%, so a
+       * derived rate above that is evidence the block misread a row, not
+       * evidence against the printed rate.
+       *
+       * And the slop has to scale. Tax prints to the cent, so on a sub-dollar
+       * subtotal rounding alone moves the ratio by whole points: 0.05 on 0.50 is
+       * 10% where the real rate is 8.75%. A cent over the subtotal, floored at
+       * half a point.
+       */
+      var slop = Math.max(0.005, 0.01 / col.subtotal);
+      if (derived <= 0.115 && printedRate < derived - slop) printedRate = null;
     }
 
     for (var i = 0; i < lines.length; i++) {

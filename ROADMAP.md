@@ -108,6 +108,20 @@ what blocks what, not by size.
       "totals are wrong" report), and an award banner read as the merchant after
       OCR dated it 2920. Corpus grown 30 to 37 real receipts, four of them
       rescans, with both defects pinned as failures before being fixed
+- [x] **The three money defects from the 2026-10-08 batch** (D-096). An $11.00
+      tip dropped from a business meal, a Costco subtotal read as the whole
+      purchase, and a restaurant tip reported as sales tax on two receipts. Both
+      tax-rate poisonings fixed with them: a service fee and a suggested-tip
+      percentage were being stored as Sacramento's rate for every later receipt
+- [ ] **Still open from that batch, none of it money.** An airport Starbucks
+      tax missed, Mamaya undated because it prints `05-Oct-2026` and no
+      month-name pattern accepts hyphens, "Tom's Watch Bar" read as "Watch Bar"
+      off a two-line logo, and Coin Op read as "Street" off vertical signage
+- [ ] **A fee row between the subtotal and the total** reads the subtotal as the
+      total (`SUBTOTAL / TAX / BAG FEE / TOTAL`). Found by probing D-096 and
+      confirmed **pre-existing**, so not a regression. No real receipt has that
+      shape yet, and the generalisation it needs is a weaker proof than the named
+      tip row, so it waits for a receipt rather than a synthetic case
 - [ ] **The expiry-date veto guards only one of four date branches.**
       `EXPIRY_CONTEXT` is applied in the compact `15NOV2026` loop
       (`classifier.js:524`) and nowhere else: the numeric loop, the

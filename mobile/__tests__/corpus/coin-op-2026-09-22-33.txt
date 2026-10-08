@@ -1,0 +1,57 @@
+*STREET
+GAME
+COIN-OP
+ROOM
+FRAMENTO DO
+Coin Op - Sacramento
+908 K Street
+Sacramento, CA 95814
+Server: Isaiah 0
+Check #58
+Ordered:
+1 DESSERT PRETZELS
+Subtotal
+Tax
+Tip
+Total
+Input Type
+VISA CREDIT
+Transaction Type
+Authorization
+Approval Code
+Payment ID
+Application ID
+Application Label
+Device ID
+Card Reader
+9/22/26 8:45 PM
+$10.00
+$10.00
+$0.87
+$2.17
+$13.04
+C (EMV Chip Read)
+XXXxXxxx9388
+Sale
+Approved
+09378I
+mqmTjFgfpapR
+A0000000031010
+VISA CREDIT
+b110a0136921ea0f
+BBPOS
+VISA CARDHOLDER
+Suggested Additional Tip:
++ 2%: (Tip $0.22 Total $11.09)
++ 3%: (Tip $0.33 Total $11.20)
++ 5%: (Tip $0.54 Total $11.41)
++ 7%: (Tip $0.76 Total $11.63)
+Tip percentages are based on the check
+price after taxes.
+FREE PLAY SUNDAY
+Last Sunday of the Month!
+20% Gratuity added to parties of 6 or
+more.
+Open Tabs will be closed with a 20%
+added gratuity.
+Sales Tax charged to all items.
