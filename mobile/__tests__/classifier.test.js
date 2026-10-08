@@ -1328,5 +1328,60 @@ const HELE_CLEAN = require('fs').readFileSync(
 check('an award banner with a readable year is still skipped',
   merchantOf(HELE_CLEAN) === 'Hele', JSON.stringify(merchantOf(HELE_CLEAN)));
 
+/* ---------------------------------------------------------------------------
+ * D-095: three money defects from the 2026-10-08 batch, and the two tax-rate
+ * poisonings that came with them.
+ *
+ * Restaurants and bars were absent from the corpus until that batch, and every
+ * one of these defects needed one.
+ * ------------------------------------------------------------------------- */
+const fxRec = (n) => C.parseReceipt(
+  require('fs').readFileSync(require('path').join(__dirname, 'corpus', n + '.txt'), 'utf8'));
+
+// An $11.00 tip in a column block: "Amount / + Tip: / = Total:" then the three
+// values. The tip label carries no amount and nor does the line after it.
+const toms = fxRec('toms-watch-bar-2026-09-21-31');
+check('a tip in a column block is added to the total', toms.total === 72.61, String(toms.total));
+check('that receipt still reports its real sales tax', toms.taxTotal === 4.96, String(toms.taxTotal));
+
+// A subtotal read as the total, because the column's own total line OCR'd as
+// 132.41 while 126.41 + 5.82 = 132.23 is printed twice lower down.
+const costco29 = fxRec('costco-2026-09-16-29');
+check('an OCR-damaged total is repaired from the arithmetic', costco29.total === 132.23, String(costco29.total));
+
+// Subtotal / Tax / Tip / Total, where the Total already includes the tip so
+// subtotal + tax can never equal it. The parser reported the Tip as the tax.
+const coin32 = fxRec('coin-op-2026-09-22-32');
+const coin33 = fxRec('coin-op-2026-09-22-33');
+check('a tip row does not become the sales tax (1)',
+  coin32.taxTotal === 0.35 && coin32.total === 5.22, coin32.taxTotal + '/' + coin32.total);
+check('a tip row does not become the sales tax (2)',
+  coin33.taxTotal === 0.87 && coin33.total === 13.04, coin33.taxTotal + '/' + coin33.total);
+
+// A service fee and a suggested-tip percentage were being stored as the city's
+// sales-tax rate, which poisons every later receipt in that city.
+check('a service-fee percentage is not a tax rate', toms.taxRatePrinted == null, String(toms.taxRatePrinted));
+check('a suggested-tip percentage is not a tax rate', coin32.taxRatePrinted == null, String(coin32.taxRatePrinted));
+
+// The rate test has to be ONE-SIDED. tax/subtotal can only understate the true
+// rate, because untaxed items sit inside the subtotal. A symmetric test was
+// written first and threw away the correct rate on any food-exempt grocery
+// bill, which is a regression this pins against.
+const grocery = C.parseReceipt(['SUPERMART', 'MILK 2 GAL', '3.49', 'BREAD', '2.50',
+  'CANDY BAR', '2.00', 'SUBTOTAL', 'TAX', 'TOTAL', '7.99', '0.17', '8.16',
+  '8.700% SALES TAX'].join('\n'));
+check('a printed rate above the derived one survives (untaxed food)',
+  Math.abs((grocery.taxRatePrinted || 0) - 0.087) < 1e-9, String(grocery.taxRatePrinted));
+
+// A receipt whose total already includes the tip must not have it added twice.
+check('a tip already inside the total is not added again',
+  coin32.total === 5.22 && coin33.total === 13.04);
+
+// And a plain receipt with no tip anywhere is untouched.
+const plain = C.parseReceipt(['ACME HARDWARE', '123 MAIN ST', 'AUSTIN', ', TX', '78701',
+  'SUBTOTAL', 'TAX', 'TOTAL', '10.00', '0.80', '10.80'].join('\n'));
+check('a receipt with no tip is untouched', plain.total === 10.80 && plain.taxTotal === 0.80,
+  plain.total + '/' + plain.taxTotal);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

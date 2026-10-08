@@ -5083,3 +5083,88 @@ a suggested tip, or a tip line with its value two rows down.
 
 Restaurants and bars are where this app's user keeps his deductible meals, and
 until this batch the corpus had none of them.
+
+---
+
+## D-096
+
+**The three money defects, fixed, and one rule rewritten because probing it found it wrong**
+(2026-10-08)
+
+The three money defects from D-095 are fixed, plus the two tax-rate poisonings
+that came with them. Four changes, every one of them proved by arithmetic the
+receipt prints itself rather than by a heuristic.
+
+### A tip in a column block (`columnTipTotal`)
+
+`applyTip` looked for money on the tip label's own line or the next one. Tom's
+Watch Bar prints `Amount / + Tip: / = Total:` and then its three values, so both
+of those lines are labels and the $11.00 was dropped.
+
+The new reader aligns labels to values **from the end of the run**: the N values
+belong to the last N labels. That direction matters. Walking the run backwards is
+unsafe here, because the lines above `Amount` on this very receipt are a masked
+card number, an auth code and a terminal name, all of which read as labels.
+
+The proof is `base + tip == an aligned value below the tip`. The receipt prints
+the sum itself, so it cannot fire by accident, and a block whose total already
+contains the tip does not satisfy it. $61.61 becomes $72.61.
+
+### A tip row inside the totals block
+
+Coin Op prints `Subtotal / Tax / Tip / Total`. Its Total already includes the
+tip, so `subtotal + tax` can never equal it and strategy 1a fell through,
+leaving the parser to report the **tip** as the sales tax: $0.87 for $0.35, and
+$2.17 for $0.87.
+
+Strategy 1a now finds an optional bare tip row between the tax and the total and
+accepts `subtotal + tax + tip == total`. On both receipts that closes to the
+cent, and the labels fix which row is which, so the tax can no longer be confused
+with the tip.
+
+### An OCR-damaged total repaired from the arithmetic
+
+Costco's block reads `SUBTOTAL / TAX / **** TOTAL` over
+`126.41 / 5.82 / 132.41`. The sum is **132.23**, which the receipt prints twice
+lower down as its payment amount, so the `132.41` is the typo. The 0.18 mismatch
+broke the self-proof and the next-line rule fell back to the first value in the
+column, which belongs to SUBTOTAL: the app recorded $126.41 for a $132.23
+purchase.
+
+The repair trusts the implied sum, but only when that sum is **also printed
+somewhere on the receipt**, which makes it the receipt's own second opinion
+rather than our arithmetic overruling it, and only when the mismatch is inside 2%
+of the total, which is the size of a scanning slip rather than a different number.
+
+### A percentage is not a tax rate, and the first version of this rule was wrong
+
+The printed-rate scan takes the first plausible `%` anywhere on the receipt.
+Measured across the corpus it is wrong more often than right: it picks `2%` out
+of a milk carton's name, `14.5%` out of a Home Depot SKU, `Srv Fee (4.00%)`, and
+`+ 2%: (Tip $0.09 ...)` out of a suggested-tip block.
+
+The last two are the dangerous ones, because `taxMemLearn` stores the result
+against the **city**. One bar receipt taught the app that Sacramento charges 4%
+and one pizza slip taught it 2%, for every future receipt there.
+
+A word-based veto cannot do this job: Coin Op prints `closed with a 20%` and the
+word "gratuity" is on the next line. So the arithmetic decides. When the column
+block has proved a subtotal and a tax, their ratio is the rate.
+
+**The first version of this test was symmetric, and probing it showed that was a
+regression.** `tax / subtotal` can only ever *understate* the true rate, because
+untaxed items sit inside the subtotal. A symmetric test therefore throws away the
+correct printed rate on any grocery bill in a food-exempt state: derived 2.1%
+against a printed 8.7% is a receipt agreeing with itself. The test is one-sided
+now, rejecting only a printed rate materially **below** the derived one, which is
+a rate the receipt demonstrably did not charge. Both poisoned cases miss by 4.8
+and 6.8 points. That grocery case is a unit test.
+
+### What this round did not fix
+
+A **fee row** between the subtotal and the total (`SUBTOTAL / TAX / BAG FEE /
+TOTAL`) still reads the subtotal as the total. Found by probing, confirmed
+**pre-existing**: the baseline parser gets it equally wrong, so it is not a
+regression. No receipt in the corpus or in Tyler's 36 has that shape, and the
+generalisation it needs is a weaker proof than the named tip row. Recorded rather
+than widened on a synthetic case, which is the D-094 lesson.

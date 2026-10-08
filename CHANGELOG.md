@@ -9,6 +9,21 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r40 (2026-10-08)
+
+- **An $11.00 tip no longer falls off a business meal.** A card slip that prints
+  "Amount / + Tip: / = Total:" as a column had its tip ignored entirely (D-096).
+- **A Costco subtotal is no longer recorded as the whole purchase.** $126.41 for
+  a $132.23 receipt, because the column's own total line scanned one digit wrong.
+- **A restaurant tip is no longer reported as sales tax.** Subtotal/Tax/Tip/Total
+  was off by a row, so the tip became the tax on both Coin Op receipts.
+- **A service fee and a suggested-tip percentage are no longer learned as a
+  city's sales-tax rate.** One bar receipt had taught the app that Sacramento
+  charges 4%, and one pizza slip that it charges 2%, for every later receipt
+  there. The arithmetic the receipt proves now overrules a scanned percentage.
+- Eleven new unit tests, including the food-exempt grocery case that the first
+  version of the rate rule would have broken.
+
 ## js r39 (2026-09-14)
 
 - **Reverts an r38 change that lost the merchant name on real stores.** Widening
