@@ -19,7 +19,9 @@ import { setThemeChoice, useThemeChoice, type ThemeChoice } from '../lib/appeara
 import { isLockAvailable, isLockEnabled, setLockEnabled } from '../lib/appLockNative';
 import Icon from '../components/Icon';
 import FeedbackComposer, { isFeedbackAvailable } from '../components/FeedbackComposer';
+import { readArchiveMark } from '../lib/backupMemory';
 const DM = require('../lib/devMode.js');
+const BS = require('../lib/backupState.js');
 
 // Namespaced like the other stored keys (see memory.ts).
 const DEV_MODE_KEY = 'rs.devMode.v1';
@@ -38,6 +40,30 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
   const [hint, setHint] = useState<string | null>(null);
   const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'none' | 'error'>('idle');
   const [feedback, setFeedback] = useState(false);
+
+  /*
+   * What the user's receipts are actually protected by.
+   *
+   * The thing that makes this app worth trusting, that nothing leaves the
+   * device, is also the thing that makes a lost phone frightening. Most of the
+   * answer already existed and nobody was ever told, so this says it plainly
+   * instead of adding a cloud (D-097).
+   */
+  const [mark, setMark] = useState<Awaited<ReturnType<typeof readArchiveMark>> | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    readArchiveMark().then((m) => { if (alive) setMark(m); }).catch(() => { if (alive) setMark(null); });
+    return () => { alive = false; };
+    // Keyed on the count so a save, or an export made since this screen last
+    // mounted, is picked up.
+  }, [receipts.length]);
+
+  const backup = mark === undefined ? null : BS.backupAdvice({
+    createdAts: receipts.map((r) => r.createdAt).filter(Boolean),
+    lastExportAt: mark ? mark.at : null,
+    lastExportNewest: mark ? mark.newest : null,
+  });
+  const backupLine = backup ? BS.backupSummary(backup) : null;
   const theme = useThemeChoice();
   const [lockOn, setLockOn] = useState<boolean | null>(null);
   const [lockAvailable, setLockAvailable] = useState<boolean | null>(null);
@@ -217,16 +243,55 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
           onPress={() => run('restore', async () => { await restorePurchases(); onChanged(); })} />
       </View>
 
-      {canRestore && (
-        <View style={s.card}>
-          <Text style={s.title}>YOUR DATA</Text>
+      {/*
+        What survives losing the phone, stated plainly.
+
+        Every claim here was checked rather than assumed. Nothing in this app
+        marks its files NSURLIsExcludedFromBackupKey, the database sits at
+        Documents/SQLite (expo-sqlite's own Swift source) and the images in
+        Documents, and Apple's support page says iCloud Backup "includes app
+        data for the apps you've downloaded on your device". So the device
+        backup already covers it.
+
+        What it deliberately does NOT say is that anything is "backed up". iOS
+        does not tell us whether the user has iCloud Backup on, whether they
+        turned it off for this app, or where the share sheet put an archive, or
+        even whether they cancelled out of it. Telling someone their tax records
+        are safe when we cannot see that is the worst thing in this app to be
+        wrong about (D-097).
+      */}
+      <View style={s.card}>
+        <Text style={s.title}>KEEPING YOUR RECEIPTS</Text>
+        {canRestore && (
           <Row label="Restore from a receipt archive (.zip)" k="archive" onPress={runRestoreArchive} />
-          <Text style={s.note}>
-            Adds receipts an archive has and this device does not. Never deletes
-            or overwrites anything.
-          </Text>
-        </View>
-      )}
+        )}
+        {backupLine && <Text style={s.backupLine}>{backupLine}</Text>}
+        <Text style={s.note}>
+          Receipts are read and kept on this device. TaxTrail has no servers and
+          uploads nothing, which is the point, and also the catch.
+        </Text>
+        <Text style={s.note}>
+          <Text style={{ fontWeight: '700' }}>iOS backs them up for you, if you let it.</Text>{' '}
+          Apple includes an app's data in iCloud Backup, so setting up a
+          replacement phone from a backup brings your receipts and their photos
+          back with it. That is iOS doing it, not us: we cannot see whether your
+          backup is on, and you can switch it off per app in your iCloud
+          settings.
+        </Text>
+        <Text style={s.note}>
+          <Text style={{ fontWeight: '700' }}>Deleting the app deletes them.</Text>{' '}
+          That is not a backup situation, it is a delete, and nothing brings them
+          back.
+        </Text>
+        <Text style={s.note}>
+          <Text style={{ fontWeight: '700' }}>An archive is the copy you control.</Text>{' '}
+          The Summary tab makes one as a .zip holding every receipt and every
+          photo, and hands it to the usual share sheet, so it can go to iCloud
+          Drive, Dropbox, Google Drive, Files or anywhere else you keep things.
+          Restore it here afterwards. Set the range to "All receipts": a single
+          year is substantiation for that year, not a backup.
+        </Text>
+      </View>
 
       <View style={s.card}>
         <Text style={s.title}>APPEARANCE</Text>
@@ -390,6 +455,9 @@ const makeStyles = styled((T) => ({
     backgroundColor: T.card2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
     paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
   },
+  /* The one factual line: how many receipts no archive holds. Accent rather
+     than danger, because this is information and not an alarm. */
+  backupLine: { color: T.accent, fontSize: T.fs.sm, fontWeight: '600', marginTop: 8 },
   note: { color: T.muted2, fontSize: T.fs.sm, lineHeight: T.lh.sm, marginTop: 4 },
   // card2, not bg2: LIGHT.bg2 and LIGHT.card are both #ffffff, so an inset
   // drawn with bg2 vanishes into the card it sits on. card2 is the inset

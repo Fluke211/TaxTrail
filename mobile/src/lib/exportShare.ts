@@ -10,6 +10,7 @@ import { buildXlsxBase64 } from './xlsxExport';
 import { saveRestoredImage } from './ocr';
 import { APP_VERSION, JS_REVISION } from './version';
 import { makeRange, filterByRange, exportFileName, type ExportRange } from './exportRange';
+import { markFullArchive } from './backupMemory';
 const X = require('./exporters.js');
 const R = require('./restorePlan.js');
 const E = require('./edited.js');
@@ -230,6 +231,18 @@ export async function exportArchive(receipts: Receipt[], range: ExportRange = AL
 
   const b64 = await zip.generateAsync({ type: 'base64', compression: 'DEFLATE' });
   await shareBase64(exportFileName('taxtrail-archive', 'zip', range), b64, 'application/zip');
+
+  /*
+   * Record a FULL archive only, reusing `partial` above rather than re-deriving
+   * the test. A ranged archive is one year's substantiation, and marking it as a
+   * backup would tell the user their receipts are safe while nine months of them
+   * sit in no file at all.
+   *
+   * After the share sheet, which is the most we can honestly know: iOS does not
+   * say where the file went or whether the user cancelled. The copy this feeds
+   * says "archive made", never "backed up".
+   */
+  if (!partial) await markFullArchive(scoped);
 }
 
 // Full JSON backup (same v2 schema family as the PWA backup).
