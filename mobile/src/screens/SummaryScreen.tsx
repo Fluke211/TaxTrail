@@ -5,7 +5,7 @@
 // tab. They were never export steps, and having Manage Subscription sit between
 // "Full JSON backup" and a note about QuickBooks date formats meant nobody
 // could find it.
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import Icon from '../components/Icon';
 import { styled, useTheme } from '../lib/theme';
@@ -16,6 +16,8 @@ import { exportCSV, exportTXF, exportQBO, exportXLSX, exportArchive } from '../l
 import { makeRange, filterByRange, yearsPresent, type ExportRange } from '../lib/exportRange';
 import { presentPaywall } from '../lib/purchases';
 import { versionStamp } from '../lib/version';
+import { readArchiveMark } from '../lib/backupMemory';
+const BS = require('../lib/backupState.js');
 const C = require('../lib/classifier.js');
 
 /*
@@ -93,6 +95,21 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
   const T = useTheme();
   const s = makeStyles(T);
   const [busyExport, setBusyExport] = useState<string | null>(null);
+
+  /*
+   * How many receipts no archive holds, shown where the archive button is.
+   *
+   * The same line appears in Settings, but a warning is only useful next to the
+   * thing that answers it. Settings explains what is protected; this is the
+   * nudge at the moment of action (D-097).
+   */
+  const [archiveMark, setArchiveMark] = useState<Awaited<ReturnType<typeof readArchiveMark>> | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    readArchiveMark().then((m) => { if (alive) setArchiveMark(m); }).catch(() => { if (alive) setArchiveMark(null); });
+    return () => { alive = false; };
+  }, [receipts.length, busyExport]);
+
 
   /*
    * Which receipts the export covers.
@@ -239,6 +256,25 @@ export default function SummaryScreen({ receipts, pro, onChanged }: {
             : '.'}
         </Text>
 
+        {/* The nudge, next to the button that answers it. Only when there is
+            something to say: silence is correct when every receipt is already
+            in an archive. */}
+        {(() => {
+          if (archiveMark === undefined) return null;
+          const advice = BS.backupAdvice({
+            createdAts: receipts.map((r) => r.createdAt).filter(Boolean),
+            lastExportAt: archiveMark ? archiveMark.at : null,
+            lastExportNewest: archiveMark ? archiveMark.newest : null,
+          });
+          if (advice.level !== 'never' && advice.level !== 'behind') return null;
+          const line = BS.backupSummary(advice);
+          return line ? (
+            <Text style={s.archiveNudge}>
+              {line} The archive below is the copy you keep.
+            </Text>
+          ) : null;
+        })()}
+
         {([
           ['csv', 'CPA CSV (organized by IRS form)', false, (r: ExportRange) => exportCSV(receipts, r)],
           ['xlsx', 'Excel workbook (.xlsx)' + (pro ? '' : '  ·  PRO'), true, (r: ExportRange) => exportXLSX(receipts, r)],
@@ -325,6 +361,9 @@ const makeStyles = styled((T) => ({
   },
   chipOn: { borderColor: T.accentLine, backgroundColor: T.accentSoft },
   chipText: { color: T.muted, fontSize: T.fs.md, fontWeight: '600' },
+  /* Accent, not danger: this is information. An alarm every time somebody
+     opens Summary would train them to ignore it. */
+  archiveNudge: { color: T.accent, fontSize: T.fs.sm, fontWeight: '600', marginTop: 10 },
   rangeNote: { color: T.muted2, fontSize: T.fs.sm, lineHeight: T.lh.sm, marginBottom: 10 },
   proBtn: {
     backgroundColor: T.accent, borderRadius: T.radius, padding: 16, alignItems: 'center', marginTop: 14,

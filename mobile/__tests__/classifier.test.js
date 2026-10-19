@@ -1471,5 +1471,70 @@ check('an auto-gratuity row is not the sales tax',
 check('a rate above 12% is never taken as the tax rate', autoGrat.taxRatePrinted == null,
   String(autoGrat.taxRatePrinted));
 
+/* ---------------------------------------------------------------------------
+ * D-097: what the user's receipts are protected by.
+ *
+ * This drives the only copy in the app that tells somebody what survives losing
+ * their phone, so being wrong here is worse than being silent.
+ * ------------------------------------------------------------------------- */
+const BS = require('../src/lib/backupState.js');
+
+const BK_NOW = '2026-10-19T12:00:00.000Z';
+const bkAt = (d) => `2026-10-${String(d).padStart(2, '0')}T09:00:00.000Z`;
+
+check('no receipts means nothing to warn about',
+  BS.backupAdvice({ createdAts: [], now: BK_NOW }).level === 'empty');
+check('and the empty case says nothing at all',
+  BS.backupSummary(BS.backupAdvice({ createdAts: [], now: BK_NOW })) === null);
+
+const never = BS.backupAdvice({ createdAts: [bkAt(1), bkAt(2)], lastExportAt: null, now: BK_NOW });
+check('receipts with no archive ever made', never.level === 'never' && never.unexported === 2,
+  JSON.stringify(never));
+
+// Counted by timestamp, not set size. Delete one and add one and the count is
+// unchanged while a receipt no archive holds now exists.
+const behind = BS.backupAdvice({
+  createdAts: [bkAt(1), bkAt(2), bkAt(9)],
+  lastExportAt: bkAt(5), lastExportNewest: bkAt(2), now: BK_NOW,
+});
+check('a receipt created after the last archive counts as unarchived',
+  behind.level === 'behind' && behind.unexported === 1, JSON.stringify(behind));
+
+const deletedAndAdded = BS.backupAdvice({
+  createdAts: [bkAt(1), bkAt(9)],                      // same COUNT as the archive held
+  lastExportAt: bkAt(5), lastExportNewest: bkAt(2), now: BK_NOW,
+});
+check('a delete plus an add is still caught, which a count could not do',
+  deletedAndAdded.level === 'behind' && deletedAndAdded.unexported === 1,
+  JSON.stringify(deletedAndAdded));
+
+const current = BS.backupAdvice({
+  createdAts: [bkAt(1), bkAt(2)],
+  lastExportAt: bkAt(5), lastExportNewest: bkAt(2), now: BK_NOW,
+});
+check('everything archived reports current', current.level === 'current' && current.unexported === 0,
+  JSON.stringify(current));
+check('and it reports how long ago, not a warning',
+  BS.backupSummary(current) === 'Every receipt here is in the archive made 14 days ago.',
+  BS.backupSummary(current));
+
+// The summary must never claim a BACKUP. iOS does not tell us where the share
+// sheet put the file, or whether the user cancelled out of it.
+['never', 'behind', 'current'].forEach((lvl) => {
+  const line = BS.backupSummary({ level: lvl, unexported: 2, daysSince: 3 }) || '';
+  check(`the "${lvl}" line never claims the data is backed up`,
+    !/backed up|safe|secure/i.test(line), line);
+});
+
+check('one receipt is singular',
+  (BS.backupSummary({ level: 'never', unexported: 1, daysSince: null }) || '').includes('1 receipt here'),
+  BS.backupSummary({ level: 'never', unexported: 1, daysSince: null }));
+check('today reads as today',
+  (BS.backupSummary({ level: 'behind', unexported: 3, daysSince: 0 }) || '').includes('made today'));
+
+// An unparseable stored timestamp must not crash or invent a number.
+check('a corrupt stored date degrades to no day count',
+  BS.backupAdvice({ createdAts: [bkAt(1)], lastExportAt: 'not-a-date', lastExportNewest: bkAt(1), now: BK_NOW }).daysSince === null);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -5270,3 +5270,95 @@ TOTAL`) still reads the subtotal as the total. Found by probing, confirmed
 regression. No receipt in the corpus or in Tyler's 36 has that shape, and the
 generalisation it needs is a weaker proof than the named tip row. Recorded rather
 than widened on a synthetic case, which is the D-094 lesson.
+
+---
+
+## D-097
+
+**The honest answer to "what if I lose my phone" was already true and nobody was told**
+(2026-10-19)
+
+Tyler stalled on launching over this, and the concern is legitimate: the thing
+that makes the app worth trusting, that nothing leaves the device, is the same
+thing that makes a lost phone frightening. He floated iCloud sync, Dropbox,
+Google Drive, and an R2 bucket of our own.
+
+**Most of the answer already shipped.** Checked rather than assumed:
+
+- Nothing in the app marks its files `NSURLIsExcludedFromBackupKey`. The database
+  sits at `Documents/SQLite/receiptsnap.db` (read out of expo-sqlite's own Swift
+  source, not from memory) and the images in `Documents/`.
+- Apple's own support page says iCloud Backup *"includes app data for the apps
+  you've downloaded on your device"*. So **a device backup already carries the
+  receipts and their photos**, and restoring a replacement phone brings them
+  back.
+- The archive export already goes through `expo-sharing`, which is the iOS share
+  sheet, which already offers iCloud Drive, Dropbox, Google Drive and Files. So
+  "back up to Dropbox" has been possible since the archive shipped.
+- Restore from archive already existed.
+
+So the gap was never capability. It was that the app never said any of it.
+
+### What this adds
+
+A `KEEPING YOUR RECEIPTS` panel in Settings stating what is and is not
+protected, and one factual line in both Settings and Summary: how many receipts
+no archive holds.
+
+### What it refuses to say
+
+**It never claims anything is "backed up"**, and a unit test enforces that
+against the strings. iOS does not tell us whether the user has iCloud Backup on,
+whether they switched it off for this app, where the share sheet put an archive,
+or even whether they cancelled out of the sheet. Telling somebody their tax
+records are safe when we cannot see that is the worst thing in this app to be
+wrong about. The copy says "archive made", and the exact iOS path for the per-app
+backup toggle is deliberately left out because Apple moves it between versions.
+
+### Counted by timestamp, not by set size
+
+`unexported` is the number of receipts created after the newest receipt the last
+full archive contained. Comparing counts looks equivalent and is not: delete one
+receipt and add another and the count is unchanged while a receipt no archive
+holds now exists. That case is a unit test.
+
+A **ranged** archive deliberately does not count as a backup. It is one year's
+substantiation, the export's own README says so, and marking it as a backup would
+report a user safe while nine months of their receipts sit in no file.
+
+### What was rejected, and why
+
+- **CloudKit.** Needs an entitlement, so a native build, and per D-011 adding one
+  can invalidate the provisioning profile and force credentials to be redone.
+- **Dropbox or Google Drive SDKs.** OAuth, native dependencies, New Architecture
+  compatibility checks and three third parties on the privacy label, to do what
+  the share sheet already does.
+- **Our own R2 bucket.** This makes us a data controller holding other people's
+  tax records: privacy policy, processing terms, state privacy laws, breach
+  notification, deletion requests, retention, and a bill. It also destroys the
+  one claim the product is built on. The engineering is the easy part.
+
+### The OCR-improvement idea, and its one factual error
+
+Tyler also proposed users opting in to share receipts "to improve our on-device
+OCR". **We cannot improve the OCR**: it is Apple Vision via
+`expo-text-extractor`, and Apple trains it. What his dumps improve is the
+**parser**, and that loop is already the most productive thing in this project
+(D-087 through D-096: fourteen defects, five of them money).
+
+Collecting it from users is the problem, and it is measurable on his own data:
+his full name appears in the OCR text of **7 of 39 receipts** (`Member: TYLER
+THORNBRUE`), `CARDHOLDER` in 9, loyalty numbers in 5, masked card numbers in 23.
+Uploading raw OCR text means uploading cardholder names attached to purchase
+histories, in a tax app.
+
+Parked in favour of a narrower design: a per-receipt **"this reading was wrong"**
+button, fired by a correction, which is where all the signal is, sending scrubbed
+text and never the image. Explicit consent each time rather than a blanket
+toggle, and small enough that every submission can be read by a human. Not built
+here: it needs an endpoint, and nothing should block launch.
+
+**Also worth recording: OTA updates already exist and Tyler had forgotten.** r36
+through r40 were all `eas update` on the production channel. Only native changes
+need App Store review, which is why four money fixes reached his phone in one
+week without Apple involved.

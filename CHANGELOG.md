@@ -9,6 +9,20 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r41 (2026-10-19)
+
+- **A new `KEEPING YOUR RECEIPTS` panel in Settings** says plainly what survives
+  losing the phone: that iOS already includes the app's data in iCloud Backup if
+  you have it on, that deleting the app deletes everything, and that an archive
+  is the copy you control (D-097).
+- **One factual line, in Settings and next to the archive button:** how many
+  receipts no archive holds. It never claims anything is "backed up", because
+  iOS does not tell us where the share sheet put a file or whether you cancelled.
+- Counted by timestamp rather than set size, so deleting one receipt and adding
+  another is still caught.
+- A ranged archive does not count as a backup. It is one year's substantiation.
+- 13 new unit tests, including one that enforces the copy never promises a backup.
+
 ## js r40 (2026-10-08)
 
 - **An $11.00 tip no longer falls off a business meal.** A card slip that prints

@@ -122,6 +122,15 @@ what blocks what, not by size.
       confirmed **pre-existing**, so not a regression. No real receipt has that
       shape yet, and the generalisation it needs is a weaker proof than the named
       tip row, so it waits for a receipt rather than a synthetic case
+- [x] **Say what survives losing the phone** (D-097). The `KEEPING YOUR
+      RECEIPTS` panel, plus a count of receipts no archive holds. Most of the
+      capability already existed: iCloud Backup already carries the data and the
+      share sheet already reaches Dropbox and Drive. What was missing was saying so
+- [ ] **A per-receipt "this reading was wrong" button** (D-097), sending scrubbed
+      OCR text and never the image, fired by a correction because that is where
+      the signal is. The honest version of Tyler's data-sharing idea: his own name
+      is in the OCR text of 7 of 39 receipts, so a blanket upload toggle would
+      ship cardholder names. Needs an endpoint, and nothing should block launch
 - [ ] **The expiry-date veto guards only one of four date branches.**
       `EXPIRY_CONTEXT` is applied in the compact `15NOV2026` loop
       (`classifier.js:524`) and nowhere else: the numeric loop, the
