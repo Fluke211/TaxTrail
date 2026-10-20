@@ -5362,3 +5362,101 @@ here: it needs an endpoint, and nothing should block launch.
 through r40 were all `eas update` on the production channel. Only native changes
 need App Store review, which is why four money fixes reached his phone in one
 week without Apple involved.
+
+---
+
+## D-098
+
+**The last seven reds: a hyphenated date, two logo-split names, a bracket, and
+a totals block with no total** (2026-10-20)
+
+The money defects were fixed in r40. What was left from Tyler's October archive
+was seven non-money reds, and all seven are now zero. Each one is a different
+way for OCR to defeat a rule that reads correctly on a receipt printed the way
+the rule expects.
+
+**A hyphenated day-month-year.** Clover prints `05-Oct-2026 11:26:52A` and on a
+Mamaya slip that is the only date on the receipt. The compact month-name reader
+allowed whitespace between the three parts and nothing else, so the receipt
+reached the export with no date at all. It takes a space, a hyphen or a slash
+now. A hyphenated day-month-year is not ambiguous the way 08/09 is, which is
+why that reader runs first.
+
+Probing it found something worse sitting underneath. "REG 5 JUNIOR 2026" dating
+a receipt 5 June 2026 is recorded in the code as fixed, and it was, in one
+branch of three. The two spelled-out branches still carried `[a-z]*` after a
+three-letter month and still produced 2026-06-05, and those branches are
+reached in exactly the case that matters: when no numeric date parsed. They
+take a full month name or a bare abbreviation now, so "January", "Sept" and
+"Sep" all read and "JUNIOR" does not. **A note saying a defect is fixed is
+about a line of code, not about the file.**
+
+**"BRAND - LOCATION" is a brand and a location.** Tom's Watch Bar prints
+`Tom's Watch Bar - SACRAMENTO`, Coin Op prints `Coin Op - Sacramento`. The
+branch city does not belong on a tax export, and carrying it also wrecked the
+repeat-printing bonus, which keys on the two longest words joined: for
+"Coin Op - Sacramento" that is "coin sacramento", which appears nowhere on the
+receipt, so the real name scored UNDER the "STREET" of the logo above it. A
+spaced hyphen is a separator; a hyphen inside a name has no spaces around it
+(Coin-Op, Wal-Mart, T-Mobile), so this cannot eat one.
+
+**A logo that sets the name over two lines.** `TOM'S` / `WATCH BAR`, with
+`Tom's Watch Bar - SACRAMENTO` printed intact below it. "Watch Bar" scored as
+well as the whole name and the earliest-line tie-break handed it the tie, so
+receipts filed under "Watch Bar". The fix reads the receipt's own evidence: a
+line containing two ADJACENT header lines joined together is the intact form of
+what those two lines were splitting.
+
+It is a BONUS on the intact line, not a veto on the fragments, and that
+distinction was found by probing rather than reasoning. Two narrower-looking
+rules were written and thrown away first:
+
+- A tie-break preferring whichever candidate contains the other worked on the
+  fixture and only because that receipt prints itself twice, which doubles the
+  full name's score. On a single-copy slip the fragment still won.
+- A veto on any line whose pair-with-its-neighbour recurs eats correct names on
+  every receipt that prints its header twice, since then every adjacent pair
+  occurs twice. `*** WELCOME TO *** / KONA HUT` twice over would lose the
+  merchant entirely, the banner above it being garbage.
+
+A bonus can only ever promote a better candidate. It cannot lose a name, which
+is the failure mode this scorer has produced four times now (D-089, D-094).
+
+**A bracket inside a word is OCR damage.** Vision read the Star-Advertiser
+banner on a Hele receipt as `STAR-A)VERTISER HAWAII'S BEST 2920`, and because
+the year came out 2920 the accolade filter did not recognise it, so the award
+line scored above the gas station's own name. The obvious fix is to widen the
+accolade year gate to any four digits, and that is **settled and refused**: it
+is exactly what r38 shipped and r39 reverted, because it throws away the
+merchant on every "<something>'s Best <store number>" receipt, America's Best
+among them (D-094). So the rule reads the damage instead. A bracket between two
+letters is not a name; at a word edge it is punctuation, and "Shell (Downtown)"
+is untouched.
+
+**A totals block that never prints the word "Total".** The Starbucks at Honolulu
+airport labels its block
+
+    Subtotal / Other / Tax / Payment / Change Due
+
+The column strategy requires a total label and discarded the candidate before
+the alignment ever ran, so the receipt recorded no subtotal and no sales tax.
+It accepts a tender row where no total label exists, and the label has to BE
+the word rather than contain it, which keeps out the "Payment ID" and "Payment
+Method" rows card slips print lower down. This is safe for a reason worth
+stating: **the arithmetic is the gate, not the label.** A cash tender larger
+than the bill cannot satisfy `subtotal + tax = total`, so it is refused rather
+than reported, which is what the probe for it confirms.
+
+The same receipt also moved the unexplained-row rescue. D-095 added it for
+Coin Op, where a tip row sits between the tax and the total; Starbucks books
+its charged tip as "Other", one row ABOVE the tax, and a scan that started
+after the tax never reached it. It scans the whole block now. That costs
+nothing on the ordinary Subtotal / Tax / Total shape, which has no row in
+between to find, and the exact two-term pass still runs first and complete, so
+the universal identity "the item prices sum to the subtotal" cannot pre-empt it
+(D-096).
+
+Corpus: 39 receipts, **zero expectation mismatches**, for the first time since
+the real receipts started arriving. Unit tests 297 to 331. Every rule above is
+pinned with the shape that would break it, which is the D-094 discipline: the
+next attempt has to answer the probe, not the fixture.

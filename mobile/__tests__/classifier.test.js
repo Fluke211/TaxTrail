@@ -1536,5 +1536,173 @@ check('today reads as today',
 check('a corrupt stored date degrades to no day count',
   BS.backupAdvice({ createdAts: [bkAt(1)], lastExportAt: 'not-a-date', lastExportNewest: bkAt(1), now: BK_NOW }).daysSince === null);
 
+
+/* ------------------------------------------------------------------ r42
+ * Four defects from Tyler's October archive, and the shapes each fix
+ * must not break.
+ */
+const dateOf = (txt) => C.parseReceipt(txt).date;
+const taxOf = (txt) => C.parseReceipt(txt).taxTotal;
+const subOf = (txt) => C.parseReceipt(txt).subtotal;
+
+// A receipt body thin enough to type is not a receipt, so the merchant cases
+// below carry a real header and a real totals block. The first attempt at
+// these tests asserted against "Total", because a four-line scaffold put the
+// totals block inside the eight-line header window the scorer reads.
+const HDR_TAIL = ['Server: Nate E', 'Check #80', '9/21/26 8:34 PM', '1 Cripsy Chicken',
+                  '$21.49', 'Subtotal', 'Tax', 'Total', '$56.65', '$4.96', '$61.61'];
+const HDR_ADDR = ['123 MAIN ST', 'HONOLULU', ', HI', '96825'];
+const headed = (header) => header.concat(HDR_ADDR, HDR_TAIL).join('\n');
+
+/*
+ * A hyphenated day-month-year. Clover prints "05-Oct-2026 11:26:52A" and it is
+ * the only date on a Mamaya slip, so the receipt reached the export undated.
+ */
+[['05-Oct-2026 11:26:52A', '2026-10-05'],
+ ['05/Oct/2026', '2026-10-05'],
+ ['5OCT2026', '2026-10-05'],
+ ['5 Oct 2026', '2026-10-05'],
+ // Spelled out in full, and the abbreviation with the "t" Vision often keeps.
+ ['January 5, 2026', '2026-01-05'],
+ ['Sept 5, 2026', '2026-09-05'],
+ ['5 September 2026', '2026-09-05'],
+ ['Dec 31, 2026', '2026-12-31'],
+].forEach(([printed, want]) => {
+  const got = dateOf(['ACME', printed, 'Subtotal', 'Tax', 'Total', '10.00', '0.80', '10.80'].join('\n'));
+  check(`"${printed}" reads as ${want}`, got === want, got);
+});
+
+/*
+ * The month has to end where it ends, in EVERY branch.
+ *
+ * "REG 5 JUNIOR 2026" dating a receipt 5 June 2026 is recorded as fixed, and
+ * it was -- in the compact branch only. The two spelled-out branches still
+ * carried `[a-z]*` after the month and still produced 2026-06-05, which is
+ * what they are reached for: when no numeric date parsed.
+ */
+check('an ordinary word is not swallowed as a month',
+  dateOf(['ACME', 'REG 5 JUNIOR 2026', 'Subtotal', 'Tax', 'Total', '10.00', '0.80', '10.80'].join('\n')) === null,
+  dateOf(['ACME', 'REG 5 JUNIOR 2026', 'Subtotal', 'Tax', 'Total', '10.00', '0.80', '10.80'].join('\n')));
+
+// A deadline is not a purchase date, hyphenated or not.
+check('a hyphenated return-policy date does not win',
+  dateOf(['HOME DEPOT', 'RETURN POLICY EXPIRES ON 15-NOV-2026', 'Date: 07-25-2026',
+          'Subtotal', 'Tax', 'Total', '10.00', '0.80', '10.80'].join('\n')) === '2026-07-25');
+
+/*
+ * "BRAND - LOCATION" is a brand and a location. Carrying the branch city also
+ * wrecked the repeat-printing bonus, so "Coin Op - Sacramento" scored under
+ * the "STREET" of the logo above it.
+ */
+check('a spaced-hyphen location is dropped',
+  merchantOf(headed(['Coin Op - Sacramento'])) === 'Coin Op', merchantOf(headed(['Coin Op - Sacramento'])));
+check("an ampersand name keeps its whole brand",
+  merchantOf(headed(["Dave & Buster's - Sacramento"])) === "Dave & Buster's",
+  merchantOf(headed(["Dave & Buster's - Sacramento"])));
+// A hyphen inside a name carries no spaces, so this cannot eat one.
+check('an unspaced hyphen survives',
+  /coin-op/i.test(merchantOf(headed(['COIN-OP GAME ROOM'])) || ''), merchantOf(headed(['COIN-OP GAME ROOM'])));
+// Too little left in front, so "7 - ELEVEN" is not cut down to "7".
+check('a one-character head is not a brand',
+  merchantOf(headed(['7 - ELEVEN'])) === '7 - Eleven', merchantOf(headed(['7 - ELEVEN'])));
+// The tail is capped at three words, so a longer second half is kept.
+check('a four-word tail is left alone',
+  merchantOf(headed(['Kona Hut - Open Seven Days Weekly'])) === 'Kona Hut - Open Seven Days Weekly',
+  merchantOf(headed(['Kona Hut - Open Seven Days Weekly'])));
+
+/*
+ * A logo sets the name over two lines and the receipt prints it intact below.
+ * "Watch Bar" scored as well as the whole name, and earliest-line handed the
+ * tie to the fragment.
+ */
+check('the intact name beats the logo that split it',
+  merchantOf(headed(["TOM'S", 'WATCH BAR', "Tom's Watch Bar - SACRAMENTO"])) === "Tom's Watch Bar",
+  merchantOf(headed(["TOM'S", 'WATCH BAR', "Tom's Watch Bar - SACRAMENTO"])));
+
+/*
+ * What that bonus must NOT do. It is a bonus and not a veto on the fragments
+ * precisely so that these keep working: a banner above the name, a slogan
+ * below it, and a receipt that prints its own header twice (where every
+ * adjacent pair occurs twice, so a pair-counting veto eats correct names).
+ */
+[[['*** WELCOME TO ***', 'KONA HUT'], 'Kona Hut'],
+ [['ISLAND TIRE', 'QUALITY SERVICE SINCE 1985'], 'Island Tire'],
+ [['MAHALO CAFE', 'HAVE A NICE DAY'], 'Mahalo Cafe'],
+ [['KONA HUT', 'KONA HUT WELCOMES YOU'], 'Kona Hut'],
+].forEach(([header, want]) => {
+  check(`"${want}" survives the intact-name bonus`, merchantOf(headed(header)) === want, merchantOf(headed(header)));
+});
+check('a header printed twice still names the store',
+  merchantOf(['*** WELCOME TO ***', 'KONA HUT'].concat(HDR_ADDR, HDR_TAIL,
+    ['*** WELCOME TO ***', 'KONA HUT']).join('\n')) === 'Kona Hut');
+
+/*
+ * A bracket inside a word is OCR damage. Vision read the Star-Advertiser
+ * banner as "STAR-A)VERTISER HAWAII'S BEST 2920", and because the year came
+ * out 2920 the accolade veto did not recognise it, so the award line scored
+ * above the gas station's own name. Widening the accolade year gate instead is
+ * settled and refused (D-094), so this reads the damage rather than the year.
+ */
+const HELE_BRACKET = fx(path.join('corpus', 'hele-2026-08-14-25.txt'));
+check('a bracket inside a word is not a merchant name',
+  merchantOf(HELE_BRACKET) === 'Hele', merchantOf(HELE_BRACKET));
+// At a word edge it is punctuation, not damage.
+check('parentheses at a word edge are kept',
+  merchantOf(headed(['SHELL (DOWNTOWN)'])) === 'Shell (Downtown)', merchantOf(headed(['SHELL (DOWNTOWN)'])));
+
+// A logo set entirely in lower case is a rendering, not a spelling.
+const MAMAYA = fx(path.join('corpus', 'mamaya-2026-10-05-35.txt'));
+check('a lower-case logo is title-cased', merchantOf(MAMAYA) === 'Mamaya', merchantOf(MAMAYA));
+check('internal capitals are left as printed',
+  merchantOf(headed(['iPhone Repair Shop'])) === 'iPhone Repair Shop', merchantOf(headed(['iPhone Repair Shop'])));
+
+/*
+ * A totals block that never prints the word "Total".
+ *
+ * The Starbucks at Honolulu airport labels its block
+ *     Subtotal / Other / Tax / Payment / Change Due
+ * over a value column holding the item prices first. There was no TOT label,
+ * so the alignment was discarded before it ran and the receipt recorded no
+ * subtotal and no sales tax at all. The charged tip is the "Other" row, which
+ * sits between the subtotal and the tax -- above the tax, where the rescue for
+ * an unexplained row had never looked.
+ */
+const SBUX = fx(path.join('corpus', 'starbucks-2026-09-21-30.txt'));
+check('a tender row stands in for a missing Total', taxOf(SBUX) === 0.86, taxOf(SBUX));
+check('its subtotal is the printed one', subOf(SBUX) === 18.20, subOf(SBUX));
+check('its total is still the printed one', totalOf(SBUX) === 22.06, totalOf(SBUX));
+
+const taxInfoOf = (arr) => C.extractTaxInfo(arr);
+// A real Total is never pre-empted by a tender row.
+check('a printed Total outranks a Payment row',
+  taxInfoOf(['CAFE', 'Subtotal', 'Tax', 'Total', 'Payment', 'Change',
+             '10.00', '0.80', '10.80', '20.00', '9.20']).columnTotal === 10.80);
+// The label has to BE the word: card slips print "Payment ID" and "Payment
+// Method" lower down, and those are not amounts.
+check('"Payment ID" is not a totals row',
+  taxInfoOf(['SHOP', 'Subtotal', 'Tax', 'Payment ID', '10.00', '0.80', '10.80']).columnTotal === null);
+// A cash tender larger than the bill cannot close the equation, so it is
+// refused rather than reported as the purchase.
+check('a cash tender over the bill is refused',
+  taxInfoOf(['DINER', 'Subtotal', 'Tax', 'Payment', 'Change Due',
+             '20.00', '1.60', '25.00', '3.40']).columnTotal === null);
+
+/*
+ * The widened rescue must not re-open the universal identity. Scanning the
+ * whole block for the row that explains the gap adds offsets to try, and
+ * "the item prices sum to the subtotal" is true on every itemised receipt.
+ */
+const fee = taxInfoOf(['CAFE', '1 A', '1 B', 'Subtotal', 'Fee', 'Tax', 'Total',
+                       '10.00', '5.00', '15.00', '1.00', '1.24', '17.24']);
+check('a fee row above the tax is found', fee.tax === 1.24 && fee.subtotal === 15.00, JSON.stringify(fee));
+const threeItem = taxInfoOf(['BISTRO', '1 SOUP', '1 SALAD', '1 TEA', 'Subtotal', 'Tax', 'Total',
+                         '8.00', '6.00', '3.00', '17.00', '1.49', '18.49']);
+check('a three-item check still matches exactly', threeItem.tax === 1.49 && threeItem.subtotal === 17.00, JSON.stringify(threeItem));
+// Coin Op's tip row sits BELOW the tax, which is where the rescue used to
+// look. Both directions have to keep working.
+const COINOP = fx(path.join('corpus', 'coin-op-2026-09-22-32.txt'));
+check('a tip row below the tax is still found', taxOf(COINOP) === 0.35, taxOf(COINOP));
+
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
