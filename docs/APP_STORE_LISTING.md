@@ -49,7 +49,7 @@ math. There is no account to create, no cloud to sync with, and no server that
 receives your receipts. Your financial records stay yours.
 
 SORTED FOR YOUR TAX RETURN
-Every receipt is filed to one of 28 categories mapped to real IRS lines:
+Every receipt is filed to one of 29 categories mapped to real IRS lines:
 Schedule C, plus Schedule A, Form 8829, Form 4562, and cost of goods sold.
 When a purchase is partly personal, split it: the sales tax splits with it.
 
@@ -232,9 +232,9 @@ number in the copy above was checked against what the app actually does:
 
 | Claim | Reality | Verdict |
 |---|---|---|
-| "28 categories" | 28 selectable, plus "Uncategorized" which is the absence of one | **Was "29"** — counting Uncategorized as a category is a stretch a reviewer could call. Corrected |
+| "29 categories" | `CATEGORIES` holds 30; 29 of them are categories and the 30th is "Uncategorized", the absence of one | **Was "29", corrected to "28" in the 2026-08-29 pass, and back to "29" on 2026-10-20.** Not a reversal: the rule that pass set (Uncategorized is not a category) is the one applied here, and a category was added after it. `npm run test:cats` derives the number from the code now, so this cannot drift a third time |
 | "10 scans a month" | `FREE_SCANS_PER_MONTH = 10` in `src/lib/config.ts`, and the boundary is unit-tested (D-043) | Accurate |
-| "mapped to real IRS lines" | Schedule C, Schedule A, Form 8829, Form 4562, Part III COGS — all present | Accurate |
+| "mapped to real IRS lines" | Schedule C, Schedule A, Form 8829, Form 4562, Part III COGS, all present. **27 of the 29 name a specific line, part or form**; the other two are "General Merchandise" (which says "Review — could be Supplies (L22) or Office (L18)") and "Personal (non-deductible)" | Accurate as written, since the claim is about the set. If you want it airtight, say "29 categories, 27 of them tied to a specific IRS line". Your call on the pitch, flagged rather than changed |
 | "your receipts never leave your phone" | No analytics or ad dependency; the only URLs in `src/` are two `Linking.openURL` targets on the paywall | Accurate |
 | "QuickBooks three-column CSV" | The format is QuickBooks **Online** only; Desktop cannot import bank CSV | **Corrected** — the old wording promised Desktop users something that cannot work |
 | "Apple's document scanner ... multiple pages" | `react-native-document-scanner-plugin`, multi-page capture shipped in js r3 | Accurate |

@@ -9,6 +9,25 @@ visible version, and it gets recorded here.
 
 ---
 
+## Unreleased (no OTA needed: docs, copy and CI only)
+
+- **The App Store listing said 28 tax categories. It is 29** (D-099). The number
+  was corrected once before, on the recorded ground that "Uncategorized" is the
+  absence of a category; a category was added afterwards and the corrected
+  number went stale by that same rule. Fixed in the listing copy and in the
+  screenshot caption.
+- **`npm run test:cats` derives the count from the code** and fails CI on any
+  stale `<n> categories` claim in `docs/APP_STORE_LISTING.md` or
+  `tools/screenshots/slots.json`, so adding a category now fails until the copy
+  carries it. It also fails if it finds no count at all.
+- Recorded, not changed: 27 of the 29 name a specific IRS line, part or form.
+  The other two are "General Merchandise" (whose label says "Review") and
+  "Personal (non-deductible)". Flagged for Tyler as a pitch call.
+
+No app code changed, so `JS_REVISION` stays at 42.
+
+---
+
 ## js r42 (2026-10-20)
 
 Parser fixes for the last seven reds in the real corpus. All of them are

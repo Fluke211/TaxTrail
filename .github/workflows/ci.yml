@@ -65,6 +65,11 @@ jobs:
       - name: Corpus fixtures are distinct and pinned
         run: npm run test:corpus
 
+      # The App Store copy states a category count. It has been wrong twice,
+      # because the copy lives in files no test read.
+      - name: Category count in the listing matches the code
+        run: npm run test:cats
+
       # Ratchets against a committed baseline (D-041): a parser that gets worse
       # on the synthetic corpus fails, one that is merely imperfect does not.
       # Half a second, so there is no reason to leave it out.

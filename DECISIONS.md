@@ -5460,3 +5460,50 @@ Corpus: 39 receipts, **zero expectation mismatches**, for the first time since
 the real receipts started arriving. Unit tests 297 to 331. Every rule above is
 pinned with the shape that would break it, which is the D-094 discipline: the
 next attempt has to answer the probe, not the fixture.
+
+---
+
+## D-099
+
+**A number in the App Store copy that no test reads will be wrong** (2026-10-20)
+
+The listing says how many tax categories the app has. That number has now been
+wrong twice.
+
+It said 29. The 2026-08-29 copy-accuracy pass corrected it to 28, on the
+ground that "Uncategorized" is the absence of a category rather than one of
+them, and recorded that reasoning. Then a category was added, and 28 became
+wrong by the pass's own rule. Nobody noticed, because App Store copy lives in
+`docs/APP_STORE_LISTING.md` and `tools/screenshots/slots.json`, and no test
+reads either file.
+
+Found while checking what was actually left for Tyler before submission, which
+is the only reason it was found at all. He was one paste away from submitting a
+wrong number to Apple and printing it on a screenshot.
+
+**The fix is `npm run test:cats`, not a corrected number.** Correcting the
+number is what happened last time. The check derives the count from
+`CATEGORIES` minus the "Uncategorized" entry and compares it against every
+`<n> categories` claim in both files, so **adding a category now fails CI
+until the copy carries it.** It also fails when it finds no count at all,
+so moving the wording past its pattern cannot switch it off silently.
+
+The current number is **29**: `CATEGORIES` holds 30 entries and one of them is
+"Uncategorized". That is the 2026-08-29 rule applied to today's code, not a
+reversal of it.
+
+While deriving it, one thing worth recording rather than changing: **27 of the
+29 name a specific IRS line, part or form.** The other two are "General
+Merchandise", whose own label says "Review -- could be Supplies (L22) or Office
+(L18)", and "Personal (non-deductible)". The copy's claim is about the set and
+reads fine as written, and the accuracy table judged it so; the airtight
+version would be "29 categories, 27 of them tied to a specific IRS line".
+That is a call on the pitch, so it is flagged for Tyler rather than made for
+him.
+
+**The general lesson, which is the reason this is an entry and not a commit
+message:** this project already enforces prose rules, image paths, permissions,
+type scale, contrast, OTA safety, version stamps and corpus integrity in CI.
+Every one of those checks exists because something silent went wrong once.
+Claims about the product are in exactly the same category as code, and the two
+files holding the ones Apple and customers read had no check over them at all.
