@@ -785,6 +785,29 @@ user-facing text, that is the bug, not the comment.
 It only sees the one-line form; a path put in a variable first is the correct
 shape and is not chased. It is a guard, not a proof.
 
+### `test:cats` · the category count in the listing
+
+```bash
+npm run test:cats     # "<n> categories" in the copy equals the code (D-099)
+```
+
+Added 2026-10-20, after the number was wrong twice. The listing said 29, a copy
+pass corrected it to 28 on the recorded ground that "Uncategorized" is the
+absence of a category rather than one of them, and then a category was added
+and 28 was wrong again. Nothing caught it, because App Store copy lives in a
+Markdown file and a JSON file that no test read.
+
+It derives the number from `CATEGORIES` minus the "Uncategorized" entry and
+checks every `<n> categories` claim in `docs/APP_STORE_LISTING.md` and
+`tools/screenshots/slots.json`. **So adding a category now fails CI until the
+copy carries it**, which is the whole point: the copy is submitted to Apple and
+read by customers, and a count nobody checks is a count that drifts.
+
+It also fails if it finds NO count at all, so moving the wording past the
+pattern cannot quietly switch the check off.
+
+Cost: nothing. It reads two files and the category table.
+
 ---
 
 ## Recovering a lost project

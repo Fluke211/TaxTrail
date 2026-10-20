@@ -244,6 +244,12 @@ what blocks what, not by size.
       "29 categories" was wrong (28 are selectable; the 29th is
       "Uncategorized"), and the QuickBooks wording promised Desktop users a
       format Desktop cannot import. Both corrected; the rest verified accurate
+- [x] **That category count went stale again and is checked in CI now** (D-099).
+      A category was added after the pass above, so its corrected "28" was wrong
+      by its own rule, in copy about to be submitted to Apple and printed on a
+      screenshot. `npm run test:cats` derives the number from `CATEGORIES`, so
+      adding a category fails CI until the copy carries it. **Correcting the
+      number is what happened last time; the check is the fix**
 - [x] **Renamed "Meals & Entertainment" to "Business Meals"** (D-050), with a
       real migration: a `PRAGMA user_version` runner (there was none before),
       plus alias mapping on archive restore so old backups still import
