@@ -580,7 +580,15 @@
      *    introduced by expiry wording is a deadline, not a purchase.
      */
     var EXPIRY_CONTEXT = /(expir|valid|thru|through|policy|coupon|redeem|good\s+(until|thru)|by\s*$)/i;
-    var compact = /\b(0?[1-9]|[12][0-9]|3[01])\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?![a-z])\.?\s*(20[0-9]{2})\b/gi;
+    /*
+     * The separator is a space OR a hyphen OR a slash.
+     *
+     * Clover prints "05-Oct-2026 11:26:52A" and it is the only date on a Mamaya
+     * slip, so with a whitespace-only separator the receipt had NO date at all
+     * and landed in the export undated. A hyphenated day-month-year is not
+     * ambiguous the way 08/09 is, which is why this form is read first.
+     */
+    var compact = /\b(0?[1-9]|[12][0-9]|3[01])[\s\-\/]*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?![a-z])\.?[\s\-\/]*(20[0-9]{2})\b/gi;
     compact.lastIndex = 0;
     while ((m = compact.exec(text)) !== null) {
       if (EXPIRY_CONTEXT.test(text.slice(Math.max(0, m.index - 44), m.index))) continue;
@@ -597,10 +605,20 @@
     // YYYY-MM-DD
     m = text.match(/\b(20[0-9]{2})[\/\-.](0?[1-9]|1[0-2])[\/\-.](0?[1-9]|[12][0-9]|3[01])\b/);
     if (m) return isoDate(+m[1], +m[2], +m[3]);
-    // Jan 5, 2026 / 5 Jan 2026
-    m = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(0?[1-9]|[12][0-9]|3[01])(?:st|nd|rd|th)?,?\s+(20[0-9]{2})\b/i);
+    /*
+     * Jan 5, 2026 / 5 Jan 2026 / January 5, 2026.
+     *
+     * The month name is spelled out in full or abbreviated, and nothing else.
+     * `[a-z]*` after a three-letter month was removed from the compact form
+     * above when "REG 5 JUNIOR 2026" dated a receipt 5 June 2026, and the note
+     * there says the month now has to end where it ends -- but the fix only
+     * ever reached that one branch. These two still swallowed the rest of the
+     * word, so the same string still produced the same wrong date whenever the
+     * numeric forms found nothing, which is exactly when these run.
+     */
+    m = text.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?![a-z])\.?\s+(0?[1-9]|[12][0-9]|3[01])(?:st|nd|rd|th)?,?\s+(20[0-9]{2})\b/i);
     if (m) return isoDate(+m[3], MONTHS[m[1].toLowerCase().slice(0,3)], +m[2]);
-    m = text.match(/\b(0?[1-9]|[12][0-9]|3[01])\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(20[0-9]{2})\b/i);
+    m = text.match(/\b(0?[1-9]|[12][0-9]|3[01])\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?![a-z])\.?\s+(20[0-9]{2})\b/i);
     if (m) return isoDate(+m[3], MONTHS[m[2].toLowerCase().slice(0,3)], +m[1]);
     return null;
   }
@@ -748,6 +766,24 @@
       cleaned = cleaned.replace(/\s+#?\d{2,6}$/, '') || cleaned;
 
       /*
+       * "BRAND - LOCATION" is a brand and a location, not a name.
+       *
+       * Tom's Watch Bar prints "Tom's Watch Bar - SACRAMENTO" and Coin Op
+       * prints "Coin Op - Sacramento". The branch city is not what belongs on
+       * a tax export, and carrying it also wrecked the repeat-printing bonus
+       * below: the two-longest-words key for "Coin Op - Sacramento" is
+       * "coin sacramento", which appears nowhere on the receipt, so the real
+       * name scored UNDER the "STREET" of the logo above it.
+       *
+       * A hyphen with spaces around it is a separator. A hyphen inside a name
+       * carries no spaces -- Coin-Op, Wal-Mart, T-Mobile, Jack-in-the-Box --
+       * so this cannot eat one. The tail is capped at three words so a long
+       * name that happens to contain " - " keeps its second half.
+       */
+      var dashed = cleaned.match(/^(.{3,}?)\s+[-\u2013\u2014]\s+(\S+(?:\s+\S+){0,2})$/);
+      if (dashed) cleaned = dashed[1].trim();
+
+      /*
        * The address and garbage tests run on the CLEANED name, after the store
        * number is gone.
        *
@@ -765,6 +801,23 @@
        * form, for the five-digit store number.
        */
       if (looksLikeGarbage(line)) continue;
+      /*
+       * A bracket INSIDE a word is OCR damage, not a name.
+       *
+       * Vision read the Star-Advertiser banner on a Hele receipt as
+       * "STAR-A)VERTISER HAWAII'S BEST 2920", and because the year came out
+       * 2920 the accolade veto did not recognise it, so the award line scored
+       * above the gas station's own name. `looksLikeGarbage` allows up to two
+       * stray symbols and a single ")" sits under that.
+       *
+       * Deliberately narrow: the bracket has to sit between two letters. A name
+       * that carries parentheses puts them at a word edge ("Shell (Downtown)"),
+       * which this does not touch. The alternative -- widening the accolade year
+       * gate to any four digits -- is settled and refused, because it throws
+       * away the merchant on every "<something>'s Best <store number>" receipt
+       * (D-094).
+       */
+      if (/[A-Za-z][)(\]\[}{|][A-Za-z]/.test(line)) continue;
 
       var letters = (cleaned.match(/[A-Za-z]/g) || []).length;
       var compact = cleaned.replace(/\s/g, '').length;
@@ -789,6 +842,7 @@
       }
       if (addressNext && i > 0) continue;
 
+
       var score = 0;
       var words = cleaned.split(/\s+/).filter(Boolean);
       /*
@@ -803,6 +857,32 @@
        * tie-break the old code used.
        */
       if (words.length > 1) score += 1;
+      /*
+       * The line that carries the whole name beats the logo that split it up.
+       *
+       * Tom's Watch Bar leads with its logo set over two lines and then prints
+       * the name intact underneath:
+       *     TOM'S / WATCH BAR / Tom's Watch Bar - SACRAMENTO
+       * "Watch Bar" scored as well as the full name and earliest-line handed
+       * the tie to the fragment, so receipts filed under "Watch Bar".
+       *
+       * The evidence is on the receipt: a line that contains two ADJACENT
+       * header lines joined together is the intact form of what those two
+       * lines were splitting. A banner does not do that -- "*** WELCOME TO ***
+       * / KONA HUT" appears nowhere as one line -- and nor does a slogan.
+       *
+       * A BONUS and deliberately not a veto on the fragments. Vetoing them
+       * reads correct names off receipts that print the pair's joined form in a
+       * footer ("SAFEWAY STORE 1234 THANK YOU"), which would veto "SAFEWAY" and
+       * "STORE 1234" both and leave the receipt with no merchant at all. A
+       * bonus can only ever promote the better candidate. Weighted like a known
+       * brand, which is the same kind of claim: this is the name.
+       */
+      var flatLine = line.replace(/\s+/g, ' ').toLowerCase();
+      for (var k = 0; k + 1 < i; k++) {
+        var joined = (lines[k] + ' ' + lines[k + 1]).replace(/\s+/g, ' ').trim().toLowerCase();
+        if (joined.length >= 8 && flatLine.indexOf(joined) !== -1) { score += 3; break; }
+      }
       if (/[,;:]$/.test(line.trim())) score -= 2;
       for (var b = 0; b < BRANDS.length; b++) {
         if (cleaned.toLowerCase().indexOf(BRANDS[b].toLowerCase()) !== -1) { score += 3; break; }
@@ -821,10 +901,19 @@
   }
 
   function titleCase(s) {
-    if (s === s.toUpperCase()) {
+    /*
+     * All lower case counts too. Mamaya's logo renders as a lower-case
+     * "mamaya" and the merchant was filed that way, which then reads as a typo
+     * everywhere it appears. A name with internal capitals ("iPhone", "eBay")
+     * is neither all-upper nor all-lower and is left exactly as printed.
+     */
+    if (s === s.toUpperCase() || s === s.toLowerCase()) {
       // Capitalize the first letter of each whitespace-separated word only, so
       // "JOE'S" → "Joe's" (not "Joe'S") and "H&R" → "H&r"→ keep as-is-ish.
-      return s.toLowerCase().replace(/(^|\s)([a-z])/g, function (_, pre, c) { return pre + c.toUpperCase(); });
+      // After whitespace or an opening bracket, so "SHELL (DOWNTOWN)" reads
+      // "Shell (Downtown)". Deliberately not after an apostrophe: that gives
+      // "Joe'S".
+      return s.toLowerCase().replace(/(^|[\s([])([a-z])/g, function (_, pre, c) { return pre + c.toUpperCase(); });
     }
     return s;
   }
@@ -1156,6 +1245,22 @@
     var SUB = /sub\s*-?\s*total/i;
     var TAX = /(total\s*tax|sales\s*tax|\btax\b|\bget\b|\bgst\b|\bhst\b|\bvat\b)/i;
     var TOT = /\btotal\b|balance/i;
+    /*
+     * A totals block that never prints the word "Total".
+     *
+     * The Starbucks at Honolulu airport labels its block
+     *     Subtotal / Other / Tax / Payment / Change Due
+     * so TOT matched nothing, the candidate was thrown out before the
+     * alignment below ever ran, and the receipt recorded no subtotal and no
+     * sales tax at all.
+     *
+     * The label has to BE the word, not merely contain it, which keeps out the
+     * "Payment ID" and "Payment Method" rows card slips print lower down. It is
+     * only ever consulted where TOT found nothing, and an accepted row still
+     * has to satisfy the arithmetic, so a cash tender larger than the bill
+     * fails to close the equation and falls through exactly as it does today.
+     */
+    var PAID_ROW = /^\s*[*=\s]*(payment|amount\s*paid|total\s*paid|paid|tender(ed)?|card\s*total)\s*:?\s*$/i;
 
     for (var i = 0; i < lines.length; i++) {
       if (!TAX.test(lines[i]) || valueOf(lines[i]) !== null) continue;
@@ -1177,7 +1282,7 @@
       var sawTotal = false;
       var j = i;
       for (; j < lines.length && valueOf(lines[j]) === null; j++) {
-        if (j > i && TOT.test(lines[j]) && !SUB.test(lines[j])) sawTotal = true;
+        if (j > i && !SUB.test(lines[j]) && (TOT.test(lines[j]) || PAID_ROW.test(lines[j]))) sawTotal = true;
       }
       if (!sawTotal) continue;
 
@@ -1301,6 +1406,13 @@
           else if (pTax >= 0 && pTip < 0 && TIP_ROW.test(labels[a2])) pTip = a2;
           else if (pTax >= 0 && pTot < 0 && TOT.test(labels[a2]) && !SUB.test(labels[a2])) pTot = a2;
         }
+        // No TOT label anywhere in the run? Take the tender row instead; see
+        // PAID_ROW above.
+        if (pTax >= 0 && pTot < 0) {
+          for (var a4 = pTax + 1; a4 < labels.length; a4++) {
+            if (PAID_ROW.test(labels[a4])) { pTot = a4; break; }
+          }
+        }
         if (pSub >= 0 && pTax >= 0 && pTot >= 0) {
           /*
            * The exact two-term match gets its OWN complete pass over every
@@ -1338,8 +1450,8 @@
             if (!(sA > 0) || !(tA > 0) || !(gA > 0)) continue;
             if (tA > gA * 0.13) continue;
             /*
-             * ANY aligned row between the tax and the total that closes the
-             * equation explains the gap, whatever its label says.
+             * ANY aligned row inside the block that closes the equation
+             * explains the gap, whatever its label says.
              *
              * Coin Op prints Subtotal / Tax / Tip / Total over
              * 4.00 / 0.35 / 0.87 / 5.22, and because its Total already includes
@@ -1354,8 +1466,17 @@
              * bag fee and a bottle deposit all print the same shape.
              *
              * The printed total stands. Only the tax is being rescued here.
+             *
+             * The row can sit ABOVE the tax as well as below it. Starbucks
+             * prints Subtotal / Other / Tax / Payment over
+             * 18.20 / 3.00 / 0.86 / 22.06, where the charged tip is booked as
+             * "Other" one row BELOW the subtotal, and a scan that started after
+             * the tax never reached it. Scanning the whole block costs nothing
+             * on the ordinary Subtotal / Tax / Total shape, which has no row in
+             * between to find.
              */
-            for (var pm = pTax + 1; pm < pTot; pm++) {
+            for (var pm = pSub + 1; pm < pTot; pm++) {
+              if (pm === pTax) continue;
               if (st + pm >= values.length) break;
               var mA = values[st + pm];
               if (mA > 0 && Math.abs(sA + tA + mA - gA) < 0.02 && gate(sA, tA)) {

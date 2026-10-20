@@ -9,6 +9,45 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r42 (2026-10-20)
+
+Parser fixes for the last seven reds in the real corpus. All of them are
+reading defects rather than money defects; the money ones were r40 (D-098).
+
+- **A hyphenated date is a date.** Clover prints `05-Oct-2026` and it is the
+  only date on a Mamaya slip, so that receipt reached the export with no date
+  at all. The month-name reader takes a space, a hyphen or a slash now.
+- **"January 5, 2026" and "Sept 5, 2026" read correctly**, and "REG 5 JUNIOR
+  2026" no longer dates a receipt 5 June. That defect is recorded as fixed and
+  was, in one of three branches; the two that read spelled-out months still
+  swallowed the rest of the word, and those are the ones reached when no
+  numeric date parsed.
+- **A branch city is dropped from the merchant.** "Coin Op - Sacramento" files
+  as Coin Op, "Tom's Watch Bar - SACRAMENTO" as Tom's Watch Bar. A hyphen
+  inside a name has no spaces around it, so Coin-Op and T-Mobile are untouched.
+- **A logo that sets the name over two lines no longer wins.** `TOM'S` /
+  `WATCH BAR` had been filing receipts under "Watch Bar" even with the whole
+  name printed intact on the line below it.
+- **An OCR-damaged award banner is recognised as damage.** A bracket between
+  two letters is not a name, which reads `STAR-A)VERTISER HAWAII'S BEST 2920`
+  as the banner it is and gives the Hele receipt its own name back.
+- **A lower-case logo is title-cased**, so Mamaya is not filed as "mamaya".
+  Internal capitals are left as printed.
+- **A totals block that never prints the word "Total" is read.** The airport
+  Starbucks labels its block `Subtotal / Other / Tax / Payment / Change Due`
+  and had been recording no subtotal and no sales tax at all. A tender row
+  stands in where no total label exists, and the arithmetic still has to close,
+  so a cash tender larger than the bill is refused rather than reported.
+- **A fee or tip row above the tax is found too.** The rescue added in r40
+  looked only below the tax, which is where Coin Op puts its tip; Starbucks
+  books its charged tip one row above.
+
+**Corpus: 39 receipts at zero expectation mismatches**, the first time since
+real receipts started arriving. Unit tests 297 to 331, with every rule pinned
+against the shape that would break it.
+
+---
+
 ## js r41 (2026-10-19)
 
 - **A new `KEEPING YOUR RECEIPTS` panel in Settings** says plainly what survives

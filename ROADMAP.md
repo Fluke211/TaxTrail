@@ -113,15 +113,24 @@ what blocks what, not by size.
       purchase, and a restaurant tip reported as sales tax on two receipts. Both
       tax-rate poisonings fixed with them: a service fee and a suggested-tip
       percentage were being stored as Sacramento's rate for every later receipt
-- [ ] **Still open from that batch, none of it money.** An airport Starbucks
-      tax missed, Mamaya undated because it prints `05-Oct-2026` and no
-      month-name pattern accepts hyphens, "Tom's Watch Bar" read as "Watch Bar"
-      off a two-line logo, and Coin Op read as "Street" off vertical signage
+- [x] **The rest of that batch, none of it money** (D-098). An airport Starbucks
+      tax missed because its block never prints the word "Total", Mamaya undated
+      because it prints `05-Oct-2026` and no month-name pattern accepted hyphens,
+      "Tom's Watch Bar" read as "Watch Bar" off a two-line logo, Coin Op read as
+      "Street" off vertical signage, the Hele award banner read as the merchant
+      after OCR put a bracket mid-word, and Mamaya filed as "mamaya" off a
+      lower-case logo. **The corpus is at zero expectation mismatches**, which it
+      has not been since real receipts started arriving
+- [x] **A fee row between the SUBTOTAL and the TAX** (D-098), which is the
+      mirror of the open item below and turned out to be the real shape: the
+      airport Starbucks books its charged tip as "Other" one row above the tax,
+      where r40's rescue never looked
 - [ ] **A fee row between the subtotal and the total** reads the subtotal as the
-      total (`SUBTOTAL / TAX / BAG FEE / TOTAL`). Found by probing D-096 and
-      confirmed **pre-existing**, so not a regression. No real receipt has that
-      shape yet, and the generalisation it needs is a weaker proof than the named
-      tip row, so it waits for a receipt rather than a synthetic case
+      total (`SUBTOTAL / TAX / BAG FEE / TOTAL`) when the block carries no
+      aligned value for it. Found by probing D-096 and confirmed
+      **pre-existing**, so not a regression. The aligned case is handled, in both
+      directions as of D-098; this is the unaligned one, which still has no real
+      receipt behind it
 - [x] **Say what survives losing the phone** (D-097). The `KEEPING YOUR
       RECEIPTS` panel, plus a count of receipts no archive holds. Most of the
       capability already existed: iCloud Backup already carries the data and the
@@ -133,11 +142,11 @@ what blocks what, not by size.
       ship cardholder names. Needs an endpoint, and nothing should block launch
 - [ ] **The expiry-date veto guards only one of four date branches.**
       `EXPIRY_CONTEXT` is applied in the compact `15NOV2026` loop
-      (`classifier.js:524`) and nowhere else: the numeric loop, the
+      (`classifier.js:594`) and nowhere else: the numeric loop, the
       `YYYY-MM-DD` branch and both month-name branches have no guard. Latent,
       not live. It is harmless today only because those branches return the
       FIRST date in document order and real receipts print the transaction date
-      above the policy expiry. Three of the 31 corpus receipts already carry a
+      above the policy expiry. Three of the 39 corpus receipts already carry a
       qualifying date that is only ordered out of the way: Home Depot's
       "POLICY EXPIRES ON 11/15/2026" and Safeway's "Points expiring 03/31/26",
       twice. Found by the D-094 agent review while refuting a different
