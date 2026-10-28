@@ -5579,3 +5579,14 @@ annoyance. One was cosmetic, one was a display bug over correct data, and one
 was silently removing receipts from a tax year. A user cannot tell those apart
 from the outside, and the severity of a report is not the severity of the bug.
 
+**Follow-up in r44, from seeing it on the phone.** Tyler confirmed the dates
+and the footer, and asked for the merchant name and the close control to be
+pinned the same way. They are, and for the same reason: on a long receipt both
+scrolled off, so which receipt was being edited and the way out of it left the
+screen together. The form now scrolls between two fixed bars. "Report a
+problem" is right-justified in its row, so the two links sit at the edges
+rather than bunched at the left.
+
+Worth noting that this came from looking at it, not from a test. Neither bar
+has snapshot coverage, and nothing in CI would have said the header scrolled
+away.

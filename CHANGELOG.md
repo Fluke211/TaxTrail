@@ -9,6 +9,19 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r44 (2026-10-28)
+
+Follow-up to r43, from Tyler seeing it on the phone. Dates and the pinned
+footer both confirmed working (D-100).
+
+- **The merchant name and the ✕ are pinned too.** On a long receipt they
+  scrolled off, so which receipt you were editing and the way out of it left
+  the screen together. The form scrolls between two fixed bars now.
+- **"Report a problem" is right-justified**, so the two links sit at the edges
+  of their row instead of bunched at the left.
+
+---
+
 ## js r43 (2026-10-28)
 
 Three defects in the receipt edit screen, all reported from the phone. They
