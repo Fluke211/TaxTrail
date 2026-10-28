@@ -128,21 +128,29 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
             fixed height. A footer has one.
           */
           <View style={s.detail}>
+          {/*
+            The merchant name and the close control are pinned too, for the
+            same reason as the footer: on a long receipt they scrolled away, so
+            which receipt you were editing, and the way out of it, both left
+            the screen. The form now scrolls between two fixed bars.
+          */}
+          <View style={s.titleBar}>
+            <Text style={s.detailTitle} numberOfLines={1}>{selected.merchant}</Text>
+            <Pressable onPress={() => setSelected(null)} hitSlop={10} style={{ padding: 8 }}>
+              <Text style={{ color: T.muted, fontSize: 24 }}>✕</Text>
+            </Pressable>
+          </View>
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 16, paddingBottom: 24, paddingTop: 60 }}
+            // paddingTop 0: the title bar above owns the gap from the notch
+            // now, and the receipt image carries its own margin.
+            contentContainerStyle={{ padding: 16, paddingBottom: 24, paddingTop: 0 }}
             // Keeps the focused field above the keyboard. The ScrollView's own
             // inset, not a KeyboardAvoidingView: padding behaviour around a
             // ScrollView does not work (D-092).
             automaticallyAdjustKeyboardInsets
             keyboardDismissMode="interactive"
           >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={s.detailTitle} numberOfLines={1}>{selected.merchant}</Text>
-              <Pressable onPress={() => setSelected(null)} style={{ padding: 8 }}>
-                <Text style={{ color: T.muted, fontSize: 24 }}>✕</Text>
-              </Pressable>
-            </View>
             {detailUri && <ZoomableImage uri={detailUri} style={s.detailImg} />}
             <Text style={s.label}>MERCHANT</Text>
             <TextInput style={s.input} value={selected.merchant}
@@ -237,7 +245,7 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
               is the pair that fixes a parser bug, instead of every receipt on
               the device, most of which scanned fine.
             */}
-            <View style={{ flexDirection: 'row', gap: 18, marginTop: 14, flexWrap: 'wrap' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 18, marginTop: 14, flexWrap: 'wrap' }}>
               <Pressable hitSlop={8}
                 onPress={async () => { await Clipboard.setStringAsync(selected.ocrText || ''); Alert.alert('Raw text copied'); }}>
                 <Text style={s.linkSm}>COPY RAW TEXT</Text>
@@ -296,6 +304,13 @@ const makeStyles = styled((T) => ({
   inputBad: { borderColor: T.dangerLine },
   badHint: { color: T.danger, fontSize: T.fs.sm, marginTop: 6, fontWeight: '600' },
   linkSm: { color: T.accent, fontSize: T.fs.sm, fontWeight: '600' },
+  // Pinned above the scroll area. The top padding clears the notch, which the
+  // scroll content used to do itself.
+  titleBar: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 16, paddingTop: 60, paddingBottom: 10,
+    borderBottomColor: T.line, borderBottomWidth: 1, backgroundColor: T.bg,
+  },
   // Pinned below the scroll area. The bottom padding clears the home indicator.
   actionBar: {
     flexDirection: 'row', gap: 10,
