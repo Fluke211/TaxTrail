@@ -9,6 +9,38 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r43 (2026-10-28)
+
+Three defects in the receipt edit screen, all reported from the phone. They
+looked like three annoyances and one of them was deleting receipts from a tax
+year (D-100).
+
+- **The date field stored whatever order you typed.** `7-25-2026` was saved
+  exactly that way, and since every consumer assumes ISO, that receipt was in
+  **no per-year export**, matched no year filter, and sorted above everything.
+  None of it showed a symptom. The field normalizes now: year-first, US
+  month-day-year, a two-digit year, eight bare digits, and `-`, `/`, `.` or a
+  space between the parts all store as ISO.
+- **A date that cannot be read is refused rather than guessed.** `13/25/2026`
+  and `2/29/2027` are not dates in any order. The field is marked and the save
+  is blocked, instead of storing something plausible and wrong.
+- **Receipts already saved with a bad date are repaired on launch** (migration
+  3). Anything still unreadable is left as typed rather than blanked, and
+  flagged in the edit screen.
+- **The total now keeps two digits of cents when you tap away.** It always
+  stored them correctly; `String(13.6)` is "13.6", so the field redrew without
+  the last digit and read as though it had refused it.
+- **Delete and Save Changes no longer scroll off the bottom.** They are pinned
+  below the form, so they stay put on a receipt with splits and a long note too.
+- **The two links above them are one row**, shortened to "COPY RAW TEXT" and
+  "REPORT A PROBLEM".
+- The date keyboard is digits-and-punctuation now, instead of the alphabetic
+  one that put every date behind a keyboard switch.
+
+Unit tests 331 to 376.
+
+---
+
 ## Unreleased (no OTA needed: docs, copy and CI only)
 
 - **The App Store listing said 28 tax categories. It is 29** (D-099). The number

@@ -6,6 +6,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { styled, useTheme } from '../lib/theme';
 import MoneyInput from '../components/MoneyInput';
+import DateInput from '../components/DateInput';
 import { resolveImage } from '../lib/images';
 import { ZoomableImage } from '../components/ZoomableImage';
 import { CategoryPicker } from '../components/CategoryPicker';
@@ -13,6 +14,7 @@ import FeedbackComposer, { isFeedbackAvailable } from '../components/FeedbackCom
 import { deleteReceipt, updateReceipt, type Receipt } from '../lib/db';
 import { deleteReceiptFiles } from '../lib/ocr';
 import { SC_BY_NAME, allocationsOf } from '../lib/rows';
+const DI = require('../lib/dateInput.js');
 
 const CATEGORY_NAMES: string[] = (require('../lib/classifier.js').CATEGORIES as { name: string }[]).map((c) => c.name);
 
@@ -62,7 +64,21 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
 
   const saveEdits = useCallback(async () => {
     if (!selected) return;
-    await updateReceipt(selected);
+    /*
+     * Normalize once more here, not only on the field's blur.
+     * Tapping Save does blur the input first, but a save that arrives any
+     * other way must not be the one path that writes a non-ISO date, because
+     * nothing downstream would report it.
+     */
+    const iso = DI.normalizeDateInput(selected.date);
+    if (!iso) {
+      Alert.alert(
+        'That date cannot be read',
+        `"${selected.date}" is not a date. Type it as 7/25/2026 or 2026-07-25.`,
+      );
+      return;
+    }
+    await updateReceipt({ ...selected, date: iso });
     setSelected(null);
     onChanged();
   }, [selected, onChanged]);
@@ -103,7 +119,24 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
 
       <Modal visible={!!selected} animationType="slide" onRequestClose={() => setSelected(null)}>
         {selected && (
-          <ScrollView style={s.detail} contentContainerStyle={{ padding: 16, paddingBottom: 80, paddingTop: 60 }}>
+          /*
+            Delete and Save Changes sit OUTSIDE the scroll area.
+            They were the last thing in a long scrolling form, so finishing an
+            edit meant scrolling to find the button that finishes it. Trimming
+            the form would have fixed this one receipt and broken again on the
+            next one with three splits and a note, because the form has no
+            fixed height. A footer has one.
+          */
+          <View style={s.detail}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 16, paddingBottom: 24, paddingTop: 60 }}
+            // Keeps the focused field above the keyboard. The ScrollView's own
+            // inset, not a KeyboardAvoidingView: padding behaviour around a
+            // ScrollView does not work (D-092).
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="interactive"
+          >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={s.detailTitle} numberOfLines={1}>{selected.merchant}</Text>
               <Pressable onPress={() => setSelected(null)} style={{ padding: 8 }}>
@@ -120,7 +153,10 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
             <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
               <View style={{ flex: 1.2 }}>
                 <Text style={s.label}>DATE</Text>
-                <TextInput style={s.input} value={selected.date}
+                <DateInput
+                  style={[s.input, !DI.isIsoDay(selected.date) && s.inputBad]}
+                  placeholderTextColor={T.muted}
+                  value={selected.date}
                   onChangeText={(v) => setSelected({ ...selected, date: v })} />
               </View>
               <View style={{ flex: 1 }}>
@@ -134,6 +170,17 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
                   onChangeValue={(v) => setSelected({ ...selected, salesTax: v })} />
               </View>
             </View>
+            {/*
+              An unreadable date is said out loud rather than stored quietly.
+              Everything downstream assumes ISO: a date in any other shape drops
+              the receipt out of every per-year export and sorts it to the top
+              of the list, and all of that happens without a symptom (D-100).
+            */}
+            {!DI.isIsoDay(selected.date) && (
+              <Text style={s.badHint}>
+                That date cannot be read. Type it as 7/25/2026 or 2026-07-25.
+              </Text>
+            )}
             {/* The only way to turn a receipt into a credit by hand: the money
                 fields are decimal-pads and iOS gives them no minus key. Flips
                 the sales tax with the total, because a return takes the tax
@@ -179,32 +226,39 @@ export default function ReceiptsScreen({ receipts, onChanged, openId, onOpened }
             <TextInput style={[s.input, { minHeight: 50 }]} multiline value={selected.notes}
               onChangeText={(v) => setSelected({ ...selected, notes: v })} />
 
-            <Pressable style={{ marginTop: 14 }}
-              onPress={async () => { await Clipboard.setStringAsync(selected.ocrText || ''); Alert.alert('Raw text copied'); }}>
-              <Text style={{ color: T.accent, fontSize: T.fs.sm, fontWeight: '600' }}>COPY RAW SCANNED TEXT</Text>
-            </Pressable>
-
             {/*
+              Both links on ONE row, and both labels short enough to sit there.
+              Stacked full-width they pushed Delete and Save Changes off the
+              bottom of the screen, so saving an edit meant scrolling to find
+              the button that finishes the job.
+
               Reporting from HERE rather than from Settings is what makes the
               report useful: it carries this one receipt's text and photo, which
-              is the pair that fixes a parser bug — instead of every receipt on
+              is the pair that fixes a parser bug, instead of every receipt on
               the device, most of which scanned fine.
             */}
-            {isFeedbackAvailable() && (
-            <Pressable style={{ marginTop: 12 }} onPress={() => setReporting(selected)}>
-              <Text style={{ color: T.accent, fontSize: T.fs.sm, fontWeight: '600' }}>REPORT A SCANNING PROBLEM</Text>
-            </Pressable>
-            )}
-
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
-              <Pressable style={s.dangerBtn} onPress={() => remove(selected)}>
-                <Text style={{ color: T.danger, fontWeight: '600' }}>Delete</Text>
+            <View style={{ flexDirection: 'row', gap: 18, marginTop: 14, flexWrap: 'wrap' }}>
+              <Pressable hitSlop={8}
+                onPress={async () => { await Clipboard.setStringAsync(selected.ocrText || ''); Alert.alert('Raw text copied'); }}>
+                <Text style={s.linkSm}>COPY RAW TEXT</Text>
               </Pressable>
-              <Pressable style={s.primaryBtn} onPress={saveEdits}>
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Save Changes</Text>
-              </Pressable>
+              {isFeedbackAvailable() && (
+                <Pressable hitSlop={8} onPress={() => setReporting(selected)}>
+                  <Text style={s.linkSm}>REPORT A PROBLEM</Text>
+                </Pressable>
+              )}
             </View>
+
           </ScrollView>
+          <View style={s.actionBar}>
+            <Pressable style={s.dangerBtn} onPress={() => remove(selected)}>
+              <Text style={{ color: T.danger, fontWeight: '600' }}>Delete</Text>
+            </Pressable>
+            <Pressable style={s.primaryBtn} onPress={saveEdits}>
+              <Text style={{ color: '#fff', fontWeight: '600' }}>Save Changes</Text>
+            </Pressable>
+          </View>
+          </View>
         )}
       </Modal>
 
@@ -237,6 +291,17 @@ const makeStyles = styled((T) => ({
     color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: T.fs.body,
   },
   hint: { color: T.muted2, fontSize: T.fs.sm, marginTop: 6 },
+  // A date the app cannot read is shown as wrong, in the same red the Delete
+  // control uses, rather than looking like any other filled-in field.
+  inputBad: { borderColor: T.dangerLine },
+  badHint: { color: T.danger, fontSize: T.fs.sm, marginTop: 6, fontWeight: '600' },
+  linkSm: { color: T.accent, fontSize: T.fs.sm, fontWeight: '600' },
+  // Pinned below the scroll area. The bottom padding clears the home indicator.
+  actionBar: {
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28,
+    borderTopColor: T.line, borderTopWidth: 1, backgroundColor: T.bg,
+  },
   refundToggle: { paddingVertical: 6, marginTop: 8, alignSelf: 'flex-start' },
   refundLabel: { color: T.muted2, fontSize: T.fs.sm, fontWeight: '600' },
   dangerBtn: {

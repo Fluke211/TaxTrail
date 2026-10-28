@@ -1704,5 +1704,86 @@ const COINOP = fx(path.join('corpus', 'coin-op-2026-09-22-32.txt'));
 check('a tip row below the tax is still found', taxOf(COINOP) === 0.35, taxOf(COINOP));
 
 
+
+/* ------------------------------------------------------------------ r43
+ * The receipt edit fields, reported from the phone.
+ */
+const DIN = require('../src/lib/dateInput.js');
+const MIN = require('../src/lib/moneyInput.js');
+
+/*
+ * A date typed in any sensible order has to end up as ISO.
+ *
+ * The field was freeform and stored whatever was typed, and every consumer
+ * assumes ISO: `yearsPresent` does date.slice(0, 4) and wants four digits, so
+ * "7-25-2026" yields "7-25" and the receipt drops out of EVERY per-year export;
+ * `inRange` matches no year; and `ORDER BY date DESC` is a string sort, so it
+ * also jumps to the top of the list. None of that shows a symptom (D-100).
+ */
+[['2026-07-25', '2026-07-25'],   // already ISO
+ ['7-25-2026', '2026-07-25'],    // what Tyler typed
+ ['07/25/2026', '2026-07-25'],
+ ['7/25/26', '2026-07-25'],      // two-digit year
+ ['2026/7/25', '2026-07-25'],    // year first, slashes
+ ['7.25.2026', '2026-07-25'],
+ ['7 25 2026', '2026-07-25'],
+ ['20260725', '2026-07-25'],     // eight digits need no separator
+ ['  2026-07-25  ', '2026-07-25'],
+ // A first part over 12 cannot be a month, so it is unambiguously the day.
+ // Reading it beats refusing it: month-day-year would be invalid anyway.
+ ['25/07/2026', '2026-07-25'],
+ ['25-12-2026', '2026-12-25'],
+].forEach(([typed, want]) => {
+  const got = DIN.normalizeDateInput(typed);
+  check(`"${typed}" stores as ${want}`, got === want, got);
+});
+
+// US month-day-year is the default where both parts could be a month, because
+// this is a US tax product and that is what a US receipt prints.
+check('an ambiguous date reads as US month-day-year',
+  DIN.normalizeDateInput('7/8/2026') === '2026-07-08', DIN.normalizeDateInput('7/8/2026'));
+
+/*
+ * What must NOT be accepted. Storing a plausible-looking wrong date is how a
+ * tax record goes bad with nobody noticing, so these return null and the
+ * screens refuse to save rather than guessing.
+ */
+['13/25/2026', '2/30/2026', '2/29/2027', '0/5/2026', '7/0/2026',
+ '7-25', '1-2-3-4', 'abc', '', '   ', null, undefined,
+].forEach((typed) => {
+  check(`${JSON.stringify(typed)} is refused`, DIN.normalizeDateInput(typed) === null,
+    DIN.normalizeDateInput(typed));
+});
+
+// Leap years are real days and must survive. 2028 is one, 2027 is not.
+check('29 February in a leap year is a date', DIN.normalizeDateInput('2/29/2028') === '2028-02-29');
+check('29 February in a common year is not', DIN.normalizeDateInput('2/29/2027') === null);
+check('a century non-leap year is not', DIN.normalizeDateInput('2/29/2100') === null);
+check('a 400-year leap year is', DIN.normalizeDateInput('2/29/2000') === '2000-02-29');
+
+// isIsoDay is what the screens use to mark a field wrong, so it must agree.
+[['2026-07-25', true], ['7-25-2026', false], ['2026-7-25', false],
+ ['2026-02-30', false], ['', false], [null, false],
+].forEach(([v, want]) => {
+  check(`isIsoDay(${JSON.stringify(v)}) is ${want}`, DIN.isIsoDay(v) === want, DIN.isIsoDay(v));
+});
+
+/*
+ * The money field's RESTING display. Typing "13.60" always stored 13.6
+ * correctly, but `String(13.6)` is "13.6", so the field redrew without the last
+ * digit the moment it lost focus and read as though it had refused the cents.
+ */
+[[13.6, '13.60'], [13.65, '13.65'], [0, '0.00'], [-130.87, '-130.87'],
+ [1234.5, '1234.50'], [null, ''], [undefined, ''], [NaN, ''],
+].forEach(([v, want]) => {
+  check(`moneyDisplay(${JSON.stringify(v)}) is "${want}"`, MIN.moneyDisplay(v) === want, MIN.moneyDisplay(v));
+});
+
+// Typing two digits of cents was never the broken part, and must stay working.
+check('two digits of cents survive sanitizing', MIN.sanitizeMoneyText('13.60') === '13.60');
+check('and parse to the right number', MIN.moneyValue('13.60') === 13.6);
+check('a third digit is still truncated', MIN.sanitizeMoneyText('13.605') === '13.60');
+
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

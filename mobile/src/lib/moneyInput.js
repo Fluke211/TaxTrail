@@ -76,4 +76,25 @@ function moneyValue(text) {
   return isFinite(n) ? n : null;
 }
 
-module.exports = { sanitizeMoneyText: sanitizeMoneyText, moneyValue: moneyValue };
+/**
+ * What the field shows when nobody is typing in it.
+ *
+ * `String(13.6)` is "13.6", so a total entered as "13.60" redrew without its
+ * last digit the moment the field lost focus, and read as though the field had
+ * refused the second digit of cents. Tyler reported it exactly that way. The
+ * stored number was right the whole time; only the resting display was wrong.
+ *
+ * Money has two decimal places, so this pads to two. Only ever used for the
+ * resting state: padding mid-keystroke would fight the typing, which is the
+ * whole reason the field keeps a draft.
+ */
+function moneyDisplay(value) {
+  if (value == null || typeof value !== 'number' || !isFinite(value)) return '';
+  return value.toFixed(2);
+}
+
+module.exports = {
+  sanitizeMoneyText: sanitizeMoneyText,
+  moneyValue: moneyValue,
+  moneyDisplay: moneyDisplay,
+};

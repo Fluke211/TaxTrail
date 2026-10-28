@@ -4,6 +4,7 @@ import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
 import { RECEIPTS_DIR } from './images';
 const C = require('./classifier.js');
+const DI = require('./dateInput.js');
 
 export interface Allocation {
   category: string;
@@ -118,6 +119,36 @@ const MIGRATIONS: ((db: SQLite.SQLiteDatabase) => Promise<void>)[] = [
     const cols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(receipts)');
     if (!cols.some((c) => c.name === 'parsedSnapshot')) {
       await db.execAsync('ALTER TABLE receipts ADD COLUMN parsedSnapshot TEXT');
+    }
+  },
+
+  /*
+   * 3 — repair dates that were typed in some order other than ISO (D-100).
+   *
+   * The date field was freeform and stored exactly what was typed, so a date
+   * entered "7-25-2026" was saved that way. Everything downstream assumes ISO:
+   * `yearsPresent` does date.slice(0, 4) and wants four digits, so such a row
+   * is in NO per-year export; `inRange` matches no year; and `ORDER BY date
+   * DESC` is a string sort, so it also sorts above every real date. The
+   * receipt still shows its total and still appears under "All receipts", so
+   * there is no symptom at all until a year's export comes up a row short.
+   *
+   * The field cannot store one any more, but rows already saved stay broken
+   * until somebody opens and re-saves each one, and nothing tells them which.
+   *
+   * Only rows that are not already a real ISO day are touched, and only when
+   * the stored text reads as a date. Anything unreadable is LEFT ALONE rather
+   * than blanked: a date nobody can parse is still evidence of what was typed,
+   * and the edit screen now marks it and refuses to save over it.
+   */
+  async (db) => {
+    const rows = await db.getAllAsync<{ id: number; date: string }>(
+      'SELECT id, date FROM receipts'
+    );
+    for (const r of rows) {
+      if (DI.isIsoDay(r.date)) continue;
+      const iso = DI.normalizeDateInput(r.date);
+      if (iso) await db.runAsync('UPDATE receipts SET date = ? WHERE id = ?', iso, r.id);
     }
   },
 
