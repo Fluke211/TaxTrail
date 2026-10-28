@@ -23,7 +23,9 @@ export default function MoneyInput({
 }) {
   // null means "not being edited" — show whatever the receipt actually holds.
   const [draft, setDraft] = useState<string | null>(null);
-  const shown = draft !== null ? draft : (value != null ? String(value) : '');
+  // Two decimal places when NOT being edited. See `moneyDisplay` for why:
+  // `String(13.6)` is "13.6", which read as the field refusing the cents.
+  const shown = draft !== null ? draft : M.moneyDisplay(value);
 
   return (
     <TextInput

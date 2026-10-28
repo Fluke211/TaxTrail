@@ -25,8 +25,10 @@ import { SC_BY_NAME } from '../lib/rows';
 import { resolveImage } from '../lib/images';
 import { ZoomableImage } from '../components/ZoomableImage';
 import { CategoryPicker } from '../components/CategoryPicker';
+import DateInput from '../components/DateInput';
 const C = require('../lib/classifier.js');
 const E = require('../lib/edited.js');
+const DI = require('../lib/dateInput.js');
 
 const CATEGORY_NAMES: string[] = (C.CATEGORIES as { name: string }[]).map((c) => c.name);
 
@@ -418,11 +420,27 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
     const salesTax = Math.abs(parseFloat(pending.salesTax)) * sign;
     const merchant = pending.merchant.trim() || 'Unknown merchant';
 
-    const dup = duplicateOf(merchant, pending.date, total);
+    /*
+     * A date that is not ISO must never be stored. Everything downstream
+     * assumes it: a receipt dated "7-25-2026" drops out of every per-year
+     * export, matches no year filter, and sorts above everything, with no
+     * symptom anywhere (D-100). Checked BEFORE the duplicate test below,
+     * which compares dates and would otherwise compare a date to a non-date.
+     */
+    const isoDate = DI.normalizeDateInput(pending.date);
+    if (!isoDate) {
+      Alert.alert(
+        'That date cannot be read',
+        `"${pending.date}" is not a date. Type it as 7/25/2026 or 2026-07-25.`,
+      );
+      return;
+    }
+
+    const dup = duplicateOf(merchant, isoDate, total);
     if (dup && !dupOkRef.current) {
       Alert.alert(
         'Already scanned?',
-        `${merchant} on ${pending.date} for ${money(total)} is already saved. Save it again anyway?`,
+        `${merchant} on ${isoDate} for ${money(total)} is already saved. Save it again anyway?`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -449,7 +467,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
     const row: Receipt = {
       createdAt: new Date().toISOString(),
       merchant,
-      date: pending.date,
+      date: isoDate,
       total,
       category: pending.category,
       scheduleC: SC_BY_NAME[pending.category] || '',
@@ -740,8 +758,11 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
             <View style={s.row3}>
               <View style={{ flex: 1.2 }}>
                 <Text style={s.label}>DATE</Text>
-                <TextInput style={s.input} value={pending.date}
-                  onChangeText={(v) => setPending({ ...pending, date: v })} placeholder="YYYY-MM-DD" placeholderTextColor={T.muted2} />
+                <DateInput
+                  style={[s.input, !DI.isIsoDay(pending.date) && s.inputBad]}
+                  placeholderTextColor={T.muted2}
+                  value={pending.date}
+                  onChangeText={(v) => setPending({ ...pending, date: v })} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.label}>{pending.refund ? 'REFUND ($)' : 'TOTAL ($)'}</Text>
@@ -954,6 +975,9 @@ const makeStyles = styled((T) => ({
     backgroundColor: T.bg2, borderColor: T.line, borderWidth: 1, borderRadius: 10,
     color: T.text, paddingHorizontal: 12, paddingVertical: 11, fontSize: T.fs.body,
   },
+  // A date the app cannot read is shown as wrong rather than looking like
+  // any other filled-in field. Same treatment as the receipt edit screen.
+  inputBad: { borderColor: T.dangerLine },
   /* flex-end, because "SALES TAX ($)" wraps to two lines in a third of the
      screen and stretch then pushed its box a line below the other two. Bottom
      alignment keeps the three inputs on one line whatever the labels do. */

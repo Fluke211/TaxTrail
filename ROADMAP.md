@@ -135,6 +135,13 @@ what blocks what, not by size.
       RECEIPTS` panel, plus a count of receipts no archive holds. Most of the
       capability already existed: iCloud Backup already carries the data and the
       share sheet already reaches Dropbox and Drive. What was missing was saying so
+- [x] **The receipt edit screen, reported from the phone** (D-100). A freeform
+      date field stored whatever order was typed, which removed the receipt from
+      every per-year export without a symptom; the total looked like it refused
+      two digits of cents, which was its resting display and never the stored
+      number; and the Save button scrolled off the bottom of the form. Fixed
+      with a normalizer that refuses to guess, a migration for rows already
+      saved, and a pinned action bar rather than fewer pixels of padding
 - [ ] **A per-receipt "this reading was wrong" button** (D-097), sending scrubbed
       OCR text and never the image, fired by a correction because that is where
       the signal is. The honest version of Tyler's data-sharing idea: his own name

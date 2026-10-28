@@ -5507,3 +5507,75 @@ type scale, contrast, OTA safety, version stamps and corpus integrity in CI.
 Every one of those checks exists because something silent went wrong once.
 Claims about the product are in exactly the same category as code, and the two
 files holding the ones Apple and customers read had no check over them at all.
+
+---
+
+## D-100
+
+**A freeform date field was deleting receipts from the tax year, silently**
+(2026-10-28)
+
+Tyler reported three things about the receipt edit screen after correcting a
+batch of receipts by hand. One of them is the worst defect this app has had.
+
+**The date field stored whatever was typed.** It was a plain `TextInput` bound
+straight to the stored string, on both the capture review and the receipt edit
+screens. He typed `7-25-2026`, which is how a US receipt prints a date, and
+that is what was saved.
+
+Nothing downstream tolerates it, and all three failures are silent:
+
+| Consumer | What it does | What happens |
+|---|---|---|
+| `yearsPresent()` | `date.slice(0, 4)`, requires four digits | gets `"7-25"`, so the receipt is in **no** per-year export option |
+| `inRange()` | compares ISO strings | the receipt matches no year |
+| `db.listReceipts` | `ORDER BY date DESC`, a string sort | `"7-25-..."` sorts above every `"2026-..."`, so it jumps to the top |
+
+The receipt still shows its total, still has its category, and still appears
+under "All receipts". **The only symptom is a year's export quietly coming up a
+row short**, which on a tax record is the worst way to be wrong: it looks fine
+and it under-reports.
+
+He described this as "screws things up if done wrong order", which undersells
+it. There is no wrong order any more. `normalizeDateInput` reads year-first,
+US month-day-year, a two-digit year, eight bare digits, and any of `-`, `/`,
+`.` or a space between the parts, and stores ISO. A first part over 12 cannot
+be a month, so `25/07/2026` is read as day-month-year rather than refused:
+month-day-year would be invalid anyway, so reading it loses nothing.
+
+What it will NOT do is guess. `13/25/2026` and `2/29/2027` are not dates in any
+order and return null, because storing a plausible-looking wrong date is how
+this went wrong in the first place. Both screens then mark the field and refuse
+to save it, so a date that cannot be read can no longer be stored at all.
+
+**Migration 3 repairs rows already saved.** The field cannot store a bad date
+any more, but Tyler already has at least one, and nothing would ever have told
+him which. Rows that are not real ISO days and that read as a date are
+rewritten. Anything unreadable is **left alone rather than blanked**: it is
+still evidence of what was typed, and the edit screen now flags it.
+
+**The money field was never broken; its resting display was.** He reported that
+the total would not take two digits of cents. Typing "13.60" always stored 13.6
+correctly, but `String(13.6)` is `"13.6"`, so the moment the field lost focus it
+redrew without the last digit and read exactly like a field refusing the input.
+`moneyDisplay` pads the resting state to two places. Only the resting state:
+padding mid-keystroke would fight the typing, which is the whole reason the
+field keeps a draft (D-043).
+
+**Delete and Save Changes are out of the scroll area.** They were the last
+thing in a long scrolling form, so finishing an edit meant scrolling to find
+the button that finishes it. The two links above them were also stacked
+full-width; they are one row now, "COPY RAW TEXT" and "REPORT A PROBLEM".
+
+Trimming the form would have fixed the receipt in the screenshot and broken
+again on the next one with three splits and a note, **because the form has no
+fixed height and a footer does.** So the buttons are a pinned footer rather
+than fewer pixels of padding. The scroll area keeps the focused field above the
+keyboard with its own inset rather than a `KeyboardAvoidingView`, since padding
+behaviour around a `ScrollView` does not work (D-092).
+
+**The lesson worth keeping:** every one of the three was reported as a cosmetic
+annoyance. One was cosmetic, one was a display bug over correct data, and one
+was silently removing receipts from a tax year. A user cannot tell those apart
+from the outside, and the severity of a report is not the severity of the bug.
+
