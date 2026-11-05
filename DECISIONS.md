@@ -5700,3 +5700,63 @@ Building the App Store screenshots has been the most productive review pass
 this project has had, because it is the only one that looks at the finished
 surface instead of its parts.
 
+---
+
+## D-103
+
+**Confidence is a claim about the parser, so an answer the user supplied needs
+its own word** (2026-11-05)
+
+Tyler, on r46: *"Should it say high confidence when the user has had to make an
+update? Seems like a field that has a confidence score that has been manually
+altered should say so. Corrected, or something like it."*
+
+He is right, and this project had already written the rule down. Three lines
+above the call site of the thing r46 changed:
+
+    // `parsed`, not the values above: the merchant-memory override and the
+    // tax-rate fallbacks are the app being helpful, and folding them in
+    // would credit the parser with answers it did not produce.
+
+That comment governs `parsedSnapshot`, and `parsedSnapshot` obeys it. The
+`confidence` field stored beside it did not.
+
+**r46 was a half fix, and the half it got wrong is the worse half.** Before it,
+a category reached through a remembered merchant stored `low`, left over from
+the pass that had returned Uncategorized. r46 made the label consistent by
+storing the second classification's `high` instead. But `confidence` is
+**stored on the row and travels into the diagnostics export**, where parser
+accuracy is measured. A receipt the parser could not categorize at all,
+recorded as a high-confidence parser success, inflates that measurement. That
+is precisely the failure D-056 exists to prevent: "we do not know" is a
+different claim from "it was correct". r46 traded a visible wrong label for an
+invisible wrong number, which is the worse trade.
+
+So the source is its own value. `REMEMBERED` is not a point on the
+high/medium/low scale and is pinned as never equal to one. It answers where
+the answer came from, which is a different question from how sure anyone is.
+
+**The same question exposed a second defect, this one visible.** Forgetting a
+remembered name reset the merchant and the flag but kept the category that
+name had produced, so the app showed
+
+    Auto-categorized as "Business Meals" (high confidence)
+
+using the very name it had just been told was wrong, with nothing on screen
+saying where it came from. Forgetting now restores the category and confidence
+from the parser's own frozen snapshot, so giving up a name gives back exactly
+what the receipt alone says. On a receipt headed "Mobile order" that is
+Uncategorized and a prompt to pick one, which is the honest state.
+
+Not taken: Tyler's word was "corrected". The category here was not corrected in
+the moment, it came from a name saved on an earlier visit, and the banner
+already has a green line for that case. "Remembered" matches it. If he prefers
+"corrected" it is one string and one constant.
+
+**The pattern worth keeping.** Three fixes in a row now (D-100's pinned footer,
+D-102, this) came from somebody looking at the finished screen, and this one
+came from a user questioning an answer the tests all agreed with. 411 unit
+tests passed on r46 and none of them disagreed with crediting the parser for
+work the user did, because every one of them asked whether the code did what I
+meant rather than whether what I meant was right.
+

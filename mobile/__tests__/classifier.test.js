@@ -1874,10 +1874,31 @@ check('and naming the merchant then categorizes it',
 const RCAT = require('../src/lib/recategorize.js');
 const hi = () => ({ name: 'Business Meals', confidence: 'high' });
 
-check('a remembered name supplies its own confidence',
+/*
+ * r47. Tyler asked the right question about r46: should a field say "high
+ * confidence" when the USER is the one who worked it out? No. The confidence
+ * stored on a receipt is a claim about the parser, and here the parser
+ * produced nothing; the answer came from a name the user taught. Reporting
+ * the second classification's "high" credits the parser with an answer it did
+ * not produce, which is what the parsed-snapshot comment already refuses to do
+ * (D-103).
+ */
+check('a category from a remembered name says where it came from',
   JSON.stringify(RCAT.resolveCategory({ category: 'Uncategorized', confidence: 'low' }, 'Starbucks', hi))
-  === JSON.stringify({ category: 'Business Meals', confidence: 'high' }),
+  === JSON.stringify({ category: 'Business Meals', confidence: 'remembered' }),
   JSON.stringify(RCAT.resolveCategory({ category: 'Uncategorized', confidence: 'low' }, 'Starbucks', hi)));
+
+// It is a SOURCE, not a point on the scale, so it must never be one of them.
+check('"remembered" is not a confidence level',
+  ['high', 'medium', 'low'].indexOf(RCAT.REMEMBERED) === -1);
+/*
+ * This value is stored on the row and travels into the diagnostics export,
+ * where parser accuracy is measured. Recording a row the parser could not
+ * categorize as a high-confidence success would inflate that number, which is
+ * the failure D-056 exists to prevent.
+ */
+check('so it can never be counted as a parser success',
+  RCAT.resolveCategory({ category: 'Uncategorized', confidence: 'low' }, 'Starbucks', hi).confidence !== 'high');
 
 // A category the parser DID find came from the receipt's own words, so it
 // outranks a guess made from the merchant name alone and is left untouched.
@@ -1907,8 +1928,8 @@ const sbuxShown = RCAT.resolveCategory(
   { category: sbuxParsed.name, confidence: sbuxParsed.confidence },
   'Starbucks',
   (n) => C.classify(SBUX_TEXT, n));
-check('the Starbucks app receipt reads as a high-confidence meal',
-  sbuxShown.category === 'Business Meals' && sbuxShown.confidence === 'high',
+check('the Starbucks app receipt reads as a meal, credited to the saved name',
+  sbuxShown.category === 'Business Meals' && sbuxShown.confidence === RCAT.REMEMBERED,
   JSON.stringify(sbuxShown));
 
 

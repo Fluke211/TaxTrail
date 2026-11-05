@@ -330,9 +330,30 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
     if (!pending) return;
     const dropped = await memForget(pending.ocrText);
     const next = pending.parsedMerchant;
+    /*
+     * The CATEGORY goes back too, not just the name.
+     *
+     * A category reached through a remembered name is only as good as that
+     * name. Keeping it after the name is forgotten left the app showing
+     * "Auto-categorized as Business Meals (high confidence)" using the very
+     * name it had just been told was wrong, with nothing on screen saying
+     * where it came from. Restored from the parser's own frozen output, so
+     * forgetting a name returns exactly what the receipt alone says, which on
+     * a receipt headed "Mobile order" is Uncategorized and a prompt to pick
+     * one (D-103).
+     */
+    let was: { category?: string; confidence?: string } = {};
+    try { was = JSON.parse(pending.parsedSnapshot || '{}'); } catch {}
     // offeredMerchant moves with it: accepting the parser's name is still not a
     // correction, so leaving it alone must not re-learn it.
-    setPending({ ...pending, merchant: next, offeredMerchant: next, merchantRemembered: false });
+    setPending({
+      ...pending,
+      merchant: next,
+      offeredMerchant: next,
+      merchantRemembered: false,
+      category: was.category || 'Uncategorized',
+      confidence: was.confidence || 'low',
+    });
     Alert.alert(
       dropped ? `Forgot “${dropped}”` : 'Nothing was remembered',
       next
@@ -739,6 +760,8 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
                 ? `★ Merchant remembered from a previous visit`
                 : pending.category === 'Uncategorized'
                 ? '⚠️ Couldn’t auto-categorize. Please pick a category.'
+                : pending.confidence === RC.REMEMBERED
+                ? `“${pending.category}”, from a merchant name you saved`
                 : `Auto-categorized as “${pending.category}” (${pending.confidence} confidence)`}
             </Text>
 
