@@ -5590,3 +5590,64 @@ rather than bunched at the left.
 Worth noting that this came from looking at it, not from a test. Neither bar
 has snapshot coverage, and nothing in CI would have said the header scrolled
 away.
+
+---
+
+## D-101
+
+**A category keyword has to be a word, not a run of letters inside one**
+(2026-11-04)
+
+Tyler scanned a Starbucks app receipt. Its header line reads `Mobile order`,
+and the app filed the coffee as a **vehicle expense**.
+
+Keyword matching was `haystack.indexOf(kw) !== -1`, a plain substring test, and
+`mobil` is the Mobil petrol brand in the Car & Truck list. "mobil" is inside
+"mobile". A keyword found in the MERCHANT name scores triple, so that one
+accidental match scored 15 and won the category outright.
+
+It is not one keyword. The same list reads:
+
+| Receipt says | Filed as fuel because of |
+|---|---|
+| `Mobile order` | `mobil` |
+| `MARCO'S PIZZA` | `arco` |
+| `ENTIRE ORDER 10% OFF` | `tire` |
+| `T-MOBILE` | `mobil` |
+| `NESTLE TOLL HOUSE` | `toll` |
+
+**Car and truck expenses are among the most audited lines on a Schedule C.**
+A coffee filed there is worse than a coffee left uncategorized, because the
+second one gets reviewed and the first one does not.
+
+`hasKeyword` requires a word boundary at both ends. A trailing plural or
+possessive still counts, because "TIRES" and "DOMINO'S" are the forms receipts
+actually print, and a keyword that already ends in punctuation or a space
+("pump #", "bar & ") carries its own boundary and gets none added.
+
+Written as a scan rather than a regex, because the boundary before the match
+needs a lookbehind and **Hermes support for lookbehind is not worth betting
+the parser on**, which is the same call the MONEY pattern already records.
+
+**The fix does more than avoid a wrong label; it unblocks the learning path.**
+`CaptureScreen` re-classifies with a remembered merchant ONLY when the parser
+returned `Uncategorized`. Under the old behaviour the Starbucks receipt came
+back as a confident "Car & Truck / Fuel", so that branch never ran, and every
+future Starbucks app receipt would have been mis-filed the same way even after
+Tyler corrected the merchant name. Returning `Uncategorized` is what lets the
+remembered name take over.
+
+**Still wrong, and recorded rather than fixed: `NESTLE TOLL HOUSE`.** "Toll" is
+genuinely the word there, so no boundary rule can separate it from a bridge
+toll. A special case for one cookie brand is exactly the kind of narrow rule
+D-094 says not to ship on a synthetic example. It waits for a real receipt.
+
+Measured rather than assumed: 39 real receipts unchanged at zero expectation
+mismatches, the synthetic corpus still at 100%, and every fuel brand in the
+list pinned as still matching, plural and possessive forms included.
+
+**The general shape, which has now bitten twice:** a rule written as "does this
+string appear" will eventually find its string somewhere it means nothing.
+D-089 was an address test matching a store number; this is a brand name
+matching an adjective. Both read the characters and not the language.
+

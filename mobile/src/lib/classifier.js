@@ -937,6 +937,54 @@
     return lines.length;
   }
 
+  /*
+   * A keyword has to be a WORD, not a run of letters inside one.
+   *
+   * Matching was `haystack.indexOf(kw) !== -1`, and the Car & Truck list holds
+   * several short brand names that live inside ordinary words. A Starbucks app
+   * receipt headed "Mobile order" was filed as a VEHICLE EXPENSE, because
+   * "mobil" is in "mobile" and a keyword found in the merchant name scores
+   * triple. The same list also reads
+   *
+   *     "Marco's Pizza"      as fuel, via "arco"
+   *     "ENTIRE ORDER 10% OFF" as fuel, via "tire"
+   *     "Nestle Toll House"  as fuel, via "toll"
+   *     "T-Mobile"           as fuel, via "mobil"
+   *
+   * Car and truck expenses are among the most audited lines on a Schedule C,
+   * so a coffee filed there is worse than an uncategorized one.
+   *
+   * A trailing plural or possessive still counts, because "TIRES" and
+   * "DOMINO'S" are the forms receipts actually print. A keyword that already
+   * ends in punctuation or a space ("pump #", "bar & ") carries its own
+   * boundary and gets no extra one.
+   *
+   * Written as a scan rather than a regex with lookbehind: Hermes support for
+   * lookbehind is not worth betting the parser on, which is the same call the
+   * MONEY pattern records.
+   */
+  function hasKeyword(hay, kw) {
+    if (!hay || !kw) return false;
+    var headBound = /^[a-z0-9]/.test(kw);
+    var tailBound = /[a-z0-9]$/.test(kw);
+    var at = 0;
+    while ((at = hay.indexOf(kw, at)) !== -1) {
+      var okHead = true;
+      if (headBound && at > 0) okHead = !/[a-z0-9]/.test(hay.charAt(at - 1));
+      var okTail = true;
+      if (tailBound) {
+        var end = at + kw.length;
+        // "tire" -> "tires", "domino" -> "domino's", "gallon" -> "gallones".
+        var suffix = /^(?:'?e?s)?/.exec(hay.slice(end, end + 3))[0];
+        var after = hay.charAt(end + suffix.length);
+        okTail = after === '' || !/[a-z0-9]/.test(after);
+      }
+      if (okHead && okTail) return true;
+      at += 1;
+    }
+    return false;
+  }
+
   function classify(text, merchant) {
     var allLines = String(text || '').split('\n');
     var cut = promoBoundary(allLines);
@@ -951,11 +999,11 @@
       var score = 0, hits = [];
       var bodyScore = 0;
       cat.keywords.forEach(function (kw) {
-        var inBody = body.indexOf(kw) !== -1;
-        var inTail = !inBody && tail.indexOf(kw) !== -1;
+        var inBody = hasKeyword(body, kw);
+        var inTail = !inBody && hasKeyword(tail, kw);
         if (inBody || inTail) {
           // Keyword in the merchant name is worth more than in the body
-          var inMerchant = merchant && merchant.toLowerCase().indexOf(kw) !== -1;
+          var inMerchant = merchant && hasKeyword(String(merchant).toLowerCase(), kw);
           var weight = inMerchant ? 3 : (inBody ? 1 : 0.25);
           var points = weight * Math.min(kw.length, 12);
           score += points;
@@ -1948,6 +1996,9 @@
   return {
     parseReceipt: parseReceipt,
     classify: classify,
+    // Exported so the word-boundary rule is testable directly, not only
+    // through a whole receipt (D-101).
+    hasKeyword: hasKeyword,
     extractTotal: extractTotal,
     extractDate: extractDate,
     extractMerchant: extractMerchant,

@@ -1785,5 +1785,81 @@ check('and parse to the right number', MIN.moneyValue('13.60') === 13.6);
 check('a third digit is still truncated', MIN.sanitizeMoneyText('13.605') === '13.60');
 
 
+
+/* ------------------------------------------------------------------ r45
+ * A keyword has to be a WORD, not a run of letters inside one.
+ *
+ * Tyler scanned a Starbucks app receipt headed "Mobile order" and it was
+ * filed as a VEHICLE EXPENSE, because "mobil" is inside "mobile" and a
+ * keyword found in the merchant name scores triple. Matching was a plain
+ * indexOf. The Car & Truck list, which is the most audited line on a
+ * Schedule C, carries several short brand names that live inside ordinary
+ * words (D-101).
+ */
+const catOf = (txt) => C.classify(txt, txt.split('\n')[0]).name;
+const body = (head, ...rest) => [head, ...rest, 'Subtotal', 'Tax', 'Total'].join('\n');
+
+// Each of these was read as fuel.
+[['Mobile order', body('Mobile order', 'Caramel Macchiato', 'Bacon Gouda Egg Sandwich'), 'Car & Truck / Fuel'],
+ ["Marco's Pizza", body("MARCO'S PIZZA", 'PEPPERONI SLICE'), 'Car & Truck / Fuel'],
+ ['an "entire order" discount', body('CORNER DELI', 'SANDWICH', 'ENTIRE ORDER 10% OFF'), 'Car & Truck / Fuel'],
+ ['T-Mobile', body('T-MOBILE', 'PHONE CASE'), 'Car & Truck / Fuel'],
+].forEach(([label, txt, wrong]) => {
+  check(`${label} is not filed as a vehicle expense`, catOf(txt) !== wrong, catOf(txt));
+});
+
+// And what they should be instead, where the receipt says enough to tell.
+check("Marco's Pizza is a meal", catOf(body("MARCO'S PIZZA", 'PEPPERONI SLICE')) === 'Business Meals');
+check('T-Mobile is a phone bill', catOf(body('T-MOBILE', 'PHONE CASE')) === 'Utilities & Phone');
+/*
+ * "Mobile order" alone says nothing about what was bought, so Uncategorized
+ * is the honest answer and not a failure. It is also what makes the merchant
+ * memory work: CaptureScreen re-classifies with a remembered name ONLY when
+ * the category came back Uncategorized, so the old confident-but-wrong "Car &
+ * Truck" would have stuck on every future Starbucks app receipt even after
+ * the merchant was corrected.
+ */
+check('a bare "Mobile order" header is left for review',
+  catOf(body('Mobile order', 'Caramel Macchiato')) === 'Uncategorized',
+  catOf(body('Mobile order', 'Caramel Macchiato')));
+check('and naming the merchant then categorizes it',
+  C.classify(body('Mobile order', 'Caramel Macchiato'), 'Starbucks').name === 'Business Meals');
+
+/*
+ * The other half of the rule, and the half that would make it a regression:
+ * every one of these words IS the keyword, and must still match. A trailing
+ * plural or possessive counts, because "TIRES" and "DOMINO'S" are the forms
+ * receipts actually print.
+ */
+[['MOBIL', body('MOBIL', 'UNLEADED', 'GALLONS 12.3'), 'Car & Truck / Fuel'],
+ ['ARCO', body('ARCO', 'REGULAR UNLEADED', 'GALLONS 9.1'), 'Car & Truck / Fuel'],
+ ['a tire shop, plural', body('ISLAND TIRE', 'TIRES 4 @ 120.00'), 'Car & Truck / Fuel'],
+ ['a toll', body('HARBOR BRIDGE', 'TOLL'), 'Car & Truck / Fuel'],
+ ['Pilot Travel Center', body('PILOT TRAVEL CENTER', 'DIESEL', 'GALLONS 40'), 'Car & Truck / Fuel'],
+ ["Domino's, possessive", body("DOMINO'S PIZZA", 'LARGE PEPPERONI'), 'Business Meals'],
+ ['Starbucks', body('STARBUCKS', 'GRANDE LATTE'), 'Business Meals'],
+ ['AutoZone', body('AUTOZONE', 'WIPER BLADE'), 'Car & Truck / Fuel'],
+].forEach(([label, txt, want]) => {
+  check(`${label} still reads as ${want}`, catOf(txt) === want, catOf(txt));
+});
+
+// The matcher itself, directly. A word boundary at both ends, plural and
+// possessive allowed, and a keyword ending in punctuation carries its own.
+[['mobil', 'mobile order', false],
+ ['mobil', 'mobil unleaded', true],
+ ['mobil', 'exxon mobil', true],
+ ['tire', 'entire order', false],
+ ['tire', 'tires 4 pack', true],
+ ['tire', 'island tire', true],
+ ['arco', "marco's pizza", false],
+ ['arco', 'arco am/pm', true],
+ ['domino', "domino's pizza", true],
+ ['pump #', 'pump #4 regular', true],
+].forEach(([kw, hay, want]) => {
+  const got = C.hasKeyword(hay, kw);
+  check(`"${kw}" in "${hay}" is ${want}`, got === want, got);
+});
+
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
