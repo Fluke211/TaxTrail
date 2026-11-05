@@ -1861,5 +1861,56 @@ check('and naming the merchant then categorizes it',
 });
 
 
+
+/* ------------------------------------------------------------------ r46
+ * Category and confidence have to come from the SAME classification.
+ *
+ * The second pass that uses a remembered merchant took the category from the
+ * new classification and left the confidence behind from the old one, which
+ * by definition had just returned Uncategorized and so was always "low". The
+ * app read: Auto-categorized as "Business Meals" (low confidence), on a match
+ * that actually scored 27 and was high (D-102).
+ */
+const RCAT = require('../src/lib/recategorize.js');
+const hi = () => ({ name: 'Business Meals', confidence: 'high' });
+
+check('a remembered name supplies its own confidence',
+  JSON.stringify(RCAT.resolveCategory({ category: 'Uncategorized', confidence: 'low' }, 'Starbucks', hi))
+  === JSON.stringify({ category: 'Business Meals', confidence: 'high' }),
+  JSON.stringify(RCAT.resolveCategory({ category: 'Uncategorized', confidence: 'low' }, 'Starbucks', hi)));
+
+// A category the parser DID find came from the receipt's own words, so it
+// outranks a guess made from the merchant name alone and is left untouched.
+check('a category the receipt supplied is not second-guessed',
+  RCAT.resolveCategory({ category: 'Office Supplies', confidence: 'medium' }, 'Starbucks', hi).category
+  === 'Office Supplies');
+check('and keeps its own confidence',
+  RCAT.resolveCategory({ category: 'Office Supplies', confidence: 'medium' }, 'Starbucks', hi).confidence
+  === 'medium');
+
+// Nothing remembered, or a second pass that also fails, changes nothing.
+check('no remembered name changes nothing',
+  RCAT.resolveCategory({ category: 'Uncategorized', confidence: 'low' }, null, hi).category === 'Uncategorized');
+check('a second pass that also fails changes nothing',
+  RCAT.resolveCategory({ category: 'Uncategorized', confidence: 'low' }, 'Nowhere',
+    () => ({ name: 'Uncategorized', confidence: 'low' })).category === 'Uncategorized');
+// Defensive: the screen passes real objects, but a missing one must not throw.
+check('a missing parse degrades rather than throwing',
+  RCAT.resolveCategory(null, null, hi).category === 'Uncategorized');
+
+// End to end on the real receipt text, which is what the screen actually does.
+const SBUX_TEXT = ['Receipt', 'Mobile order', 'Nov 4, 2026, 06:47',
+  'Bacon, Gouda & Egg Sandwich', 'Caramel Macchiato',
+  'Subtotal', 'Tax', 'Total'].join('\n');
+const sbuxParsed = C.classify(SBUX_TEXT, 'Mobile order');
+const sbuxShown = RCAT.resolveCategory(
+  { category: sbuxParsed.name, confidence: sbuxParsed.confidence },
+  'Starbucks',
+  (n) => C.classify(SBUX_TEXT, n));
+check('the Starbucks app receipt reads as a high-confidence meal',
+  sbuxShown.category === 'Business Meals' && sbuxShown.confidence === 'high',
+  JSON.stringify(sbuxShown));
+
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

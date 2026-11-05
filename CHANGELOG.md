@@ -9,6 +9,20 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r46 (2026-11-05)
+
+- **A confident category is no longer reported as "low confidence"** (D-102).
+  When a remembered merchant name supplies the category, the confidence came
+  from the earlier classification that had returned Uncategorized, so the app
+  said `Auto-categorized as "Business Meals" (low confidence)` about a match
+  that scored 27 and was high. Both now come from the same classification.
+- A category the parser did find is still left alone, because it came from the
+  receipt's own words rather than from the merchant name.
+
+Unit tests 402 to 409.
+
+---
+
 ## js r45 (2026-11-04)
 
 - **A coffee is no longer a vehicle expense** (D-101). A Starbucks app receipt

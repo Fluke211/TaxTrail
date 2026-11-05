@@ -29,6 +29,7 @@ import DateInput from '../components/DateInput';
 const C = require('../lib/classifier.js');
 const E = require('../lib/edited.js');
 const DI = require('../lib/dateInput.js');
+const RC = require('../lib/recategorize.js');
 
 const CATEGORY_NAMES: string[] = (C.CATEGORIES as { name: string }[]).map((c) => c.name);
 
@@ -243,11 +244,13 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
       const parsed = C.parseReceipt(text);
       const remembered = await memLookup(text);
       const merchant = remembered || parsed.merchant || '';
-      let category = parsed.category;
-      if (remembered && parsed.category === 'Uncategorized') {
-        const recls = C.classify(text, remembered);
-        if (recls.name !== 'Uncategorized') category = recls.name;
-      }
+      /*
+       * Category AND confidence from the same classification. Taking only the
+       * category left the confidence behind from the pass that had just
+       * returned Uncategorized, so a high-scoring match on a remembered name
+       * was reported to the user as "low confidence" (D-102).
+       */
+      const resolved = RC.resolveCategory(parsed, remembered, (name: string) => C.classify(text, name));
       // Tax-rate priority: printed on receipt > saved city rate > derived > last used
       const mem = await taxMemLookup(parsed.city);
       let taxRate: number | null = null; let rateSource = 'not detected';
@@ -268,7 +271,7 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
         total: parsed.total != null ? Math.abs(parsed.total).toFixed(2) : '',
         salesTax: parsed.taxTotal ? Math.abs(parsed.taxTotal).toFixed(2) : '',
         taxRate, rateSource,
-        category, confidence: parsed.confidence,
+        category: resolved.category, confidence: resolved.confidence,
         merchantRemembered: !!remembered,
         offeredMerchant: merchant,
         parsedMerchant: parsed.merchant || '',
