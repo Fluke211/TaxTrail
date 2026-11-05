@@ -24,6 +24,8 @@ export interface ParsedReceipt {
 }
 export function parseReceipt(rawText: string): ParsedReceipt;
 export function classify(text: string, merchant: string | null): { name: string; scheduleC: string; confidence: string; hits: string[] };
+/** True when `kw` appears in `hay` as a whole word (plural or possessive allowed). */
+export function hasKeyword(hay: string, kw: string): boolean;
 export function extractLineItems(lines: string[]): LineItem[];
 export function extractTaxInfo(lines: string[]): { subtotal: number | null; tax: number | null; rate: number | null; printedRate: number | null; columnTotal: number | null };
 export function extractCity(lines: string[]): string | null;

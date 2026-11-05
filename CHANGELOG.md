@@ -9,6 +9,28 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r45 (2026-11-04)
+
+- **A coffee is no longer a vehicle expense** (D-101). A Starbucks app receipt
+  headed "Mobile order" was filed under Car & Truck / Fuel, because the
+  category keywords were matched as plain substrings and "mobil" is inside
+  "mobile". Keywords now have to be whole words.
+- The same bug read **"Marco's Pizza"** as fuel via `arco`, **"ENTIRE ORDER 10%
+  OFF"** via `tire`, and **"T-Mobile"** via `mobil`. All three are fixed.
+- A trailing plural or possessive still counts, so **"TIRES"** and
+  **"DOMINO'S"** match as they always did, and every fuel brand in the list is
+  pinned as still matching.
+- A receipt whose header says only "Mobile order" now comes back
+  **Uncategorized**, which is the honest answer and also the one that lets a
+  remembered merchant name fix the category on the next scan.
+
+Known and left alone: "NESTLE TOLL HOUSE" still reads as a toll. That word is
+genuinely there, so it waits for a real receipt rather than a special case.
+
+Unit tests 376 to 402.
+
+---
+
 ## js r44 (2026-10-28)
 
 Follow-up to r43, from Tyler seeing it on the phone. Dates and the pinned
