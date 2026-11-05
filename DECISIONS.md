@@ -5651,3 +5651,52 @@ string appear" will eventually find its string somewhere it means nothing.
 D-089 was an address test matching a store number; this is a brand name
 matching an adjective. Both read the characters and not the language.
 
+---
+
+## D-102
+
+**The category and the confidence came from two different classifications**
+(2026-11-05)
+
+Found while looking at the finished App Store hero screenshot, not by a test.
+
+After D-101 the Starbucks app receipt parses as Uncategorized, which is the
+honest answer for a header that says only "Mobile order", and the remembered
+merchant name then supplies the category on a second pass. That second pass
+worked. What it reported did not:
+
+    Auto-categorized as "Business Meals" (low confidence)
+
+The category came from the new classification and the confidence from the old
+one, which by definition had just returned Uncategorized and was therefore
+always "low". The match it was describing scored 27 and was high.
+
+    let category = parsed.category;
+    if (remembered && parsed.category === 'Uncategorized') {
+      const recls = C.classify(text, remembered);
+      if (recls.name !== 'Uncategorized') category = recls.name;   // taken
+    }
+    ...
+    category, confidence: parsed.confidence,                       // not taken
+
+Nothing stored was wrong and no export was affected, so this is the mildest
+defect in the canon. It is recorded because of where it lived. **The two
+halves of that sentence did not come from the same judgement**, and a reader
+has no way to tell: an app that says "low confidence" about a confident answer
+teaches the user to distrust the confident ones too.
+
+`resolveCategory` returns both from one classification. A category the parser
+DID find is left alone, because it came from the receipt's own words and
+outranks a guess made from the merchant name.
+
+Extracted to a pure module rather than fixed in place. The bug was only ever
+possible in screen wiring that nothing tested, which is the standing reason
+this project keeps its rules in pure modules (D-043). It is now six lines with
+seven tests around it.
+
+**Worth noting how it was found.** r43's pinned footer, r44's pinned title bar
+and this all came from Tyler or me looking at the screen, never from CI.
+Building the App Store screenshots has been the most productive review pass
+this project has had, because it is the only one that looks at the finished
+surface instead of its parts.
+

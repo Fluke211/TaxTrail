@@ -1,0 +1,59 @@
+/*
+ * TaxTrail — what category and confidence to show once a merchant is known.
+ *
+ * A receipt whose header says nothing useful parses as Uncategorized. If the
+ * user has already taught the app what that store is called, the remembered
+ * name is worth a second classification: a Starbucks app receipt is headed
+ * "Mobile order" and says nothing else about what was bought, but "Starbucks"
+ * says everything (D-101).
+ *
+ * That second pass already existed in CaptureScreen. It took the CATEGORY from
+ * the new classification and left the CONFIDENCE behind:
+ *
+ *     let category = parsed.category;
+ *     if (remembered && parsed.category === 'Uncategorized') {
+ *       const recls = C.classify(text, remembered);
+ *       if (recls.name !== 'Uncategorized') category = recls.name;
+ *     }
+ *     ...
+ *     category, confidence: parsed.confidence,
+ *
+ * So the screen reported a category from one classification and a confidence
+ * from a different, discarded one, which by definition had just returned
+ * Uncategorized and so was always "low". The app read
+ *
+ *     Auto-categorized as "Business Meals" (low confidence)
+ *
+ * on a match that actually scored 27 and was high. It understates the app to
+ * the user, and the two halves of that sentence did not come from the same
+ * judgement, which is the real defect (D-102).
+ *
+ * Extracted here because the bug was only ever possible in screen wiring that
+ * nothing tested, which is the reason this project keeps its rules in pure
+ * modules (D-043).
+ */
+'use strict';
+
+/**
+ * @param parsed      what the parser returned: { category, confidence }
+ * @param remembered  the merchant name the user has taught, or null
+ * @param reclassify  (name) => { name, confidence }, normally a classify call
+ *
+ * Returns { category, confidence }, always from the SAME classification.
+ */
+function resolveCategory(parsed, remembered, reclassify) {
+  var category = (parsed && parsed.category) || 'Uncategorized';
+  var confidence = (parsed && parsed.confidence) || 'low';
+  // Only a receipt the parser could not place is worth a second opinion. A
+  // category it did find came from the receipt's own words and outranks a
+  // guess from the name alone.
+  if (remembered && category === 'Uncategorized' && typeof reclassify === 'function') {
+    var recls = reclassify(remembered);
+    if (recls && recls.name && recls.name !== 'Uncategorized') {
+      return { category: recls.name, confidence: recls.confidence || confidence };
+    }
+  }
+  return { category: category, confidence: confidence };
+}
+
+module.exports = { resolveCategory: resolveCategory };
