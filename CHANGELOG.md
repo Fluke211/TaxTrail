@@ -9,6 +9,28 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r47 (2026-11-05)
+
+Tyler asked whether a field should still report a confidence score once the
+user has had to correct it. It should not, and fixing that found a second
+defect (D-103).
+
+- **A category that came from a saved merchant name now says so**, instead of
+  borrowing the high/medium/low scale. That scale is a claim about the parser,
+  and the parser produced nothing here. The stored value also feeds the
+  diagnostics export, so recording it as a high-confidence success would have
+  inflated the measured parser accuracy.
+- **Forgetting a remembered name now gives back the category too.** It used to
+  keep the category that name had produced, so the app read `Auto-categorized
+  as "Business Meals" (high confidence)` using the name it had just been told
+  was wrong. It restores the parser's own answer now.
+- The review banner says `"Business Meals", from a merchant name you saved`
+  rather than a confidence word.
+
+Unit tests 409 to 411.
+
+---
+
 ## js r46 (2026-11-05)
 
 - **A confident category is no longer reported as "low confidence"** (D-102).

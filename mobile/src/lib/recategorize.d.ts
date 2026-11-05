@@ -1,3 +1,4 @@
+export const REMEMBERED: 'remembered';
 export function resolveCategory(
   parsed: { category?: string; confidence?: string } | null,
   remembered: string | null,

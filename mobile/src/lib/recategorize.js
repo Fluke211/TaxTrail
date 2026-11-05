@@ -31,8 +31,36 @@
  * Extracted here because the bug was only ever possible in screen wiring that
  * nothing tested, which is the reason this project keeps its rules in pure
  * modules (D-043).
+ *
+ * r47, after Tyler asked the right question about r46: should a field say
+ * "high confidence" when the user is the one who worked it out? No. The
+ * confidence a receipt stores is a claim about THE PARSER, and when the
+ * category came from a name the user taught, the parser produced nothing.
+ * Handing back the second classification's "high" credited it with an answer
+ * it did not produce, which is the exact thing the snapshot three lines below
+ * its own call site already refuses to do:
+ *
+ *     // `parsed`, not the values above: the merchant-memory override and the
+ *     // tax-rate fallbacks are the app being helpful, and folding them in
+ *     // would credit the parser with answers it did not produce.
+ *
+ * So the source becomes its own value. REMEMBERED is not a point on the
+ * high/medium/low scale and must never be compared against one: it says where
+ * the answer came from, which is a different question from how sure anyone is
+ * (D-103).
  */
 'use strict';
+
+/*
+ * The confidence of a category that did not come from the receipt.
+ *
+ * Deliberately not 'high'. This value is STORED on the row and travels into
+ * the diagnostics export, where the parser's accuracy is measured. A row the
+ * parser could not categorize, recorded as a high-confidence parser success,
+ * inflates that measurement, which is the failure D-056 exists to prevent:
+ * "we do not know" is a different claim from "it was correct".
+ */
+var REMEMBERED = 'remembered';
 
 /**
  * @param parsed      what the parser returned: { category, confidence }
@@ -50,10 +78,10 @@ function resolveCategory(parsed, remembered, reclassify) {
   if (remembered && category === 'Uncategorized' && typeof reclassify === 'function') {
     var recls = reclassify(remembered);
     if (recls && recls.name && recls.name !== 'Uncategorized') {
-      return { category: recls.name, confidence: recls.confidence || confidence };
+      return { category: recls.name, confidence: REMEMBERED };
     }
   }
   return { category: category, confidence: confidence };
 }
 
-module.exports = { resolveCategory: resolveCategory };
+module.exports = { resolveCategory: resolveCategory, REMEMBERED: REMEMBERED };
