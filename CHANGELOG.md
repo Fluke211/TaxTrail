@@ -9,6 +9,24 @@ visible version, and it gets recorded here.
 
 ---
 
+## Tooling (no OTA: screenshots only)
+
+- **The screenshot builder targets 1179x2556.** App Store Connect organises
+  screenshots by device class now and states the sizes each tab accepts, and it
+  changed under this script: the 6.9-inch sizes it was written for (1290x2796,
+  1320x2868, 1260x2736) are refused, and the iPhone tab asks for 1179x2556 or
+  1206x2622. Six uploads failed at once on the old size.
+- The composition is still laid out at 1290x2796, because every pixel value in
+  it is tuned for that, and the whole stage is scaled to the output canvas.
+  1179x2556 is within 0.02% of the design's aspect ratio, so the scale is a
+  clean resize. Changing it next time is two constants.
+- The stale "6.9-inch" claim is corrected in all three places that carried it:
+  `build.js`, `tools/screenshots/README.md` and `docs/APP_STORE_LISTING.md`.
+  Each now says to read the size off the tab rather than off a guide, because
+  reading it off a guide is what failed.
+
+---
+
 ## js r49 (2026-11-06)
 
 - **A misread tax rate can no longer be learned for a city** (D-105). The

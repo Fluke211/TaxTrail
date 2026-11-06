@@ -5,9 +5,21 @@ taken on the phone.
 
 ## Why this exists
 
-Apple wants 6.9-inch screenshots. The three accepted sizes are 1290x2796,
-1320x2868 and 1260x2736. An iPhone 14 captures at **1170x2532**, which is not
-one of them, so raw grabs cannot be uploaded as they are.
+An iPhone 14 captures at **1170x2532**, which is not an accepted upload size,
+so raw grabs cannot be uploaded as they are.
+
+**Read the accepted size off the tab in App Store Connect, not off a guide or
+off this file.** Screenshots are organised by device class there, and each tab
+states the sizes it takes. That has already changed once under this script:
+it was written for the 6.9-inch sizes (1290x2796, 1320x2868, 1260x2736), those
+are now refused, and the iPhone tab asks for **1179x2556** or **1206x2622**.
+Six uploads failed at once before anybody noticed this note had gone stale.
+
+Changing it is two constants, `OUT_W` and `OUT_H` in `build.js`. The
+composition is still laid out at 1290x2796, because every pixel value in it is
+tuned for that, and the whole stage is scaled to the output canvas instead.
+Pick the target whose aspect ratio is closest to 1290x2796 (1179x2556 is within
+0.02%) so the scale stays a clean resize.
 
 The usual answer is "run the simulator on a Mac". Tyler does not have reliable
 access to one, and he does not need one: App Store screenshots are designed
