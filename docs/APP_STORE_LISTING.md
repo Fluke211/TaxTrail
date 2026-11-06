@@ -190,8 +190,11 @@ amounts, or categories. That is the claim to defend, and it is true.
 
 ## Screenshots
 
-Six slots. Apple requires 6.9" (iPhone 16 Pro Max class); 6.5" is accepted for
-older-device coverage. The order matters more than the polish:
+Six slots. **Read the accepted pixel sizes off the tab in App Store Connect
+rather than from any guide, this file included.** Apple organises screenshots
+by device class and states the sizes each tab takes, and it changed under us:
+the 6.9-inch sizes are refused now and the iPhone tab asks for 1179x2556 or
+1206x2622. Six uploads failed at once on the old size. The order matters more than the polish:
 
 1. **Capture → parsed result.** The core loop in one image.
 2. **The privacy claim, over the app.** This is the pitch; put it where people
@@ -203,7 +206,8 @@ older-device coverage. The order matters more than the polish:
 
 Caption every one. Screenshots are read as a slideshow, not studied.
 
-`tools/screenshots/` composes all six at 1290x2796 from raw phone captures, so
+`tools/screenshots/` composes all six at the output size set by `OUT_W`/`OUT_H`
+in `build.js` (1179x2556 today) from raw phone captures, so
 this needs neither a Mac nor the simulator. Its README has the workflow.
 
 ### Slot 2 stopped being a competitor comparison (D-086)

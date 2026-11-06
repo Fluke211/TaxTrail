@@ -5858,3 +5858,51 @@ mistake in different clothes: a rule was tightened in the place I was looking
 at, and the same rule elsewhere was left as it was. A ceiling is not a rule
 until every gate that can admit a value enforces it.
 
+## D-106
+
+**Caption line breaks are measured, not eyeballed, and a shared width is the
+wrong knob** (2026-11-06)
+
+Tyler said slide 1's header "seems awkward". It read
+
+    Photograph a receipt.
+    Your phone
+    reads it.
+
+with one word alone on a third line under a 92px headline. I had looked at that
+PNG several times and not seen it.
+
+**Widening the shared `.sub` box fixed slide 1 and broke two other slides.**
+The sub-line width is one constant for all six, so taking it from 1010px to the
+full 1110px moved where every slide wraps. Slide 1 came onto one line; slides 4
+and 6 fell into a single-word last line ("separately", "cent") that they did
+not have before. A wider box does not remove a bad break, it relocates it.
+
+**So the fix is `text-wrap: balance`, which asks the browser for lines of even
+width instead of guessing a number.** It fixed all three subs at once, and it
+keeps working when the copy changes, which a tuned width does not.
+
+**It cannot fix a headline, because every headline carries a hard `<br>` from
+the `\n` in `slots.json`, and balance does not rebalance across a forced
+break.** A headline that spills is therefore a COPY defect and has to be fixed
+in the words. Slide 3 read "29 categories, / mapped to real IRS / lines." and
+had done since the slide was written. Moving its hard break was the worse
+option, since the only other break point is inside a prepositional phrase
+("mapped / to real IRS lines"), so the word went instead: "real" was the one
+word the sub-line directly beneath it already proves, by naming Schedule C,
+Schedule A, Form 8829 and 4562.
+
+**The real decision is that this gets checked by a program.**
+`tools/screenshots/measure-lines.js` renders each built slide, wraps every word
+in a span, groups the spans by rendered top offset and prints words-per-line,
+failing on any last line holding a single word. Three defects were invisible to
+me and all three were obvious in one table. It reads the breaks back out of the
+browser rather than reimplementing the rule, which could be wrong in exactly
+the way the CSS is, and it costs one headless Chromium render per slide, about
+four seconds for all six.
+
+It is NOT wired into CI, deliberately: CI does not build screenshots and has no
+Chromium, so adding it would mean installing a browser in CI to check six files
+that change a few times a year. It exits nonzero so it can be wired in later if
+that changes.
+

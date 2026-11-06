@@ -2,10 +2,16 @@
 /*
  * App Store screenshots, composed at exactly the size Apple accepts.
  *
- * WHY THIS EXISTS. Apple wants 6.9-inch screenshots: 1290x2796, or 1320x2868,
- * or 1260x2736. Tyler's phone is an iPhone 14, which captures at 1170x2532, and
- * that is not an accepted upload size. The usual answer is "use a Mac and the
- * simulator", and he does not have reliable access to one.
+ * WHY THIS EXISTS. Tyler's phone is an iPhone 14, which captures at 1170x2532,
+ * and that is not an accepted upload size. The usual answer is "use a Mac and
+ * the simulator", and he does not have reliable access to one.
+ *
+ * READ THE SIZE OFF THE TAB, NOT OFF A GUIDE. App Store Connect organises
+ * screenshots by device class and states the sizes each tab accepts, and it
+ * has already changed once under this script: the 6.9-inch sizes this was
+ * built for (1290x2796, 1320x2868, 1260x2736) are now refused, and the iPhone
+ * tab asks for 1179x2556 or 1206x2622. Six uploads failed at once before
+ * anybody noticed the note here was a year out of date. See OUT_W/OUT_H.
  *
  * He does not need one. App Store screenshots are designed graphics, not raw
  * captures: a caption, a frame, and the app inside it. So he takes raw grabs on
@@ -48,10 +54,31 @@ const HERE = __dirname;
 const OUT = path.join(HERE, 'out');
 const CAPTURES = path.join(HERE, 'captures');
 
-/* 1290x2796 is the middle of Apple's three accepted 6.9-inch sizes and the one
- * every guide lists first. The other two scale from it cleanly if needed. */
-const W = 1290;
-const H = 2796;
+/*
+ * TWO sizes: the one the composition is designed at, and the one Apple takes.
+ *
+ * The layout below is tuned in fixed pixels against a 1290x2796 canvas, which
+ * was Apple's 6.9-inch size when this was written. App Store Connect has since
+ * reorganised its screenshot tabs by device class rather than by inches, and
+ * the iPhone tab now states its own accepted sizes: 1179x2556 and 1206x2622.
+ * 1290x2796 is refused outright, which is how Tyler found this, six files at
+ * a time.
+ *
+ * So the composition is still built at the size it was tuned for and scaled
+ * to the canvas as a whole, rather than re-tuning forty pixel values and
+ * re-checking every caption for a new line break. 1179x2556 is the target
+ * because its aspect ratio is within 0.02% of the design's, so the scale is
+ * effectively a clean resize with no distortion.
+ *
+ * When Apple moves these again: change OUT_W/OUT_H only. The tab in App Store
+ * Connect states the sizes it will take, so read them there rather than from
+ * a guide, which is what went stale here.
+ */
+const DESIGN_W = 1290;
+const DESIGN_H = 2796;
+const OUT_W = 1179;
+const OUT_H = 2556;
+const SCALE = OUT_W / DESIGN_W;
 
 /* The app's own palette, so the store page and the app agree. Copied rather
  * than imported: theme.ts is TypeScript and this is a standalone script. */
@@ -123,8 +150,17 @@ function html(slot) {
    * the bottom of the PNG, which is invisible on screen and obvious on a store
    * page. Caught by looking at the render rather than trusting the CSS. */
   html { background: ${T.bg}; }
+  /* The output canvas. The composition inside it is a fixed-size stage that
+     is scaled to fit, so the ground colour has to be here too: scaling by
+     width leaves a sub-pixel sliver at the bottom, and it must not be white. */
   body {
-    width: ${W}px; height: ${H}px; overflow: hidden;
+    width: ${OUT_W}px; height: ${OUT_H}px; overflow: hidden;
+    background: ${T.bg};
+  }
+  .stage {
+    width: ${DESIGN_W}px; height: ${DESIGN_H}px; overflow: hidden;
+    transform: scale(${SCALE}); transform-origin: top left;
+    position: relative;
     background: linear-gradient(170deg, ${T.bg2} 0%, ${T.bg} 55%);
     color: ${T.text};
     font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Inter, system-ui, sans-serif;
@@ -134,7 +170,7 @@ function html(slot) {
   }
   /* A faint accent wash behind the caption, so the top of the image is not a
      flat rectangle at thumbnail size, which is how most people first see it. */
-  body::before {
+  .stage::before {
     content: ''; position: absolute; top: -340px; left: 50%;
     width: 1500px; height: 900px; transform: translateX(-50%);
     background: radial-gradient(closest-side, rgba(79,124,255,0.22), transparent 70%);
@@ -142,13 +178,25 @@ function html(slot) {
   }
   h1 {
     position: relative;
+    /* Let the browser balance the lines instead of hand-tuning each caption.
+       Measured, not assumed: before this, slide 3 read "29 categories, / mapped
+       to real IRS / lines." with one word alone on the third line, and four of
+       the six sub-lines ended on a single orphan word. Widening the box fixed
+       one slide and created orphans on others, because a wider box just moves
+       where the bad break lands. */
+    text-wrap: balance;
     font-size: 92px; line-height: 1.08; font-weight: 700; letter-spacing: -2.2px;
     text-align: center;
   }
   .sub {
     position: relative;
     margin-top: 30px; font-size: 38px; line-height: 1.35; font-weight: 400;
-    color: ${T.muted}; text-align: center; max-width: 1010px;
+    /* The full content width, not 1010px. At 1010 the slide-1 sub-line broke
+       as "... in about a / second" and left one word alone under a 92px
+       headline, which is the same flaw the headline itself had. The stage is
+       1290 wide with 90px padding each side, so 1110 is everything there is. */
+    color: ${T.muted}; text-align: center; max-width: 1110px;
+    text-wrap: balance;
   }
   .frame {
     position: relative;
@@ -198,11 +246,13 @@ function html(slot) {
             mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" fill="black"/></svg>') center/34px no-repeat;
   }
 </style>
+<div class="stage">
 <h1>${lines(slot.caption)}</h1>
 ${slot.sub ? `<p class="sub">${esc(slot.sub)}</p>` : ''}
 ${statement
     ? frame(uri, true).replace('</div>', `<ul class="claims">${claims}</ul></div>`)
     : frame(uri, false)}
+</div>
 `;
 }
 
@@ -226,7 +276,7 @@ function main() {
     execFileSync(bin, [
       '--headless', '--no-sandbox', '--disable-gpu', '--hide-scrollbars',
       '--force-device-scale-factor=1',
-      `--window-size=${W},${H}`,
+      `--window-size=${OUT_W},${OUT_H}`,
       `--screenshot=${png}`,
       `file://${page}`,
     ], { stdio: ['ignore', 'ignore', 'ignore'] });
@@ -236,8 +286,8 @@ function main() {
     const d = fs.readFileSync(png);
     const w = d.readUInt32BE(16);
     const h = d.readUInt32BE(20);
-    if (w !== W || h !== H) {
-      console.log(`  ::error::${slot.file}.png rendered ${w}x${h}, expected ${W}x${H}`);
+    if (w !== OUT_W || h !== OUT_H) {
+      console.log(`  ::error::${slot.file}.png rendered ${w}x${h}, expected ${OUT_W}x${OUT_H}`);
       process.exit(1);
     }
     const has = captureUri(slot.capture) != null;

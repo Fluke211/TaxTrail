@@ -9,6 +9,42 @@ visible version, and it gets recorded here.
 
 ---
 
+## Tooling (no OTA: screenshots only)
+
+- **The screenshot builder targets 1179x2556.** App Store Connect organises
+  screenshots by device class now and states the sizes each tab accepts, and it
+  changed under this script: the 6.9-inch sizes it was written for (1290x2796,
+  1320x2868, 1260x2736) are refused, and the iPhone tab asks for 1179x2556 or
+  1206x2622. Six uploads failed at once on the old size.
+- The composition is still laid out at 1290x2796, because every pixel value in
+  it is tuned for that, and the whole stage is scaled to the output canvas.
+  1179x2556 is within 0.02% of the design's aspect ratio, so the scale is a
+  clean resize. Changing it next time is two constants.
+- **Slide 1's headline rebalanced.** "It is read on your phone" wrapped to a
+  third line and left "phone." dangling on its own. It reads "Photograph a
+  receipt. / Your phone reads it." now, two lines of nearly equal width.
+- **Slide 6 said "two categories" and the app has no such limit.** The only cap
+  on a split is the receipt total, and that slide's own screenshot shows three
+  rows. It reads "One receipt, / many categories." now. An App Store screenshot
+  that understates the product is still a screenshot that disagrees with itself.
+- **Caption line breaks are checked by a program now**
+  (`node tools/screenshots/measure-lines.js`, D-106). It renders each built
+  slide, reports words-per-line and fails on a last line holding one word.
+  Three defects nobody could see in a PNG showed up immediately in its output.
+- **Sub-lines use `text-wrap: balance`.** Widening the shared width fixed
+  slide 1's break and created one on slides 4 and 6, because that width is a
+  single constant for all six slides; balance asks for even lines instead.
+- **Slide 3's headline read "29 categories, / mapped to real IRS / lines."**
+  and had since the slide was written. A hard `<br>` defeats balance, so this
+  one had to go in the copy: "real" is the word the line directly beneath it
+  already proves by naming Schedule C, Schedule A, Form 8829 and 4562.
+- The stale "6.9-inch" claim is corrected in all three places that carried it:
+  `build.js`, `tools/screenshots/README.md` and `docs/APP_STORE_LISTING.md`.
+  Each now says to read the size off the tab rather than off a guide, because
+  reading it off a guide is what failed.
+
+---
+
 ## js r49 (2026-11-06)
 
 - **A misread tax rate can no longer be learned for a city** (D-105). The

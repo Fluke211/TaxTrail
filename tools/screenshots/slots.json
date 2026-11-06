@@ -14,7 +14,7 @@
       "file": "1-capture",
       "kind": "device",
       "capture": "capture.png",
-      "caption": "Photograph a receipt.\nIt is read on your phone.",
+      "caption": "Photograph a receipt.\nYour phone reads it.",
       "sub": "Merchant, date, total and tax category, in about a second"
     },
     {
@@ -34,7 +34,7 @@
       "file": "3-categories",
       "kind": "device",
       "capture": "categories.png",
-      "caption": "29 categories,\nmapped to real IRS lines.",
+      "caption": "29 categories,\nmapped to IRS lines.",
       "sub": "Schedule C, Schedule A, Form 8829, 4562 and cost of goods sold"
     },
     {
@@ -55,7 +55,7 @@
       "file": "6-split",
       "kind": "device",
       "capture": "split.png",
-      "caption": "One receipt,\ntwo categories.",
+      "caption": "One receipt,\nmany categories.",
       "sub": "Sales tax divided the way the amounts were, down to the cent"
     }
   ]
