@@ -9,6 +9,23 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r48 (2026-11-06)
+
+- **Picking a category yourself no longer reads as "auto-categorized"**
+  (D-104). Choosing from the list changed the category and left the parser's
+  confidence behind, so the banner said `Auto-categorized as "Business Meals"
+  (low confidence)` about a choice the user had made, on a receipt the parser
+  had scored zero. It now reads `"Business Meals", the category you chose`.
+- Like a remembered name, a chosen category records its source rather than a
+  confidence level, so it can never be counted as a parser success in the
+  diagnostics export.
+
+Unit tests 411 to 419, including the Starbucks app receipt pinned as the real
+zero case: no readable merchant, nothing that classifies, but the total, the
+sales tax and the date all still correct.
+
+---
+
 ## js r47 (2026-11-05)
 
 Tyler asked whether a field should still report a confidence score once the

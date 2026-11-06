@@ -5760,3 +5760,53 @@ tests passed on r46 and none of them disagreed with crediting the parser for
 work the user did, because every one of them asked whether the code did what I
 meant rather than whether what I meant was right.
 
+---
+
+## D-104
+
+**The app called the user's own choice "auto-categorized"** (2026-11-06)
+
+The actual bug Tyler reported two entries ago, found only when he said the
+sentence that made it obvious: *"I entered the business meals category
+myself."*
+
+Picking a category from the list did this:
+
+    onSelect={(name) => setPending({ ...pending, category: name })}
+
+`category` changed. `confidence` did not. So the review banner read
+
+    Auto-categorized as "Business Meals" (low confidence)
+
+about a category the app had not chosen at all. On that receipt the parser
+scored **zero**: a Starbucks app receipt has no merchant it can read and
+nothing else that classifies. So the app claimed credit for work it had not
+done, and then undersold the work the user had.
+
+`CHOSEN` joins `REMEMBERED` as a source rather than a confidence level, for
+the same reason: the value is stored on the row and travels into the
+diagnostics export, and a row the user categorized by hand is not a parser
+success at any level (D-056). The banner says `"Business Meals", the category
+you chose`.
+
+**Three revisions to find a one-line bug, and the reason is worth recording.**
+Tyler's first report was exact: *"a field that has a confidence score that has
+been manually altered should say so."* Manually altered. I read it as a
+question about the merchant-memory path, fixed that (r46), fixed my fix
+(r47), and never looked at the category picker, which is the only place in
+the app where a category is *manually altered*. Each round I verified the code
+did what I meant and never rechecked what he meant.
+
+The lesson is not "test more". 419 tests pass and none of them would have
+caught this, because they all encode my reading. It is that **when a user
+reports the same thing twice, the second report is evidence about my
+diagnosis, not about the bug.** The second time he asked "Confidence score?"
+I should have gone back to his words instead of further into my own theory.
+
+**Also recorded: the receipt is a bad hero screenshot.** The parser scores it
+zero, which is honest and correct, but slide 1 promises "Merchant, date, total
+and tax category, in about a second" and this receipt cannot deliver the last
+one. It reads money and dates correctly; it is only the category that is
+blank, because the receipt genuinely does not say. A receipt whose printed
+name the app recognizes is the right hero.
+
