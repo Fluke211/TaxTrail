@@ -1977,5 +1977,44 @@ check('and that scores high, not low',
   C.classify(SBUX_APP, 'Starbucks').confidence === 'high');
 
 
+
+/* ------------------------------------------------------------------ r49
+ * The gate that WRITES a city's tax rate must not be looser than the gate
+ * that reads one.
+ *
+ * `taxMemLearn` is the last thing between a misread percentage and a stored
+ * city rate, and it was the loosest check in the app: the classifier stopped
+ * accepting a printed rate above 12% in r40 and refuses a derived rate above
+ * 11.5%, while this still allowed anything up to 25%. Tyler scanned a Costco
+ * receipt whose OCR produced a 12% "printed" rate where the paper says
+ * 4.712%, and nothing downstream would have refused to learn it (D-105).
+ */
+const MEMSRC = require('fs').readFileSync(
+  require('path').join(__dirname, '..', 'src', 'lib', 'memory.ts'), 'utf8');
+check('the learn gate is no looser than the printed-rate gate',
+  /MAX_LEARNABLE_RATE\s*=\s*0\.12\b/.test(MEMSRC) && /rate > MAX_LEARNABLE_RATE/.test(MEMSRC),
+  MEMSRC.match(/rate > [^)]+/)?.[0]);
+check('and the old 25% bound is gone',
+  !/rate\s*>\s*0\.25/.test(MEMSRC));
+// D-095 and D-096 each fixed a SOURCE of a poisoned rate. Nothing let the
+// user undo one that had already happened, and deleting every receipt did not
+// clear it either, because the rates live under their own storage key.
+check('there is a way to forget learned rates',
+  /export async function taxMemForgetAll/.test(MEMSRC));
+
+/*
+ * The receipt itself. The clean OCR on file reads its printed rate correctly,
+ * so this pins what the paper actually says and makes a future regression in
+ * the printed-rate reader show up against a real Costco receipt.
+ */
+const COSTCO_HI = fx(path.join('corpus', 'costco-2026-07-18-15.txt'));
+const costcoHi = C.parseReceipt(COSTCO_HI);
+check('the Costco receipt prints 4.712%, not 12%',
+  Math.abs(costcoHi.taxRatePrinted - 0.04712) < 1e-9, costcoHi.taxRatePrinted);
+check('and its tax and total are read correctly',
+  costcoHi.taxTotal === 10.92 && costcoHi.total === 242.75,
+  JSON.stringify({ tax: costcoHi.taxTotal, total: costcoHi.total }));
+
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

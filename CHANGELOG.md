@@ -9,6 +9,26 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r49 (2026-11-06)
+
+- **A misread tax rate can no longer be learned for a city** (D-105). The
+  classifier stopped accepting a printed rate above 12% back in r40, but the
+  function that writes it against a city still allowed anything up to 25%. A
+  Costco receipt that scanned as "12% printed on receipt", where the paper says
+  4.712%, would have been stored for Honolulu and reused on every later receipt
+  there.
+- **Settings can forget learned sales-tax rates.** D-095 and D-096 each fixed a
+  source of a poisoned city rate and neither gave any way to undo one already
+  stored. Deleting every receipt did not clear them either, because they live
+  under their own key.
+
+Forgetting changes no saved receipt: the next receipt in each city reads its
+rate off the receipt again.
+
+Unit tests 419 to 424.
+
+---
+
 ## js r48 (2026-11-06)
 
 - **Picking a category yourself no longer reads as "auto-categorized"**

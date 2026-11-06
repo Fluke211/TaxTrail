@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { styled, useTheme } from '../lib/theme';
 import { deleteAllData, type Receipt } from '../lib/db';
+import { taxMemForgetAll } from '../lib/memory';
 import { manageSubscription, presentPaywall, restorePurchases } from '../lib/purchases';
 import { exportBackup, exportDiagnostics, restoreArchive, isRestoreAvailable } from '../lib/exportShare';
 import { APP_BUILD, versionStamp } from '../lib/version';
@@ -164,6 +165,33 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
    * of tax records. Destructive and irreversible: there is no server-side copy
    * to recover from, by design.
    */
+  const confirmForgetRates = useCallback(() => {
+    Alert.alert(
+      'Forget learned tax rates?',
+      'TaxTrail remembers a sales-tax rate per city and reuses it on later '
+      + 'receipts there. Forgetting them changes no receipt you have already '
+      + 'saved: the next receipt in each place simply reads its rate off the '
+      + 'receipt again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Forget them',
+          onPress: () => {
+            void run('rates', async () => {
+              const n = await taxMemForgetAll();
+              Alert.alert(
+                'Forgotten',
+                n === 0
+                  ? 'There were no learned rates to forget.'
+                  : `Forgot ${n} remembered rate${n === 1 ? '' : 's'}.`,
+              );
+            });
+          },
+        },
+      ],
+    );
+  }, [run]);
+
   const confirmDeleteAll = useCallback(() => {
     if (!receipts.length) {
       Alert.alert('Nothing to delete', 'There are no receipts on this device.');
@@ -290,6 +318,24 @@ export default function SettingsScreen({ receipts, pro, onChanged }: {
           Drive, Dropbox, Google Drive, Files or anywhere else you keep things.
           Restore it here afterwards. Set the range to "All receipts": a single
           year is substantiation for that year, not a backup.
+        </Text>
+      </View>
+
+      {/*
+        The app learns a sales-tax rate per city and uses it on every later
+        receipt there, so one misread percentage keeps being wrong long after
+        the parser stopped making that mistake. D-095 and D-096 each fixed a
+        SOURCE of that; nothing let the user undo one that had already
+        happened, and deleting every receipt did not clear it either, because
+        the rates live under their own key (D-105).
+      */}
+      <View style={s.card}>
+        <Text style={s.title}>WHAT TAXTRAIL REMEMBERS</Text>
+        <Row label="Forget learned sales-tax rates" k="rates" onPress={confirmForgetRates} />
+        <Text style={s.note}>
+          A rate learned from one receipt is reused for later receipts in the
+          same city. If a rate looks wrong, forget them all: the next receipt
+          in each place reads its own rate again, which it prefers anyway.
         </Text>
       </View>
 
