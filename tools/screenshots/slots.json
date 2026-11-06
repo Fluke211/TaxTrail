@@ -14,7 +14,7 @@
       "file": "1-capture",
       "kind": "device",
       "capture": "capture.png",
-      "caption": "Photograph a receipt.\nIt is read on your phone.",
+      "caption": "Photograph a receipt.\nYour phone reads it.",
       "sub": "Merchant, date, total and tax category, in about a second"
     },
     {

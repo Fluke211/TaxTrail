@@ -20,6 +20,9 @@ visible version, and it gets recorded here.
   it is tuned for that, and the whole stage is scaled to the output canvas.
   1179x2556 is within 0.02% of the design's aspect ratio, so the scale is a
   clean resize. Changing it next time is two constants.
+- **Slide 1's headline rebalanced.** "It is read on your phone" wrapped to a
+  third line and left "phone." dangling on its own. It reads "Photograph a
+  receipt. / Your phone reads it." now, two lines of nearly equal width.
 - The stale "6.9-inch" claim is corrected in all three places that carried it:
   `build.js`, `tools/screenshots/README.md` and `docs/APP_STORE_LISTING.md`.
   Each now says to read the size off the tab rather than off a guide, because
