@@ -55,7 +55,7 @@
       "file": "6-split",
       "kind": "device",
       "capture": "split.png",
-      "caption": "One receipt,\ntwo categories.",
+      "caption": "One receipt,\nmany categories.",
       "sub": "Sales tax divided the way the amounts were, down to the cent"
     }
   ]

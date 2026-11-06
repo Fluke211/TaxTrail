@@ -23,6 +23,10 @@ visible version, and it gets recorded here.
 - **Slide 1's headline rebalanced.** "It is read on your phone" wrapped to a
   third line and left "phone." dangling on its own. It reads "Photograph a
   receipt. / Your phone reads it." now, two lines of nearly equal width.
+- **Slide 6 said "two categories" and the app has no such limit.** The only cap
+  on a split is the receipt total, and that slide's own screenshot shows three
+  rows. It reads "One receipt, / many categories." now. An App Store screenshot
+  that understates the product is still a screenshot that disagrees with itself.
 - The stale "6.9-inch" claim is corrected in all three places that carried it:
   `build.js`, `tools/screenshots/README.md` and `docs/APP_STORE_LISTING.md`.
   Each now says to read the size off the tab rather than off a guide, because
