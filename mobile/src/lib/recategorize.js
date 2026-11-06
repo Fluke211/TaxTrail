@@ -62,6 +62,24 @@
  */
 var REMEMBERED = 'remembered';
 
+/*
+ * The category the USER picked from the list.
+ *
+ * This is what Tyler was pointing at all along, and r47 fixed the wrong half
+ * of it. Choosing a category set `category` and left `confidence` alone, so
+ * the review banner read
+ *
+ *     Auto-categorized as "Business Meals" (low confidence)
+ *
+ * about a category the app had not chosen at all. It claimed the work and
+ * then undersold it, on a receipt where the parser had in fact scored ZERO.
+ *
+ * Stored for the same reason as REMEMBERED: `confidence` travels into the
+ * diagnostics export, and a row the user categorized by hand is not a parser
+ * success at any level (D-104).
+ */
+var CHOSEN = 'chosen';
+
 /**
  * @param parsed      what the parser returned: { category, confidence }
  * @param remembered  the merchant name the user has taught, or null
@@ -84,4 +102,8 @@ function resolveCategory(parsed, remembered, reclassify) {
   return { category: category, confidence: confidence };
 }
 
-module.exports = { resolveCategory: resolveCategory, REMEMBERED: REMEMBERED };
+module.exports = {
+  resolveCategory: resolveCategory,
+  REMEMBERED: REMEMBERED,
+  CHOSEN: CHOSEN,
+};

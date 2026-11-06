@@ -1933,5 +1933,49 @@ check('the Starbucks app receipt reads as a meal, credited to the saved name',
   JSON.stringify(sbuxShown));
 
 
+
+/* ------------------------------------------------------------------ r48
+ * A category the USER picked is not an auto-categorization.
+ *
+ * This is what Tyler reported, and r47 fixed the wrong half of it. Picking a
+ * category from the list set `category` and left `confidence` alone, so the
+ * banner read: Auto-categorized as "Business Meals" (low confidence), about a
+ * category the app had not chosen at all. On that receipt the parser scored
+ * ZERO, so it claimed credit for work it did not do and then undersold it
+ * (D-104).
+ */
+check('"chosen" is its own source, not a confidence level',
+  ['high', 'medium', 'low'].indexOf(RCAT.CHOSEN) === -1);
+check('and is distinct from a remembered name',
+  RCAT.CHOSEN !== RCAT.REMEMBERED);
+
+/*
+ * The receipt that started it. A Starbucks app receipt has no merchant the
+ * parser can read and nothing else that classifies, so this text is the real
+ * zero case: whatever category it ends up with came from a person.
+ */
+const SBUX_APP = [
+  '06:47', 'Receipt', 'Mobile order', 'Total $18.29 - 17.5 earned',
+  'Nov 4, 2026, 06:47', 'Receipt #70911099',
+  'Bacon, Gouda &', 'Egg Sandwich', '1 Piece 120 g', 'Warmed', '$8.45',
+  'Caramel Macchiato', 'Grande 16 fl oz', '250 Calories', '$9.05',
+  'Subtotal.', 'Tax.', 'Total', 'My Card (7629)', 'Auth code: 802502',
+  '$17.50', '$0.79', '$18.29', 'Earns 1 per $1',
+].join('\n');
+const sbuxApp = C.parseReceipt(SBUX_APP);
+check('the Starbucks app receipt scores nothing at all',
+  sbuxApp.category === 'Uncategorized', sbuxApp.category);
+// The money and the date are still read correctly. Only the category is blank,
+// which is the honest result and exactly why the user has to pick one.
+check('but its total is still right', sbuxApp.total === 18.29, sbuxApp.total);
+check('and its sales tax', sbuxApp.taxTotal === 0.79, sbuxApp.taxTotal);
+check('and its date', sbuxApp.date === '2026-11-04', sbuxApp.date);
+// Naming the merchant is the only thing that classifies it, at full weight.
+check('naming the merchant is what categorizes it',
+  C.classify(SBUX_APP, 'Starbucks').name === 'Business Meals');
+check('and that scores high, not low',
+  C.classify(SBUX_APP, 'Starbucks').confidence === 'high');
+
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

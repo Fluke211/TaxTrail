@@ -760,6 +760,8 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
                 ? `★ Merchant remembered from a previous visit`
                 : pending.category === 'Uncategorized'
                 ? '⚠️ Couldn’t auto-categorize. Please pick a category.'
+                : pending.confidence === RC.CHOSEN
+                ? `“${pending.category}”, the category you chose`
                 : pending.confidence === RC.REMEMBERED
                 ? `“${pending.category}”, from a merchant name you saved`
                 : `Auto-categorized as “${pending.category}” (${pending.confidence} confidence)`}
@@ -823,7 +825,10 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
               lineFor={SC_BY_NAME}
               selected={pending.category}
               title="Main tax category"
-              onSelect={(name) => setPending({ ...pending, category: name })}
+              // The confidence goes with it. Picking a category and leaving
+              // `confidence` behind made the banner call the user's own choice
+              // "auto-categorized", at the parser's confidence (D-104).
+              onSelect={(name) => setPending({ ...pending, category: name, confidence: RC.CHOSEN })}
               onClose={() => setShowCats(false)}
             />
             <Text style={s.hint}>{SC_BY_NAME[pending.category] || ''}</Text>
