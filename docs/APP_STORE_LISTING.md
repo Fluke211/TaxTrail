@@ -89,7 +89,11 @@ receipt,scanner,expense,tracker,tax,schedulec,1099,selfemployed,mileage,irs,dedu
 97 characters. Dropped "bookkeeping" (the original draft was 105, over the limit) and added "cpa". Don't repeat words already in the name or subtitle — Apple indexes
 those separately, so spending keyword characters on them is waste.
 
-## What's New (first release)
+## What's New
+
+**Version 1.0 has no such field.** App Store Connect shows "What's New in This
+Version" only on an update, so there is nothing to paste for the first
+submission. Keep the text below for 1.0.1.
 
 ```
 First release. Scan receipts, get them filed to the right IRS line, export for
@@ -103,6 +107,7 @@ your accountant, all on your device.
 | Support URL | `https://taxtrail.app/support` |
 | Privacy Policy URL | `https://taxtrail.app/privacy` |
 | Marketing URL | optional — leave blank until there's a real site |
+| Copyright | `2026 Tyler Thornbrue` — year and holder, no `(c)`; Apple renders the symbol |
 
 **Use the extensionless forms above.** Verified 2026-08-29: the `.html` URLs
 return a 308 to these, which Apple follows fine, but there is no reason to
@@ -243,18 +248,21 @@ number in the copy above was checked against what the app actually does:
 | "QuickBooks three-column CSV" | The format is QuickBooks **Online** only; Desktop cannot import bank CSV | **Corrected** — the old wording promised Desktop users something that cannot work |
 | "Apple's document scanner ... multiple pages" | `react-native-document-scanner-plugin`, multi-page capture shipped in js r3 | Accurate |
 
-### Left for Tyler — a naming call, not a bug
+### Settled: "Meals & Entertainment" was renamed (D-050)
 
-The category **"Meals & Entertainment"** is a misnomer. Entertainment has been
-nondeductible since the TCJA, and the Schedule C instructions say twice "Do not
-include entertainment expenses on this line". The label invites a user to file
-an entertainment receipt into a 50%-deductible bucket. "Business Meals" would
-be accurate.
+This section used to ask Tyler to decide. The decision was made and shipped, so
+it is recorded here rather than left looking open.
 
-Not changed unilaterally because the category name is stored as a string on
-every saved receipt and inside every allocation, so a rename needs a data
-migration — not a one-line edit, and not something to do unattended.
+The label was a misnomer: entertainment has been nondeductible since the TCJA,
+and the Schedule C instructions say twice "Do not include entertainment
+expenses on this line", so the old name invited a user to file an entertainment
+receipt into a 50%-deductible bucket. The category is **"Business Meals"** now,
+and because the name is stored as a string on every saved receipt and inside
+every allocation, the rename shipped with a migration map rather than as an
+edit (`classifier.js`, `'Meals & Entertainment': 'Business Meals'`).
 
+Nothing in the listing copy above names the category, so no listing text
+changed with it.
 ## Pre-submission checklist
 
 - [x] D-022 resolved; App Privacy answers match reality — **re-verified
@@ -270,9 +278,11 @@ migration — not a one-line edit, and not something to do unattended.
       extensionless URLs in App Store Connect
 - [ ] Production build (`channel: production`) — the dev-only update button
       disappears automatically (D-019)
-- [ ] Screenshots at required sizes
+- [x] Screenshots at required sizes — **six built at 1179x2556** (D-106). The
+      6.9-inch sizes this repo recorded were refused; read the size off the
+      iPhone tab. Uploading them is still outstanding
 - [ ] App Review notes pasted
-- [ ] **Age rating completed** — the TestFlight purchase sheet renders the app
+- [x] **Age rating completed 2026-11-06** (Tyler) — the TestFlight purchase sheet renders the app
       as "UNRATED" until this is done, and Apple will not accept a submission
       without it. App Store → the app → Age Rating → Edit; every answer is
       "None" for this app
