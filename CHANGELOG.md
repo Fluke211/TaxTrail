@@ -27,6 +27,17 @@ visible version, and it gets recorded here.
   on a split is the receipt total, and that slide's own screenshot shows three
   rows. It reads "One receipt, / many categories." now. An App Store screenshot
   that understates the product is still a screenshot that disagrees with itself.
+- **Caption line breaks are checked by a program now**
+  (`node tools/screenshots/measure-lines.js`, D-106). It renders each built
+  slide, reports words-per-line and fails on a last line holding one word.
+  Three defects nobody could see in a PNG showed up immediately in its output.
+- **Sub-lines use `text-wrap: balance`.** Widening the shared width fixed
+  slide 1's break and created one on slides 4 and 6, because that width is a
+  single constant for all six slides; balance asks for even lines instead.
+- **Slide 3's headline read "29 categories, / mapped to real IRS / lines."**
+  and had since the slide was written. A hard `<br>` defeats balance, so this
+  one had to go in the copy: "real" is the word the line directly beneath it
+  already proves by naming Schedule C, Schedule A, Form 8829 and 4562.
 - The stale "6.9-inch" claim is corrected in all three places that carried it:
   `build.js`, `tools/screenshots/README.md` and `docs/APP_STORE_LISTING.md`.
   Each now says to read the size off the tab rather than off a guide, because

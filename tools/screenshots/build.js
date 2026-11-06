@@ -178,13 +178,25 @@ function html(slot) {
   }
   h1 {
     position: relative;
+    /* Let the browser balance the lines instead of hand-tuning each caption.
+       Measured, not assumed: before this, slide 3 read "29 categories, / mapped
+       to real IRS / lines." with one word alone on the third line, and four of
+       the six sub-lines ended on a single orphan word. Widening the box fixed
+       one slide and created orphans on others, because a wider box just moves
+       where the bad break lands. */
+    text-wrap: balance;
     font-size: 92px; line-height: 1.08; font-weight: 700; letter-spacing: -2.2px;
     text-align: center;
   }
   .sub {
     position: relative;
     margin-top: 30px; font-size: 38px; line-height: 1.35; font-weight: 400;
-    color: ${T.muted}; text-align: center; max-width: 1010px;
+    /* The full content width, not 1010px. At 1010 the slide-1 sub-line broke
+       as "... in about a / second" and left one word alone under a 92px
+       headline, which is the same flaw the headline itself had. The stage is
+       1290 wide with 90px padding each side, so 1110 is everything there is. */
+    color: ${T.muted}; text-align: center; max-width: 1110px;
+    text-wrap: balance;
   }
   .frame {
     position: relative;

@@ -701,6 +701,31 @@ the shape of it, so nobody re-derives them:
 Cost: about 25 GB of disk on the borrowed machine (fully reclaimable), an
 overnight Xcode download, and roughly an hour of setup. No money.
 
+### Check the captions before uploading
+
+    node tools/screenshots/build.js
+    node tools/screenshots/measure-lines.js
+
+The second one prints how every headline and sub-line actually breaks, and
+exits nonzero if any of them ends with a single word on its own line. **Run it;
+do not look at the PNGs and judge.** Three real defects shipped or nearly
+shipped because they are invisible at full size, including a headline that had
+read "29 categories, / mapped to real IRS / lines." since the day it was
+written (D-106).
+
+Cost: one headless Chromium render per slide, about four seconds for all six,
+no npm dependency. It is not in CI, because CI does not build screenshots and
+has no browser installed.
+
+Fixing what it reports:
+
+- **A sub-line orphan** is a width problem. The sub has `text-wrap: balance`,
+  so usually the copy is just long; shortening it is enough.
+- **A headline orphan is a COPY problem, always.** Every headline carries a
+  hard `<br>` from the `\n` in `slots.json`, and `text-wrap: balance` cannot
+  rebalance across a forced break. Shorten the words or move the break, and
+  prefer shortening: the break is already at the only natural clause boundary.
+
 ## Register a new device
 
 Do it in a browser, not the CLI (`eas device:create` accepts no flags at all
