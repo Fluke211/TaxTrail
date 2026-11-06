@@ -51,10 +51,45 @@ export async function taxMemLookup(city: string | null): Promise<{ rate: number;
   return null;
 }
 
+/*
+ * The ceiling the CLASSIFIER already applies to a printed rate.
+ *
+ * This gate is the last thing between a misread percentage and a city's
+ * stored rate, and it was the loosest in the app: the classifier stopped
+ * accepting a printed rate above 12% in r40, and refuses a derived rate above
+ * 11.5%, but this still allowed anything up to 25%. The write gate must never
+ * be looser than the read gate, or the tightening upstream buys nothing
+ * (D-105).
+ */
+const MAX_LEARNABLE_RATE = 0.12;
+
 export async function taxMemLearn(city: string | null, rate: number | null): Promise<void> {
-  if (!rate || rate <= 0 || rate > 0.25) return;
+  if (!rate || rate <= 0 || rate > MAX_LEARNABLE_RATE) return;
   const mem = await loadTax();
   if (city) mem.cities[city] = rate;
   mem.last = rate;
   await AsyncStorage.setItem(TAX_KEY, JSON.stringify(mem));
+}
+
+/*
+ * Forget every learned tax rate.
+ *
+ * D-095 and D-096 each fixed a SOURCE of a poisoned city rate: a service fee
+ * read as 4%, a suggested-tip percentage read as 2%, an 18% auto-gratuity.
+ * Nothing ever gave the user a way to undo a poisoning that had already
+ * happened, and a stored rate is used for every later receipt in that city,
+ * so one bad scan kept being wrong long after the parser stopped making that
+ * mistake. Deleting every receipt did not clear it either: this is a separate
+ * AsyncStorage key and the delete never touched it.
+ *
+ * Deliberately all of them rather than one city. The user knows a rate is
+ * wrong; they do not know which city string the parser filed it under, and
+ * the only cost of clearing the lot is that the next receipt in each city
+ * reads its rate off the receipt again, which is what it should prefer anyway.
+ */
+export async function taxMemForgetAll(): Promise<number> {
+  const mem = await loadTax();
+  const n = Object.keys(mem.cities || {}).length;
+  await AsyncStorage.setItem(TAX_KEY, JSON.stringify({ cities: {}, last: null }));
+  return n;
 }

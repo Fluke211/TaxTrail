@@ -5810,3 +5810,51 @@ one. It reads money and dates correctly; it is only the category that is
 blank, because the receipt genuinely does not say. A receipt whose printed
 name the app recognizes is the right hero.
 
+---
+
+## D-105
+
+**The gate that writes a city's tax rate was the loosest one in the app**
+(2026-11-06)
+
+Tyler rescanned a Costco receipt and the app reported **"Tax rate: 12%
+(printed on receipt)"**. The paper says 4.712%, and the clean OCR of that same
+receipt already on file reads it correctly, so this was a worse scan rather
+than a parser regression. What it exposed is downstream of the misread.
+
+**`taxMemLearn` still refused only rates above 25%.** The classifier stopped
+accepting a printed rate above 12% in r40 and refuses a derived rate above
+11.5%, both on the ground that the US combined ceiling is about 11.5%. The
+function that actually writes the rate against a city never got the same
+treatment, so it would have accepted this 12% and stored it for Honolulu,
+where it is used for every later receipt in that city.
+
+**The write gate must never be looser than the read gate**, or tightening the
+reader buys nothing. It is `MAX_LEARNABLE_RATE = 0.12` now, matching the
+printed-rate gate exactly, and the test asserts the two agree rather than
+checking a number in isolation.
+
+**And nothing could undo a poisoning that had already happened.** D-095 and
+D-096 each fixed a SOURCE of a wrong city rate: a service fee read as 4%, a
+suggested-tip percentage read as 2%, an 18% auto-gratuity. Neither gave the
+user any way to clear one already stored, and **deleting every receipt did not
+clear it either**, because the rates live under their own AsyncStorage key
+that the delete never touched. So a single bad scan kept being wrong
+indefinitely, long after the parser stopped making that mistake, with no
+symptom beyond a rate quietly reading a little off.
+
+Settings has a `WHAT TAXTRAIL REMEMBERS` card with `Forget learned sales-tax
+rates`. All of them rather than one city, because the user knows a rate is
+wrong but not which city string the parser filed it under, and the only cost
+of clearing the lot is that the next receipt in each place reads its rate off
+the receipt, which is what it should prefer anyway.
+
+**Still open:** why that scan produced 12% at all. The corpus text yields
+4.712%, so it needs the OCR from the bad scan to say, and guessing at it is
+what cost three revisions in D-104. Asked for rather than theorised about.
+
+**The shape worth keeping.** Two entries now (D-101, this) are the same
+mistake in different clothes: a rule was tightened in the place I was looking
+at, and the same rule elsewhere was left as it was. A ceiling is not a rule
+until every gate that can admit a value enforces it.
+
