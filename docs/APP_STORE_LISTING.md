@@ -145,29 +145,40 @@ TaxTrail performs all receipt processing on-device.
 Permissions the app requests:
 - Camera — photographing receipts.
 - Photo library — importing an existing receipt picture chosen by the user.
+- Face ID — an optional app lock, off by default and turned on in Settings. It
+  unlocks the app on this device only and authenticates against nothing.
 
-Verified 2026-08-29 against the plugin configuration in `app.json`:
+Verified 2026-11-07 against `package.json`, `app.json` and the code:
 `expo-image-picker` and `expo-camera` both set `microphonePermission: false`,
 so no microphone key is generated (D-007). The local-network key
 `expo-dev-launcher` adds in development is stripped by a build phase in any
 non-Debug configuration, so it does not ship either (D-044).
+`expo-local-authentication` is a dependency and is used by
+`src/lib/appLockNative.ts`, so the Face ID line above describes a real feature.
+`expo-location` is absent from `package.json` and unreferenced in `src/`, so no
+location key ships and the list is exactly three permissions.
 
 To test Pro without purchasing, use the sandbox account provided, or note that
 the free tier permits 10 scans per month with full parsing and CSV export.
 ```
 
-> **Face ID and Location were removed from the block above — do not paste them
-> back until D-066 is resolved.** Build 4 carries purpose strings for both, but
-> no code in the app imports `expo-local-authentication` or `expo-location`, so
-> neither prompt can ever appear. Describing an app lock and mileage logging to
-> a reviewer who will then go looking for them is the fastest way to lose the
-> benefit of everything else in these notes.
+> **Resolved: the block above is now correct for build 7.** This warning used
+> to say that Face ID and Location must stay out of the notes until D-066 was
+> decided, because build 4 carried purpose strings for both while no code
+> imported either module. Describing features a reviewer cannot find is the
+> fastest way to lose the benefit of everything else in these notes.
 >
-> The earlier check was made against `app.json`, not against the code. The
-> plist and the notes agreed with each other; neither was compared with what
-> the app does. Resolving D-066 decides whether the two permissions leave the
-> binary in build 5 or the two features arrive to justify them — and the notes
-> follow whichever Tyler picks.
+> D-066 was decided both ways, and the notes follow the outcome. **Face ID
+> arrived**: `expo-local-authentication` is a real dependency, the lock is a
+> Settings toggle gated in `App.tsx`, and Tyler confirmed it working on device
+> on 2026-09-03, so it is disclosed above. **Location left**: build 7 dropped
+> `expo-location`, which is what unblocked submission (D-085), so there is no
+> location permission to disclose.
+>
+> The original mistake was checking `app.json` rather than the code: the plist
+> and the notes agreed with each other and neither was compared with what the
+> app does. The verification line above is written against `package.json`,
+> `app.json` and `src/` together for that reason.
 
 ## App Privacy questionnaire
 
@@ -263,6 +274,39 @@ edit (`classifier.js`, `'Meals & Entertainment': 'Business Meals'`).
 
 Nothing in the listing copy above names the category, so no listing text
 changed with it.
+## Creative assets (header and search results) are OPTIONAL
+
+Tyler noticed the asset library offers a "header and search results" slot that
+nothing had been uploaded to, and asked whether it was missing. It is not
+required to submit.
+
+Checked against Apple's own documentation on 2026-11-07, not a blog, because
+the screenshot-size failure came from trusting an inherited number:
+
+> Creative assets are optional and separate from your app's screenshots, app
+> previews, In-App Purchase and Subscription images, and any promotional
+> artwork requested by editorial teams.
+
+The same page says they appear only on "iOS 27 or iPadOS 27 or later", so they
+reach none of the installed base that matters at launch. **Screenshots remain
+the required asset, and all six exist.**
+
+Specifications, for whenever we do make them:
+
+| Placement | Image | Video |
+|---|---|---|
+| Product page header | 21:9, 3840x1646, `.jpeg` `.jpg` `.png`, no alpha channel or transparency | 21:9, 3840x1646, 30 or 60 fps, 5 to 30 s, `.mov` `.m4v` `.mp4` |
+| Search results | 3:2, min 1920x1280, max 3840x2560, `.jpeg` `.jpg` `.png` | same ratio and sizes, 30 or 60 fps, 5 to 30 s |
+
+A 16:9 `.png` at 5244x2950 is listed under both placements. Apple's page does
+not say it serves both, and the primary ratios differ, so do not assume one
+file covers them until that is confirmed in App Store Connect itself.
+
+Sources: Apple's [creative assets specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/creative-assets-specifications/)
+and [manage your App Store assets](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-your-app-store-assets).
+
+---
+
 ## Pre-submission checklist
 
 - [x] D-022 resolved; App Privacy answers match reality — **re-verified
@@ -287,6 +331,7 @@ changed with it.
       without it. App Store → the app → Age Rating → Edit; every answer is
       "None" for this app
 - [ ] Export compliance — `ITSAppUsesNonExemptEncryption: false` is already set
-- [ ] **App Store Small Business Program enrolled** — 15% instead of 30%, and it
-      is not retroactive, so this must happen before the first sale
+- [x] **App Store Small Business Program enrolled** — Tyler confirmed acceptance
+      2026-11-06. 15% instead of 30%. It is not retroactive, which is why it
+      had to land before the first sale; it has, so this is closed
 - [ ] Paid Applications agreement signed, or products won't load
