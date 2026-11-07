@@ -315,6 +315,54 @@ and [manage your App Store assets](https://developer.apple.com/help/app-store-co
 
 ---
 
+## In-app purchase naming: what is locked and what is not
+
+The products were created under the old name and read **RS Pro Monthly** and
+**RS Pro Annual**. Three separate fields are involved and only one is
+customer-facing. Apple's own wording, checked 2026-11-07:
+
+| Field | Customer sees it | Editable |
+|---|---|---|
+| Product ID | No. StoreKit only | **Never.** "The product ID isn't editable after you save the In-App Purchase", and it "can't be reused for another In-App Purchase within the same app, even if you delete the original" |
+| Reference Name | No. "not visible to customers, but used in App Store Connect and Sales and Trends reports" | Yes, "can be edited at any time without review". Up to 64 characters |
+| Display Name | **Yes, on the store and in the purchase sheet** | Yes, but "changes to the localized information require review". 2 to 30 characters |
+
+**The locked `RS` product IDs are harmless.** Verified against the code: `src/`
+contains no product IDs at all, because `presentPaywall` renders
+`offerings.current.availablePackages` from RevenueCat, which matches on product
+ID internally. So a rename cannot break the offering and no user ever sees the
+identifier.
+
+**A stale Display Name is worth fixing before submitting, not after**, since the
+change needs review either way: done now it rides along with this submission,
+done later it costs a separate review round. "TaxTrail Pro Monthly" is 20
+characters and "TaxTrail Pro Annual" is 19, both inside the limit.
+
+Check both fields, because they are usually set to the same string at creation.
+
+## The third tier: lifetime is a non-consumable, in a different section
+
+`src/lib/config.ts` names three tiers (monthly $6.99, annual $39.99, lifetime
+$99.99). The lifetime one is a **non-consumable**, so it lives under **In-App
+Purchases** rather than **Subscriptions**, which is how it goes unnoticed.
+
+Nothing breaks if it is absent. The paywall renders whatever the offering
+returns, so it would simply show two options, and `DISPLAY_PRICES`, which
+carries the $99.99 string, has exactly one reference in the whole app: its own
+definition. It is dead code and displays nowhere.
+
+**One real inaccuracy if lifetime does not ship.**
+`src/components/FallbackPaywall.tsx` ends its auto-renew disclosure with "The
+lifetime option is a one-time purchase and does not renew." That line is inside
+`{anyAutoRenewing && (...)}`, so it renders whenever any auto-renewing package
+exists, whether or not a lifetime package does. Launching without lifetime
+means that screen describes an option that is not there. It only appears when
+RevenueCat's remote template fails, but the file's own comment is right that
+"if it renders for a reviewer, it is the paywall", so the sentence should
+become conditional on a non-renewing package being present.
+
+---
+
 ## Pre-submission checklist
 
 - [x] D-022 resolved; App Privacy answers match reality — **re-verified
