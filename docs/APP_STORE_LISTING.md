@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## The v2 paywall is PUBLISHED at revision 11; revision 12 is a draft
+## The v2 paywall is PUBLISHED at revision 12. Done.
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -743,6 +743,27 @@ not the person.
 Revision 12 enlarges the glyph itself, 28pt to 36pt, and drops the padding back
 to 4 so the circle stays exactly 44pt. The control still meets the minimum, and
 now it also looks like it does.
+
+### Settled at revision 12
+
+Published 2026-11-07. The close button is a 36pt glyph in a 44pt circle, which
+meets Apple's minimum and reads as a real control. The App Review screenshot
+was taken from this build and converted to 1179x2556 with
+`tools/screenshots/review-shot.js`.
+
+Twelve revisions, and the honest summary of why: three of them (8, 9, 10) were
+one row's layout rule being got right by elimination, and two (11, 12) were a
+tap target. Both are the same cost, paid twice. This paywall is remote
+configuration, so nothing in this repository can render it, and every judgement
+about how it LOOKS had to come back from a person with a screenshot. That is
+what D-107 means in practice, and it is the argument for the snapshot at
+`tools/paywall-v2-draft.json`: the configuration is at least reviewable here,
+even though it cannot be tested here.
+
+What the published screen is worth, against where it started: the original
+template had no period on its prices, no auto-renewal disclosure, no legal
+links, Terms and Privacy pointing at `revenuecat.com`, two of the three
+packages, placeholder copy about cats, and monthly preselected against D-002.
 
 ### Creating it attached it to the offering
 
