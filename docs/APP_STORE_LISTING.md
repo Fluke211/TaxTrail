@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish
+## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 3)
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -463,6 +463,49 @@ of which would have been obvious without reading the JSON:
 The template did get two things right that the legacy paywall had wrong:
 `$rc_annual` already carried `is_selected_by_default: true`, matching D-002,
 and it uses period-bearing price variables.
+
+### Round two, after RevenueCat's AI audit (revision 3)
+
+The audit passed every App Store compliance row, including Auto-Renewal
+Disclosed and Terms & Privacy Accessible, which is the thing D-107 was raised
+about. Its remaining findings were layout and conversion, and these are fixed:
+
+| Audit finding | Fix |
+|---|---|
+| "The Lifetime card is cut off. Three cards side by side don't fit on a 402px phone" | The plan container was `horizontal`. It is `vertical` now, so each plan is a full-width row |
+| "Two near-identical purples" and "the button doesn't stand out" | 20 colour values swapped to the app's own accent, `#2f5ae0` from `theme.ts`, so there is ONE accent and the filled button is the only solid element |
+| "Too many font sizes. There are seven" (eight, in fact) | 34 / 15 / 12 / 16 only. 20 and 17 collapsed to 16, 13 and 11 to 12 |
+| "The subtitle is too loud... and repeats the benefits listed right below it" | One line at 16pt, "For the receipts your tax return depends on.", which says something the feature list does not |
+| "Weak intro-offer subtitle... Our most advanced features, for our most dedicated users" | A leftover Cat.io string missed on the first pass. Now matches the default subtitle |
+| "Repeated price on Monthly. Billed at $9.99/mo. repeats the price shown right above it" | Reads "Cancel anytime." |
+| "The footer hides your benefits" | The legal block is 205 characters, down from 320, still stating auto-renewal, how to cancel and the lifetime exception |
+| "App name mismatch... the screen is named ReceiptSnap" | The paywall's `name` is "TaxTrail Pro" now |
+
+**Two audit findings were NOT acted on, deliberately:**
+
+- **"Apple-only wording. The legal text says Apple ID. That's wrong if this
+  paywall also runs on Android."** It does not. TaxTrail is an iOS app, min iOS
+  15.1, with no Android target, so "Apple ID" is correct and the generic advice
+  does not apply.
+- **iPad and landscape adaptation.** Real, but out of scope for a submission
+  that is about compliance. Worth revisiting if the app is ever promoted for
+  iPad.
+
+**The preview's prices are placeholders.** It rendered $69.99, $9.99 and
+$119.99 with "19% OFF", against the real $39.99, $6.99 and $99.99. RevenueCat's
+documentation says the editor substitutes real prices "as soon as pricing data
+is available", so this is preview behaviour rather than misconfiguration.
+Confirm on device all the same, because the alternative explanation, products
+not fetching, would be serious.
+
+**Attaching an unpublished paywall does not disturb the live one.** Tyler
+confirmed on device that the app still renders the legacy paywall after the
+offering's `paywall_id` was set. That answers the question the previous section
+left open: the legacy paywall keeps serving until the v2 one is published.
+
+The offering's `display_name` is still "ReceiptSnap Default". A PATCH to the
+offerings endpoint returns **405**, so it cannot be renamed through the API. It
+is internal and no customer sees it.
 
 ### Creating it attached it to the offering
 

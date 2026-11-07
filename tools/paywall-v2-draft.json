@@ -233,7 +233,7 @@
          }
         },
         "font_name": null,
-        "font_size": 20,
+        "font_size": 16,
         "font_weight": "regular",
         "horizontal_alignment": "center",
         "id": "g7yI263KYS",
@@ -345,7 +345,7 @@
           "color": {
            "light": {
             "type": "hex",
-            "value": "#bc4ae6ff"
+            "value": "#2f5ae0ff"
            }
           },
           "formats": {
@@ -436,7 +436,7 @@
              }
             },
             "font_name": null,
-            "font_size": 13,
+            "font_size": 12,
             "font_weight": "regular",
             "horizontal_alignment": "leading",
             "id": "jGFImSKPMf",
@@ -563,7 +563,7 @@
           "color": {
            "light": {
             "type": "hex",
-            "value": "#bc4ae6ff"
+            "value": "#2f5ae0ff"
            }
           },
           "formats": {
@@ -654,7 +654,7 @@
              }
             },
             "font_name": null,
-            "font_size": 13,
+            "font_size": 12,
             "font_weight": "regular",
             "horizontal_alignment": "leading",
             "id": "bmrConRpoq",
@@ -781,7 +781,7 @@
           "color": {
            "light": {
             "type": "hex",
-            "value": "#bc4ae6ff"
+            "value": "#2f5ae0ff"
            }
           },
           "formats": {
@@ -872,7 +872,7 @@
              }
             },
             "font_name": null,
-            "font_size": 13,
+            "font_size": 12,
             "font_weight": "regular",
             "horizontal_alignment": "leading",
             "id": "n6rLrcuymA",
@@ -999,7 +999,7 @@
           "color": {
            "light": {
             "type": "hex",
-            "value": "#bc4ae6ff"
+            "value": "#2f5ae0ff"
            }
           },
           "formats": {
@@ -1090,7 +1090,7 @@
              }
             },
             "font_name": null,
-            "font_size": 13,
+            "font_size": 12,
             "font_weight": "regular",
             "horizontal_alignment": "leading",
             "id": "wiDq9CrdrG",
@@ -1217,7 +1217,7 @@
           "color": {
            "light": {
             "type": "hex",
-            "value": "#bc4ae6ff"
+            "value": "#2f5ae0ff"
            }
           },
           "formats": {
@@ -1308,7 +1308,7 @@
              }
             },
             "font_name": null,
-            "font_size": 13,
+            "font_size": 12,
             "font_weight": "regular",
             "horizontal_alignment": "leading",
             "id": "U7VzlhcGbV",
@@ -1557,14 +1557,14 @@
              "value": {
               "light": {
                "type": "hex",
-               "value": "#af52deff"
+               "value": "#2f5ae0ff"
               }
              }
             },
             "background_color": {
              "light": {
               "type": "hex",
-              "value": "#af52deff"
+              "value": "#2f5ae0ff"
              }
             },
             "badge": null,
@@ -1833,7 +1833,7 @@
                  "color": {
                   "light": {
                    "type": "hex",
-                   "value": "#bc4ae6ff"
+                   "value": "#2f5ae0ff"
                   }
                  },
                  "formats": {
@@ -2059,7 +2059,7 @@
               "color": {
                "light": {
                 "type": "hex",
-                "value": "#bc4ae6ff"
+                "value": "#2f5ae0ff"
                }
               },
               "width": 2
@@ -2068,7 +2068,7 @@
               "color": {
                "light": {
                 "type": "hex",
-                "value": "#bd4be526"
+                "value": "#2f5ae026"
                }
               },
               "radius": 16,
@@ -2304,7 +2304,7 @@
                  "color": {
                   "light": {
                    "type": "hex",
-                   "value": "#bc4ae6ff"
+                   "value": "#2f5ae0ff"
                   }
                  },
                  "formats": {
@@ -2528,7 +2528,7 @@
               "color": {
                "light": {
                 "type": "hex",
-                "value": "#bc4ae6ff"
+                "value": "#2f5ae0ff"
                }
               },
               "width": 2
@@ -2537,7 +2537,7 @@
               "color": {
                "light": {
                 "type": "hex",
-                "value": "#bd4be526"
+                "value": "#2f5ae026"
                }
               },
               "radius": 16,
@@ -2773,7 +2773,7 @@
                  "color": {
                   "light": {
                    "type": "hex",
-                   "value": "#bc4ae6ff"
+                   "value": "#2f5ae0ff"
                   }
                  },
                  "formats": {
@@ -2997,7 +2997,7 @@
               "color": {
                "light": {
                 "type": "hex",
-                "value": "#bc4ae6ff"
+                "value": "#2f5ae0ff"
                }
               },
               "width": 2
@@ -3006,7 +3006,7 @@
               "color": {
                "light": {
                 "type": "hex",
-                "value": "#bd4be526"
+                "value": "#2f5ae026"
                }
               },
               "radius": 16,
@@ -3049,9 +3049,9 @@
         }
        ],
        "dimension": {
-        "alignment": "top",
-        "distribution": "space_between",
-        "type": "horizontal"
+        "alignment": "center",
+        "distribution": "start",
+        "type": "vertical"
        },
        "id": "qbJdul3QJM",
        "margin": {
@@ -3099,7 +3099,7 @@
          "value": {
           "light": {
            "type": "hex",
-           "value": "#bc4ae6ff"
+           "value": "#2f5ae0ff"
           }
          }
         },
@@ -3116,7 +3116,7 @@
            }
           },
           "font_name": null,
-          "font_size": 17,
+          "font_size": 16,
           "font_weight": "semibold",
           "horizontal_alignment": "center",
           "id": "zpaxStMS_x",
@@ -3212,7 +3212,7 @@
         }
        },
        "font_name": null,
-       "font_size": 11,
+       "font_size": 12,
        "font_weight": "regular",
        "horizontal_alignment": "center",
        "id": "DvXGJr9EZC",
@@ -3265,7 +3265,7 @@
             "color": {
              "light": {
               "type": "hex",
-              "value": "#Af52deff"
+              "value": "#2f5ae0ff"
              }
             },
             "font_name": null,
@@ -3366,7 +3366,7 @@
             "color": {
              "light": {
               "type": "hex",
-              "value": "#Af52deff"
+              "value": "#2f5ae0ff"
              }
             },
             "font_name": null,
@@ -3467,7 +3467,7 @@
             "color": {
              "light": {
               "type": "hex",
-              "value": "#Af52deff"
+              "value": "#2f5ae0ff"
              }
             },
             "font_name": null,
@@ -3659,15 +3659,15 @@
    "9ygfTEQ4mo": "Billed at {{ product.price_per_period_abbreviated }} after free trial.",
    "CUM67OH4sV": "One-time purchase. Does not renew.",
    "FB8Ij4dWgS": "Continue",
-   "H-ro-nGg8k": "Billed at {{ product.price_per_period_abbreviated }}.",
-   "J2crP5pQqO": "Our most advanced features, for our most dedicated users.",
+   "H-ro-nGg8k": "Cancel anytime.",
+   "J2crP5pQqO": "For the receipts your tax return depends on.",
    "NPUSkqLXO9": "Schedule C, Schedule A, Form 8829, 4562 and cost of goods sold.",
    "OBIvM9QN7X": "Restore Purchases",
    "Tb96zGkKSL": "Every export format",
    "VFL_T8xgne": "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
    "alkrIMXbE9": "Excel, TXF for tax software, and QuickBooks Online.",
    "bhxDjTfrJ4": "Privacy",
-   "fltHYXXmwx": "Subscriptions renew automatically unless auto-renew is turned off at least 24 hours before the end of the current period. Your account is charged for renewal within 24 hours of the end of the current period. Cancel anytime in your Apple ID settings. Pro Lifetime is a one-time purchase and does not renew.",
+   "fltHYXXmwx": "Subscriptions renew automatically unless auto-renew is turned off at least 24 hours before the period ends. Cancel anytime in your Apple ID settings. Pro Lifetime is a one-time purchase and does not renew.",
    "gnAKTdeZKc": "Lifetime",
    "goGCYZSaV4": "No account, no cloud, no trackers. Ever.",
    "hmS8R9Jw92": "Monthly",
@@ -3678,14 +3678,15 @@
    "qINkEZb-Wo": "{{ product.price_per_period_abbreviated }}",
    "rM0PH_FQw4": "Only {{ product.price_per_month }}/mo",
    "t38p5wJ_Z7": "Get started for free",
-   "tZ34z5szEZ": "Unlimited scans, plus Excel, TXF and QuickBooks exports. Everything still stays on your device.",
+   "tZ34z5szEZ": "For the receipts your tax return depends on.",
    "wNFWVHWeDA": "Full archive, images included",
    "x4PDxteoED": "{{ product.price_per_period_abbreviated }}",
    "yhNJ73YdCJ": "",
    "zVW9cz8zHC": "Still 100% on device"
   }
  },
+ "name": "TaxTrail Pro",
  "offering_id": "ofrng6092a617e4",
  "paywall_id": "pw582c296e2dea4c0b",
- "revision": 2
+ "revision": 3
 }
