@@ -1805,7 +1805,7 @@
                 "value": null
                },
                "width": {
-                "type": "fit",
+                "type": "fill",
                 "value": null
                }
               },
@@ -1845,7 +1845,7 @@
                 "value": null
                },
                "width": {
-                "type": "fill",
+                "type": "fit",
                 "value": null
                }
               },
@@ -2226,7 +2226,7 @@
                 "value": null
                },
                "width": {
-                "type": "fit",
+                "type": "fill",
                 "value": null
                }
               },
@@ -2265,7 +2265,7 @@
                 "value": null
                },
                "width": {
-                "type": "fill",
+                "type": "fit",
                 "value": null
                }
               },
@@ -2646,7 +2646,7 @@
                 "value": null
                },
                "width": {
-                "type": "fit",
+                "type": "fill",
                 "value": null
                }
               },
@@ -2685,7 +2685,7 @@
                 "value": null
                },
                "width": {
-                "type": "fill",
+                "type": "fit",
                 "value": null
                }
               },
@@ -3541,5 +3541,5 @@
  "name": "TaxTrail Pro",
  "offering_id": "ofrng6092a617e4",
  "paywall_id": "pw582c296e2dea4c0b",
- "revision": 9
+ "revision": 10
 }

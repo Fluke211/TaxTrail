@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 9)
+## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 10)
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -646,7 +646,7 @@ would not show: the annual badge survives on annual and does not appear on the
 other two, all three prices are still bound to their variables, and the
 disclosure and all three packages are intact.
 
-### Revision 9: the regression the restructure caused, and the overshoot
+### Revisions 9 and 10: two goes at one layout rule
 
 Moving the price beside the radio in revision 8 introduced a defect and
 overshot the space it was meant to free. Both are fixed.
@@ -668,6 +668,27 @@ from too little to too much. About 30 of the 54 reclaimed pixels are given back
 (benefit rows 4 to 6, benefits card padding 10 to 12, plan cards 6 to 7), which
 leaves a deliberate gap rather than closing it: a little whitespace under that
 box is what was asked for in the first place.
+
+### Revision 10: the fix that broke the other column
+
+Revision 9 aligned the prices by giving each one `width: fill`. It worked, and
+it introduced the opposite defect: a `fill` child claims all the slack in the
+row, so the title column was squeezed to its minimum and its second line
+wrapped. "Only $5.83/mo" became "Only / $5.83/mo", "Cancel anytime." became
+"Cancel / anytime.", and the lifetime line took two lines as well. The cards
+grew instead of shrinking.
+
+**Only one child of that row can take the slack**, and it should be the column
+with the long text, not the price. So it is inverted: the LEFT column is `fill`
+and the price is back to `fit` with trailing alignment. The column absorbs the
+variance, the price keeps its natural width, and because the column always
+ends at the same place the price still lands hard against the radio on every
+card. Both properties at once, where revision 9 traded one for the other.
+
+Three attempts at one row (8, 9, 10), each correct about the thing it was
+aiming at and wrong about what it displaced. That is the cost of editing a
+layout that cannot be previewed from here, and it is the practical shape of
+what D-107 states as a principle.
 
 ### Creating it attached it to the offering
 
