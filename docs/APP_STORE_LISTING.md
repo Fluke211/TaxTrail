@@ -350,16 +350,43 @@ and [manage your App Store assets](https://developer.apple.com/help/app-store-co
 - [x] **App Store Small Business Program enrolled** — Tyler confirmed acceptance
       2026-11-06. 15% instead of 30%. It is not retroactive, which is why it
       had to land before the first sale; it has, so this is closed
-- [ ] **Paid Applications agreement active, or products won't load.** The one
-      item still open, and the highest-risk one. `src/lib/purchases.ts` falls
-      back to `Alert.alert('Purchases not configured', 'TaxTrail Pro is
-      unavailable in this build.')` when RevenueCat has no products, so a
-      reviewer who taps Upgrade would read exactly that: a Guideline 2.1
-      rejection. Sandbox purchases worked on build 7 on 2026-09-07, so it was
-      active then; confirm it still reads Active before submitting
-- [ ] **The Pro products attached to THIS version, each "Ready to Submit".** On
-      a first release subscriptions are submitted with the build; unattached
-      means shipping a dead paywall
-- [ ] **A review screenshot and localized name plus description on each
-      subscription.** Set per subscription, not on the version, which is why it
-      is missed; a missing one is a common Metadata Rejected cause
+- [x] **Paid Applications agreement active.** Tyler checked 2026-11-07 and it
+      had **lapsed**, showing out of date that morning; he reactivated it. Worth
+      the check: `src/lib/purchases.ts` falls back to
+      `Alert.alert('Purchases not configured', 'TaxTrail Pro is unavailable in
+      this build.')` when RevenueCat has no products, so a reviewer who tapped
+      Upgrade would have read exactly that, which is Guideline 2.1
+- [ ] **"Add for Review" on each Pro product.** THE STOP-SHIP ITEM. The three
+      products sat at **Prepare for Submission** on 2026-11-07, which Apple
+      defines as: "Your In-App Purchase has been created, but you haven't yet
+      submitted it for review. Use Add for Review to add it to a submission."
+      So the status does NOT mean metadata is missing, it means the products are
+      attached to no submission. **Submitting the version while they sit there
+      ships an app whose paywall cannot work.** Each must reach **Ready for
+      Review**, which Apple defines as "added to a submission, but you haven't
+      sent the submission to App Review yet"
+- [ ] **A real App Review screenshot on each subscription.** It was a black
+      placeholder on 2026-11-07. Apple requires "a screenshot of the In-App
+      Purchase that clearly shows the item or service being offered", so a black
+      image fails the requirement as written. Two things make this easy to get
+      wrong:
+      - The size. Apple says "upload a screenshot that meets any of the
+        screenshot specifications your app supports", and a raw iPhone 14 grab
+        is 1170x2532, which App Store Connect refuses, exactly as it refused the
+        marketing slides. Run the capture through
+        `node tools/screenshots/review-shot.js <grab.png>`, which resizes to
+        1179x2556 by scaling to width and padding, so no pixel a reviewer reads
+        is stretched. Do NOT use `build.js`, which adds a marketing caption.
+      - It cannot be undone. "Once you've uploaded a screenshot, you can update
+        it but not remove it." Replacing the placeholder is fine; deleting it is
+        not possible
+- [x] **Retention messages and the 1024x1024 promotional image are NOT needed.**
+      Apple: an image "is required if you want to promote your In-App Purchase
+      on your App Store product page or set up win-back offers." We want
+      neither, so both are skipped deliberately rather than left undone
+- [ ] **Review notes on each subscription** (optional, 4000 character limit).
+      Apple describes them as "additional information about the In-App Purchase
+      that might help Apple review the submission". Worth one line telling the
+      reviewer where the paywall is, since it sits behind a scan limit
+- [x] **Manual release selected** 2026-11-07, so the listing can be checked
+      before it is public
