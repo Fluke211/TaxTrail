@@ -431,6 +431,112 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
+## RevenueCat paywall: what to put in the editor (D-107)
+
+Paste-ready content for the fixes D-107 calls for. **Check first whether the
+paywall is v1 or v2**, because the variable names differ: v2 prefixes them with
+`product.`, v1 does not (`sub_offer_duration` is a v1 name). Everything below is
+v2, which is what RevenueCat's current documentation uses.
+
+### Title and subtitle
+
+    TaxTrail Pro
+
+    Unlimited scans, plus Excel, TXF and QuickBooks exports.
+    Everything still stays on your device.
+
+That subtitle is lifted from `FallbackPaywall.tsx`, which has always had a
+reason to buy where the live template has none. The second sentence is the
+differentiator and should not be cut.
+
+### Feature list (a v2 component)
+
+    Unlimited receipt scans
+    Excel, TXF and QuickBooks Online exports
+    Full archive, every receipt image included
+    Still 100% on device. No account, no cloud
+
+### Package rows: use a variable, not a typed price
+
+The rows currently read "$6.99", which states no period and is the 3.1.2
+failure. RevenueCat's own App Review guidance says to use
+`{{ product.price_per_period }}` or `{{ product.price_per_period_abbreviated }}`,
+and warns that `product.price_per_month` or `product.price` alone "may not
+satisfy this requirement".
+
+| Row | Price field |
+|---|---|
+| Pro Monthly | `{{ product.price_per_period }}` renders `$6.99/month` |
+| Pro Annual | `{{ product.price_per_period }}` renders `$39.99/year` |
+| Pro Lifetime | `{{ product.price }}`. Period variables return "lifetime" for a non-consumable, so a period reads oddly here |
+
+### Preselect ANNUAL, and badge it
+
+D-002 made annual the "highlighted default" and the template preselects
+monthly, which steers buyers to the lower-value plan. Set annual as the
+selected package in the Package component.
+
+Badge it **Save 52%**, which is arithmetic, not marketing: $39.99 against
+12 x $6.99 = $83.88 is a 52.3% saving. A "$3.33 a month, billed annually" line
+is also true and reads well, but the **full billed amount must still appear**,
+because RevenueCat's guidance is explicit that a normalized monthly price alone
+is not enough.
+
+### The free trial: VERIFY IT EXISTS BEFORE ADVERTISING IT
+
+D-002 specifies a 7-day trial on annual, and the ROADMAP records
+`receiptsnap_pro_annual` as having one. The live paywall never mentions it.
+**Confirm the introductory offer is actually configured on the annual product
+in App Store Connect before putting it on the paywall**: offer variables fall
+back to ordinary pricing when there is no offer or the customer is not
+eligible, so a trial advertised but not configured is a false claim on the
+offer screen, which is worse than not mentioning it.
+
+If it is configured, use `{{ product.offer_price }}` and
+`{{ product.offer_period }}`, and a call to action of "Start 7 days free".
+
+### The Footer: this is the part that fixes the rejection
+
+Add a **Footer** component, "a configurable portion at the bottom of the screen
+whose position can be fixed", holding the disclosure text and the links.
+
+Disclosure text, adapted from `FallbackPaywall.tsx` and keeping "Cancel
+anytime", which RevenueCat's App Review page names specifically:
+
+    Subscriptions renew automatically unless auto-renew is turned off at least
+    24 hours before the end of the current period. Your account is charged for
+    renewal within 24 hours of the end of the current period. Cancel anytime in
+    your Apple ID settings. Pro Lifetime is a one-time purchase and does not
+    renew.
+
+Links, using **Button** components. The documentation describes a Button as
+used for "a link to your Privacy Policy" but gives no setup steps, so the exact
+control has to be found in the editor. These are the project's canonical URLs,
+already in `FallbackPaywall.tsx`:
+
+| Link | URL |
+|---|---|
+| Terms of Use | `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` |
+| Privacy Policy | `https://taxtrail.app/privacy` |
+
+A **Restore Purchases** control must also be present. The live paywall already
+shows one, so this is only a matter of keeping it.
+
+### Then run RevenueCat's own audit
+
+The editor has an AI audit that checks a paywall for problems including "a
+missing restore purchases link". Run it after editing: it is free and it checks
+the artifact rather than the intention, which is the whole lesson of D-107.
+
+### Not verified here
+
+Apple's required elements and the variable names above come from RevenueCat's
+documentation. **How to set the preselected package, and the exact control for
+a Restore button, are not in the documentation** and have to be found in the
+editor UI. Do not take the steps above as a click path.
+
+---
+
 ## Pre-submission checklist
 
 - [x] D-022 resolved; App Privacy answers match reality — **re-verified
