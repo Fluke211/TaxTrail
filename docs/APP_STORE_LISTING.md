@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## The v2 paywall is PUBLISHED at revision 10; revision 11 is a draft
+## The v2 paywall is PUBLISHED at revision 11; revision 12 is a draft
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -707,7 +707,7 @@ app rather than the editor:
   live and eligible. This file had warned not to advertise the trial until it
   was confirmed configured. It is.
 
-### Revision 11 (draft): the close button meets Apple's tap-target minimum
+### Revisions 11 and 12: meeting the guidance is not the same as looking right
 
 Flagged at revision 6 and deliberately deferred then, because buying a line of
 text by shrinking an already undersized control was the wrong trade. With the
@@ -722,6 +722,27 @@ guidance without redesigning a control.
 **Publishing cleared the draft**, so this was built from the PUBLISHED config
 rather than a stale draft. Revision 11 is a draft and the live paywall is still
 revision 10, so **this needs publishing again to reach anyone**.
+
+### Revision 12: the fix that was invisible on purpose
+
+Revision 11 shipped and Tyler said "X still small". He was right, and the
+reason is worth recording, because the change had done exactly what it was
+designed to do.
+
+Apple's 44pt rule is about the **tap target**, not the glyph, and the standard
+way to satisfy it is invisible padding: leave the artwork alone and grow the
+hit area around it. That is what revision 11 did, 28pt glyph inside a 44pt
+circle, and it is a correct reading of the guidance.
+
+**It was the wrong reading of the request.** "The X does look too small" is a
+complaint about appearance, and "we should meet the Apple guidance on that
+size" was the justification for fixing it, not the specification. Satisfying
+the rule while deliberately changing nothing visible answered the citation and
+not the person.
+
+Revision 12 enlarges the glyph itself, 28pt to 36pt, and drops the padding back
+to 4 so the circle stays exactly 44pt. The control still meets the minimum, and
+now it also looks like it does.
 
 ### Creating it attached it to the offering
 
