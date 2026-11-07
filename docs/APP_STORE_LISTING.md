@@ -340,18 +340,49 @@ characters and "TaxTrail Pro Annual" is 19, both inside the limit.
 
 Check both fields, because they are usually set to the same string at creation.
 
-## The third tier: lifetime is a non-consumable, in a different section
+### The display names are already correct
 
-`src/lib/config.ts` names three tiers (monthly $6.99, annual $39.99, lifetime
-$99.99). The lifetime one is a **non-consumable**, so it lives under **In-App
-Purchases** rather than **Subscriptions**, which is how it goes unnoticed.
+"Pro Monthly" and "Pro Annual" need no change. The **subscription group**
+display name was set to **"TaxTrail Pro"** on 2026-08-29, to fix a blocker where
+the group had no localization and the products would not fetch. So a customer
+reads "TaxTrail Pro" and then "Pro Annual" beneath it, which carries the brand
+once rather than twice.
 
-Nothing breaks if it is absent. The paywall renders whatever the offering
-returns, so it would simply show two options, and `DISPLAY_PRICES`, which
-carries the $99.99 string, has exactly one reference in the whole app: its own
-definition. It is dead code and displays nowhere.
+The group's reference name is still "ReceiptSnap Pro" and the product IDs are
+still `receiptsnap_pro_*`. Both are internal, neither is editable in the case of
+the IDs, and no customer sees either. Tyler changed the product reference names
+from RS to TT on 2026-11-07, which needs no review.
 
-**One real inaccuracy if lifetime does not ship.**
+## The third tier: lifetime EXISTS, and D-002 says it ships
+
+Tyler asked whether lifetime had been dropped, remembering a decision to keep
+to monthly and annual. **It was not dropped, and nothing supersedes D-002**,
+which settled "Pro at $6.99/mo, $39.99/yr (7-day trial, highlighted default),
+$99.99 lifetime" on 2026-08-01. Its reasoning: "Lifetime at ~2.5x annual limits
+cannibalization and monetizes ad-averse privacy buyers."
+
+**It already exists and is wired up.** `receiptsnap_pro_lifetime` ($99.99
+non-consumable) was created 2026-08-02, is attached to the RevenueCat `pro`
+entitlement, sits in the `default` offering as `$rc_lifetime`, and all three
+products were verified fetchable and `READY_TO_SUBMIT` on 2026-08-29.
+
+The reason it looks absent is structural: a non-consumable lives under **In-App
+Purchases**, not **Subscriptions**, and this one is deliberately **outside** the
+subscription group. Looking at the Subscriptions section shows two products, and
+that is correct.
+
+**What it has never had is a sandbox test.** The ROADMAP item covering monthly,
+annual and the lifetime unlock is still open, and only monthly and annual are
+confirmed working. That is the one real argument for deferring it, and it is
+cheap to remove rather than live with, because a non-consumable grant is
+permanent and cannot be undone per customer.
+
+If it were ever pulled, nothing would break: the paywall renders whatever the
+offering returns, and `DISPLAY_PRICES`, which carries the $99.99 string, has
+exactly one reference in the whole app, its own definition. It is dead code and
+displays nowhere.
+
+**One real inaccuracy only if lifetime is pulled.**
 `src/components/FallbackPaywall.tsx` ends its auto-renew disclosure with "The
 lifetime option is a one-time purchase and does not renew." That line is inside
 `{anyAutoRenewing && (...)}`, so it renders whenever any auto-renewing package
