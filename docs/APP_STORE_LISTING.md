@@ -148,19 +148,27 @@ Permissions the app requests:
 - Face ID — an optional app lock, off by default and turned on in Settings. It
   unlocks the app on this device only and authenticates against nothing.
 
-Verified 2026-11-07 against `package.json`, `app.json` and the code:
-`expo-image-picker` and `expo-camera` both set `microphonePermission: false`,
-so no microphone key is generated (D-007). The local-network key
-`expo-dev-launcher` adds in development is stripped by a build phase in any
-non-Debug configuration, so it does not ship either (D-044).
-`expo-local-authentication` is a dependency and is used by
-`src/lib/appLockNative.ts`, so the Face ID line above describes a real feature.
-`expo-location` is absent from `package.json` and unreferenced in `src/`, so no
-location key ships and the list is exactly three permissions.
+The app requests no microphone and no location access. If you inspect the
+Info.plist you will find no microphone key and no location key: the camera and
+photo-picker integrations are configured with microphone access disabled, and
+the local-network key that development tooling adds is stripped from any
+non-Debug build.
 
 To test Pro without purchasing, use the sandbox account provided, or note that
 the free tier permits 10 scans per month with full parsing and CSV export.
 ```
+
+**How the permission list was verified, 2026-11-07** (ours, not Apple's. Do not
+paste the decision IDs to a reviewer, which is why they live out here):
+
+- `expo-image-picker` and `expo-camera` both set `microphonePermission: false`,
+  so no microphone key is generated (D-007).
+- The local-network key `expo-dev-launcher` adds in development is stripped by
+  a build phase in any non-Debug configuration (D-044).
+- `expo-local-authentication` is a dependency and is used by
+  `src/lib/appLockNative.ts`, so the Face ID line describes a real feature.
+- `expo-location` is absent from `package.json` and unreferenced in `src/`, so
+  no location key ships. The list is exactly three permissions.
 
 > **Resolved: the block above is now correct for build 7.** This warning used
 > to say that Face ID and Location must stay out of the notes until D-066 was
