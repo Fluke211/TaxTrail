@@ -431,6 +431,436 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
+## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 10)
+
+Built through the v2 API on 2026-11-07, after Tyler chose migration over
+patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
+`published_at: null`.**
+
+| What | State |
+|---|---|
+| Packages | `$rc_annual` (selected by default), `$rc_monthly`, `$rc_lifetime` |
+| Terms of Use | `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` |
+| Privacy Policy | `https://taxtrail.app/privacy` |
+| Auto-renewal disclosure | present, in the sticky footer, ending "Pro Lifetime is a one-time purchase and does not renew" |
+| Restore Purchases | present (the template ships it) |
+| Price with period | `{{ product.price_per_period_abbreviated }}`, plus `{{ product.relative_discount }} OFF` on annual |
+| Title | TaxTrail Pro |
+
+**Three things the generated template got wrong and that had to be fixed**, none
+of which would have been obvious without reading the JSON:
+
+1. **Its Terms and Privacy buttons pointed at `revenuecat.com/terms` and
+   `revenuecat.com/privacy`.** Shipping that is worse than having no links.
+2. **It carried only two packages.** `$rc_lifetime` was absent, so publishing
+   it unaltered would have silently dropped the tier D-002 settled and Tyler
+   had just reconfirmed. Added by cloning the monthly package component, with
+   fresh component ids and its own localizations.
+3. **It was full of "Cat.io" placeholder copy and a stock cat photograph**
+   (`assets.pawwalls.com`). The image was item 0 of an `[image, text, text]`
+   hero block and was removed outright rather than replaced.
+
+The template did get two things right that the legacy paywall had wrong:
+`$rc_annual` already carried `is_selected_by_default: true`, matching D-002,
+and it uses period-bearing price variables.
+
+### Round two, after RevenueCat's AI audit (revision 3)
+
+The audit passed every App Store compliance row, including Auto-Renewal
+Disclosed and Terms & Privacy Accessible, which is the thing D-107 was raised
+about. Its remaining findings were layout and conversion, and these are fixed:
+
+| Audit finding | Fix |
+|---|---|
+| "The Lifetime card is cut off. Three cards side by side don't fit on a 402px phone" | The plan container was `horizontal`. It is `vertical` now, so each plan is a full-width row |
+| "Two near-identical purples" and "the button doesn't stand out" | 20 colour values swapped to the app's own accent, `#2f5ae0` from `theme.ts`, so there is ONE accent and the filled button is the only solid element |
+| "Too many font sizes. There are seven" (eight, in fact) | 34 / 15 / 12 / 16 only. 20 and 17 collapsed to 16, 13 and 11 to 12 |
+| "The subtitle is too loud... and repeats the benefits listed right below it" | One line at 16pt, "For the receipts your tax return depends on.", which says something the feature list does not |
+| "Weak intro-offer subtitle... Our most advanced features, for our most dedicated users" | A leftover Cat.io string missed on the first pass. Now matches the default subtitle |
+| "Repeated price on Monthly. Billed at $9.99/mo. repeats the price shown right above it" | Reads "Cancel anytime." |
+| "The footer hides your benefits" | The legal block is 205 characters, down from 320, still stating auto-renewal, how to cancel and the lifetime exception |
+| "App name mismatch... the screen is named ReceiptSnap" | The paywall's `name` is "TaxTrail Pro" now |
+
+**Two audit findings were NOT acted on, deliberately:**
+
+- **"Apple-only wording. The legal text says Apple ID. That's wrong if this
+  paywall also runs on Android."** It does not. TaxTrail is an iOS app, min iOS
+  15.1, with no Android target, so "Apple ID" is correct and the generic advice
+  does not apply.
+- **iPad and landscape adaptation.** Real, but out of scope for a submission
+  that is about compliance. Worth revisiting if the app is ever promoted for
+  iPad.
+
+**The preview's prices are placeholders.** It rendered $69.99, $9.99 and
+$119.99 with "19% OFF", against the real $39.99, $6.99 and $99.99. RevenueCat's
+documentation says the editor substitutes real prices "as soon as pricing data
+is available", so this is preview behaviour rather than misconfiguration.
+Confirm on device all the same, because the alternative explanation, products
+not fetching, would be serious.
+
+**Attaching an unpublished paywall does not disturb the live one.** Tyler
+confirmed on device that the app still renders the legacy paywall after the
+offering's `paywall_id` was set. That answers the question the previous section
+left open: the legacy paywall keeps serving until the v2 one is published.
+
+The offering's `display_name` is still "ReceiptSnap Default". A PATCH to the
+offerings endpoint returns **405**, so it cannot be renamed through the API. It
+is internal and no customer sees it.
+
+### Round three: the footer was eating the screen (revision 4)
+
+Compliance passed again, on every row. The audit's remaining complaint, which
+Tyler had already spotted himself ("It's covering up the benefits of
+subscribing... those subscribe boxes could probably be shrank"), was that the
+sticky footer took about 60% of the screen and hid two of the five benefits,
+including "Still 100% on device", which is the strongest thing the app has to
+say.
+
+| Change | From | To |
+|---|---|---|
+| Plan card vertical padding | 12 | 8 |
+| Plan card inner spacing | 8 | 3 |
+| Gap between plans | 8 | 6 |
+| Footer spacing | 12 | 8 |
+| Footer top padding | 16 | 10 |
+| Annual resting background | `#f2f2f7ff`, same as the others | `#2f5ae026`, so it reads as recommended BEFORE it is selected |
+| Badge | "{{ product.relative_discount }} OFF" | "SAVE {{ product.relative_discount }}" |
+| Per-month line | 12pt grey, identical to "Cancel anytime" | 12pt semibold in the accent blue |
+| Call to action | "Continue" | "Unlock unlimited scans" |
+
+**The legal block was deliberately NOT moved into the scrolling area**, which
+is what the audit recommended for space. Guideline 3.1.2 wants the disclosure
+on the screen that offers the subscription, and a reviewer who does not scroll
+is exactly the case the rule exists for. Trading a certain compliance position
+for a probable conversion gain is the wrong way round on a submission that is
+already blocked on compliance. The space came out of the cards instead, which
+is where the audit itself said most of it was. If more room is needed later,
+moving it is a conversion decision to take after approval, not before.
+
+**The audit's "the paywall itself is named ReceiptSnap" is stale.** The API
+reports `name: "TaxTrail Pro"` as of revision 3. What is still called
+ReceiptSnap is the OFFERING's `display_name`, which no customer sees and which
+the API will not rename (PATCH returns 405).
+
+Not acted on, again: tablet and foldable layouts, and the free-trial text
+variants that repeat the default wording. Both are real and neither blocks
+submission.
+
+### Round four: reorder beats shrink (revision 5)
+
+Revision 4 surfaced three benefits instead of two. Tyler: "Almost. Still
+blocking some." Benefits four and five were still under the fold.
+
+About 84 more vertical pixels came out: the close-button row's top margin 16 to
+8, the headline 34 to 30, the benefits card's margins 16 to 8 and padding 12 to
+10, each of the five benefit rows 8 to 4, and the plan cards 8 to 6.
+
+**But the change that actually matters is the reorder.** Squeezing pixels to
+reveal a fifth row is a losing race on a small phone; putting the right row
+third is not. "Still 100% on device" was written fifth and is the strongest
+thing this product can say, so it is third now:
+
+1. Unlimited receipt scans
+2. Every export format
+3. **Still 100% on device**
+4. Full archive, images included
+5. 29 categories, real IRS lines
+
+The two that can still fall below the fold are the two that cost least when
+they do. The ordering question had been sitting underneath the layout question
+for three rounds, and no amount of padding would have answered it.
+
+### Round five, and where the tuning stops (revision 6)
+
+All five benefit titles were visible; only the fifth description wrapped below
+the fold. Tyler asked for the white space above the title to be used: "Just
+shift everything up, right?"
+
+Not quite, and the reason is worth recording. That gap is **the close-button
+row's own height**, not padding. The row is a vertical stack aligned trailing,
+so the X sits right while the rest of the row stays empty, and a vertical stack
+cannot put the headline alongside it. Only the 8px margin above the row was
+actually free.
+
+So: close-row top margin 8 to 0, benefits card top margin 8 to 6, and the fifth
+description from 63 characters to 44, "Schedule C, Schedule A, 8829, 4562 and
+COGS.", which is one line instead of two.
+
+**The close button was deliberately NOT shrunk.** Its icon is 28px with 4px of
+padding, about a 36px tap target, already under Apple's 44pt guidance. Buying a
+line of text by making an undersized control smaller is the wrong trade. It is
+worth ENLARGING after launch, which costs vertical space, so it is a post-
+approval item rather than a pre-submission one.
+
+**This is where the tuning should stop.** Five rounds in, every compliance row
+passes, all five benefit titles are visible and the ordering puts the privacy
+line third. Further rounds trade real time against diminishing returns on a
+screen that is already approvable.
+
+### The final copy (revision 7)
+
+Tyler shortened the fourth description himself, from "Every receipt photo
+beside the data, the copies the IRS expects." to "Every receipt photo the IRS
+expects.", 64 characters to 36. Nothing is lost: "beside the data" was already
+carried by the title above it, "Full archive, images included".
+
+The five benefits as they now stand, every description on one line:
+
+| | Title | Description |
+|---|---|---|
+| 1 | Unlimited receipt scans | No monthly cap. Scan every receipt you get. |
+| 2 | Every export format | Excel, TXF for tax software, and QuickBooks Online. |
+| 3 | **Still 100% on device** | No account, no cloud, no trackers. Ever. |
+| 4 | Full archive, images included | Every receipt photo the IRS expects. |
+| 5 | 29 categories, real IRS lines | Schedule C, Schedule A, 8829, 4562 and COGS. |
+
+Compliance re-verified after seven rounds of edits: the disclosure is present,
+Terms points at Apple's standard EULA, Privacy at `taxtrail.app/privacy`, and
+all three packages are attached.
+
+### The plan cards: two rows, not three (revision 8)
+
+Tyler asked whether the blank middle of each plan card could be used, or
+whether that is "a pretty standard look we shouldn't mess with". Both, as it
+turned out.
+
+The card was already a horizontal row: a text column on the left and the radio
+on the right, with `space_between` pushing them apart, so the gap in the middle
+is inherent to that arrangement rather than wasted padding. But the PRICE did
+not have to sit under the title. Moving it into that gap, right-aligned beside
+the radio, is a standard plan-picker pattern and turns each card from three
+rows into two.
+
+Before and after, per card:
+
+    Annual                        Annual                  $69.99/yr  (o)
+    $69.99/yr          ->         Only $5.83/mo
+    Only $5.83/mo
+
+That is roughly 18px a card, 54px over the three, which is where the whitespace
+under the benefits box comes from: the sticky footer shrinks, so the scrolling
+area above it grows.
+
+Checked afterwards, because a restructure can silently drop things a text diff
+would not show: the annual badge survives on annual and does not appear on the
+other two, all three prices are still bound to their variables, and the
+disclosure and all three packages are intact.
+
+### Revisions 9 and 10: two goes at one layout rule
+
+Moving the price beside the radio in revision 8 introduced a defect and
+overshot the space it was meant to free. Both are fixed.
+
+**The prices did not line up.** Each price was `width: fit` and sat as the
+MIDDLE child of a `space_between` row, so its position was decided by its own
+text width and the width of the title column beside it. Three different
+titles and three different prices therefore produced three different
+positions, visibly ragged. The price is `width: fill` now, with
+`horizontal_alignment: trailing`, so each one expands into the leftover space
+and renders hard against the same right edge, just inside the radio. Identical
+on all three cards, checked rather than assumed.
+
+That is the risk of a restructure that cannot be previewed: the markup was
+correct, the layout rule was not, and only looking at it showed the difference.
+
+**And it freed more room than was wanted.** The gap under the benefits box went
+from too little to too much. About 30 of the 54 reclaimed pixels are given back
+(benefit rows 4 to 6, benefits card padding 10 to 12, plan cards 6 to 7), which
+leaves a deliberate gap rather than closing it: a little whitespace under that
+box is what was asked for in the first place.
+
+### Revision 10: the fix that broke the other column
+
+Revision 9 aligned the prices by giving each one `width: fill`. It worked, and
+it introduced the opposite defect: a `fill` child claims all the slack in the
+row, so the title column was squeezed to its minimum and its second line
+wrapped. "Only $5.83/mo" became "Only / $5.83/mo", "Cancel anytime." became
+"Cancel / anytime.", and the lifetime line took two lines as well. The cards
+grew instead of shrinking.
+
+**Only one child of that row can take the slack**, and it should be the column
+with the long text, not the price. So it is inverted: the LEFT column is `fill`
+and the price is back to `fit` with trailing alignment. The column absorbs the
+variance, the price keeps its natural width, and because the column always
+ends at the same place the price still lands hard against the radio on every
+card. Both properties at once, where revision 9 traded one for the other.
+
+Three attempts at one row (8, 9, 10), each correct about the thing it was
+aiming at and wrong about what it displaced. That is the cost of editing a
+layout that cannot be previewed from here, and it is the practical shape of
+what D-107 states as a principle.
+
+### Creating it attached it to the offering
+
+`POST /paywalls` requires `offering_id`, and the offering's `paywall_id` went
+from `null` to `pw582c296e2dea4c0b` immediately, while `published_at` stayed
+null. **What the app serves in that state was not verified from here** and has
+to be checked on the device. If the paywall fails to load, `FallbackPaywall`
+renders, and that one is compliant, so the downside is cosmetic rather than a
+rejection risk.
+
+### What was NOT done, deliberately
+
+**It is not published.** Publishing is outward-facing and the whole lesson of
+D-107 is that a remote-configured screen has to be judged by looking at the
+artifact. This draft was assembled from JSON by something that cannot see it
+render, so it must be previewed in the dashboard, run through RevenueCat's AI
+audit, and published by a person. The screenshot for App Review has to be
+retaken afterwards, because the current one shows the legacy paywall.
+
+---
+
+## RevenueCat paywall: what to put in the editor (D-107)
+
+**This paywall is a LEGACY (v1) paywall.** Established against the API on
+2026-11-07, not inferred:
+
+    GET /v2/projects/proj63a7fa32/paywalls            -> 0 items
+    GET /v2/projects/proj63a7fa32/offerings/ofrng6092a617e4
+                                                      -> paywall_id: null
+
+and yet the app renders a RevenueCat paywall, which is not `FallbackPaywall`
+(that one has a subtitle, legal text, Terms and Privacy links and a "Not now"
+button, and renders no app icon). So a paywall exists and the v2 API cannot see
+it, which is what a legacy paywall looks like from v2.
+
+**Consequences, both of which bite:**
+
+1. **The v2 variable names do not work here.** v2 writes
+   `{{ product.price_per_period }}`; v1 writes `{{ price_per_period }}` with no
+   prefix. A v2 name on a v1 paywall renders as literal text on a live screen.
+2. **A legacy paywall has no Footer component.** v2 has a `sticky_footer`,
+   which is exactly where the auto-renewal disclosure and the Terms and Privacy
+   links belong. On v1 the configurable fields are Title, Subtitle, Package
+   details, Package details for an introductory offer, Call to action, and Call
+   to action for an introductory offer. The disclosure has to be squeezed into
+   one of those.
+
+The offering is `ofrng6092a617e4` (`default`, display name still "ReceiptSnap
+Default", internal only) and it carries all three packages: `$rc_annual`,
+`$rc_monthly`, `$rc_lifetime`. So lifetime is live in the offering, which the
+paywall screenshot confirms.
+
+### Legacy (v1) variable names, if the legacy paywall is kept
+
+| Need | v1 variable |
+|---|---|
+| Price with its period | `{{ price_per_period }}` or `{{ price_per_period_full }}` |
+| Full billed amount plus monthly equivalent | `{{ total_price_and_per_month }}` |
+| Saving against the monthly plan | `{{ sub_relative_discount }}`, which computes it rather than hardcoding 52% |
+| Trial length | `{{ sub_offer_duration }}` |
+| Trial price | `{{ sub_offer_price }}` |
+
+Terms and Privacy on a legacy paywall: the documentation says components such
+as "Terms of Service" and "Privacy Policy" are localized automatically, and the
+only documented way to put a link in a string is Markdown,
+`[Terms of Use](https://...)`. It does not confirm Markdown is the right
+mechanism for the legal links, so that needs checking in the editor.
+
+### The v2 content below is kept for a migration
+
+Everything from here down assumes v2 and does NOT apply to the paywall as it
+stands today.
+
+### Title and subtitle
+
+    TaxTrail Pro
+
+    Unlimited scans, plus Excel, TXF and QuickBooks exports.
+    Everything still stays on your device.
+
+That subtitle is lifted from `FallbackPaywall.tsx`, which has always had a
+reason to buy where the live template has none. The second sentence is the
+differentiator and should not be cut.
+
+### Feature list (a v2 component)
+
+    Unlimited receipt scans
+    Excel, TXF and QuickBooks Online exports
+    Full archive, every receipt image included
+    Still 100% on device. No account, no cloud
+
+### Package rows: use a variable, not a typed price
+
+The rows currently read "$6.99", which states no period and is the 3.1.2
+failure. RevenueCat's own App Review guidance says to use
+`{{ product.price_per_period }}` or `{{ product.price_per_period_abbreviated }}`,
+and warns that `product.price_per_month` or `product.price` alone "may not
+satisfy this requirement".
+
+| Row | Price field |
+|---|---|
+| Pro Monthly | `{{ product.price_per_period }}` renders `$6.99/month` |
+| Pro Annual | `{{ product.price_per_period }}` renders `$39.99/year` |
+| Pro Lifetime | `{{ product.price }}`. Period variables return "lifetime" for a non-consumable, so a period reads oddly here |
+
+### Preselect ANNUAL, and badge it
+
+D-002 made annual the "highlighted default" and the template preselects
+monthly, which steers buyers to the lower-value plan. Set annual as the
+selected package in the Package component.
+
+Badge it **Save 52%**, which is arithmetic, not marketing: $39.99 against
+12 x $6.99 = $83.88 is a 52.3% saving. A "$3.33 a month, billed annually" line
+is also true and reads well, but the **full billed amount must still appear**,
+because RevenueCat's guidance is explicit that a normalized monthly price alone
+is not enough.
+
+### The free trial: VERIFY IT EXISTS BEFORE ADVERTISING IT
+
+D-002 specifies a 7-day trial on annual, and the ROADMAP records
+`receiptsnap_pro_annual` as having one. The live paywall never mentions it.
+**Confirm the introductory offer is actually configured on the annual product
+in App Store Connect before putting it on the paywall**: offer variables fall
+back to ordinary pricing when there is no offer or the customer is not
+eligible, so a trial advertised but not configured is a false claim on the
+offer screen, which is worse than not mentioning it.
+
+If it is configured, use `{{ product.offer_price }}` and
+`{{ product.offer_period }}`, and a call to action of "Start 7 days free".
+
+### The Footer: this is the part that fixes the rejection
+
+Add a **Footer** component, "a configurable portion at the bottom of the screen
+whose position can be fixed", holding the disclosure text and the links.
+
+Disclosure text, adapted from `FallbackPaywall.tsx` and keeping "Cancel
+anytime", which RevenueCat's App Review page names specifically:
+
+    Subscriptions renew automatically unless auto-renew is turned off at least
+    24 hours before the end of the current period. Your account is charged for
+    renewal within 24 hours of the end of the current period. Cancel anytime in
+    your Apple ID settings. Pro Lifetime is a one-time purchase and does not
+    renew.
+
+Links, using **Button** components. The documentation describes a Button as
+used for "a link to your Privacy Policy" but gives no setup steps, so the exact
+control has to be found in the editor. These are the project's canonical URLs,
+already in `FallbackPaywall.tsx`:
+
+| Link | URL |
+|---|---|
+| Terms of Use | `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` |
+| Privacy Policy | `https://taxtrail.app/privacy` |
+
+A **Restore Purchases** control must also be present. The live paywall already
+shows one, so this is only a matter of keeping it.
+
+### Then run RevenueCat's own audit
+
+The editor has an AI audit that checks a paywall for problems including "a
+missing restore purchases link". Run it after editing: it is free and it checks
+the artifact rather than the intention, which is the whole lesson of D-107.
+
+### Not verified here
+
+Apple's required elements and the variable names above come from RevenueCat's
+documentation. **How to set the preselected package, and the exact control for
+a Restore button, are not in the documentation** and have to be found in the
+editor UI. Do not take the steps above as a click path.
+
+---
+
 ## Pre-submission checklist
 
 - [x] D-022 resolved; App Privacy answers match reality — **re-verified
