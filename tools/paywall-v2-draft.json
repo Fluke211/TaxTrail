@@ -146,7 +146,7 @@
       "margin": {
        "bottom": 0,
        "leading": 0,
-       "top": 16,
+       "top": 8,
        "trailing": 0
       },
       "name": "Header row",
@@ -194,7 +194,7 @@
          }
         },
         "font_name": null,
-        "font_size": 34,
+        "font_size": 30,
         "font_weight": "bold",
         "horizontal_alignment": "leading",
         "id": "it0KCz_SPx",
@@ -524,9 +524,9 @@
         },
         "name": "Feature #1",
         "padding": {
-         "bottom": 8,
+         "bottom": 4,
          "leading": 0,
-         "top": 8,
+         "top": 4,
          "trailing": 0
         },
         "shadow": null,
@@ -742,445 +742,9 @@
         },
         "name": "Feature #2",
         "padding": {
-         "bottom": 8,
+         "bottom": 4,
          "leading": 0,
-         "top": 8,
-         "trailing": 0
-        },
-        "shadow": null,
-        "shape": {
-         "corners": {
-          "bottom_leading": 0,
-          "bottom_trailing": 0,
-          "top_leading": 0,
-          "top_trailing": 0
-         },
-         "type": "rectangle"
-        },
-        "size": {
-         "height": {
-          "type": "fit",
-          "value": null
-         },
-         "width": {
-          "type": "fill",
-          "value": null
-         }
-        },
-        "spacing": 8,
-        "type": "stack"
-       },
-       {
-        "background": null,
-        "background_color": null,
-        "badge": null,
-        "border": null,
-        "components": [
-         {
-          "base_url": "https://icons.pawwalls.com/icons",
-          "color": {
-           "light": {
-            "type": "hex",
-            "value": "#2f5ae0ff"
-           }
-          },
-          "formats": {
-           "heic": "check.heic",
-           "png": "check.png",
-           "svg": "check.svg",
-           "webp": "check.webp"
-          },
-          "icon_background": null,
-          "icon_name": "check",
-          "id": "uTFPudRImc",
-          "margin": {
-           "bottom": 0,
-           "leading": 0,
-           "top": 0,
-           "trailing": 0
-          },
-          "name": "",
-          "padding": {
-           "bottom": 0,
-           "leading": 0,
-           "top": 0,
-           "trailing": 0
-          },
-          "size": {
-           "height": {
-            "type": "fixed",
-            "value": 24
-           },
-           "width": {
-            "type": "fixed",
-            "value": 24
-           }
-          },
-          "type": "icon"
-         },
-         {
-          "background": null,
-          "background_color": null,
-          "badge": null,
-          "border": null,
-          "components": [
-           {
-            "background_color": null,
-            "color": {
-             "light": {
-              "type": "hex",
-              "value": "#000000"
-             }
-            },
-            "font_name": null,
-            "font_size": 15,
-            "font_weight": "semibold",
-            "horizontal_alignment": "leading",
-            "id": "gcOBJ-R8cK",
-            "margin": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "name": "",
-            "padding": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "size": {
-             "height": {
-              "type": "fit",
-              "value": null
-             },
-             "width": {
-              "type": "fit",
-              "value": null
-             }
-            },
-            "text_lid": "wNFWVHWeDA",
-            "type": "text"
-           },
-           {
-            "background_color": null,
-            "color": {
-             "light": {
-              "type": "hex",
-              "value": "#3c334399"
-             }
-            },
-            "font_name": null,
-            "font_size": 12,
-            "font_weight": "regular",
-            "horizontal_alignment": "leading",
-            "id": "n6rLrcuymA",
-            "margin": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "name": "",
-            "padding": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "size": {
-             "height": {
-              "type": "fit",
-              "value": null
-             },
-             "width": {
-              "type": "fit",
-              "value": null
-             }
-            },
-            "text_lid": "2V3GETNpev",
-            "type": "text"
-           }
-          ],
-          "dimension": {
-           "alignment": "leading",
-           "distribution": "start",
-           "type": "vertical"
-          },
-          "id": "onP6McGgLR",
-          "margin": {
-           "bottom": 0,
-           "leading": 0,
-           "top": 0,
-           "trailing": 0
-          },
-          "name": "Copy",
-          "padding": {
-           "bottom": 0,
-           "leading": 0,
-           "top": 0,
-           "trailing": 0
-          },
-          "shadow": null,
-          "shape": {
-           "corners": {
-            "bottom_leading": 0,
-            "bottom_trailing": 0,
-            "top_leading": 0,
-            "top_trailing": 0
-           },
-           "type": "rectangle"
-          },
-          "size": {
-           "height": {
-            "type": "fit",
-            "value": null
-           },
-           "width": {
-            "type": "fill",
-            "value": null
-           }
-          },
-          "spacing": 1,
-          "type": "stack"
-         }
-        ],
-        "dimension": {
-         "alignment": "top",
-         "distribution": "space_between",
-         "type": "horizontal"
-        },
-        "id": "2WQl0UvIV_",
-        "margin": {
-         "bottom": 0,
-         "leading": 0,
-         "top": 0,
-         "trailing": 0
-        },
-        "name": "Feature #3",
-        "padding": {
-         "bottom": 8,
-         "leading": 0,
-         "top": 8,
-         "trailing": 0
-        },
-        "shadow": null,
-        "shape": {
-         "corners": {
-          "bottom_leading": 0,
-          "bottom_trailing": 0,
-          "top_leading": 0,
-          "top_trailing": 0
-         },
-         "type": "rectangle"
-        },
-        "size": {
-         "height": {
-          "type": "fit",
-          "value": null
-         },
-         "width": {
-          "type": "fill",
-          "value": null
-         }
-        },
-        "spacing": 8,
-        "type": "stack"
-       },
-       {
-        "background": null,
-        "background_color": null,
-        "badge": null,
-        "border": null,
-        "components": [
-         {
-          "base_url": "https://icons.pawwalls.com/icons",
-          "color": {
-           "light": {
-            "type": "hex",
-            "value": "#2f5ae0ff"
-           }
-          },
-          "formats": {
-           "heic": "check.heic",
-           "png": "check.png",
-           "svg": "check.svg",
-           "webp": "check.webp"
-          },
-          "icon_background": null,
-          "icon_name": "check",
-          "id": "0AyN5iIMkf",
-          "margin": {
-           "bottom": 0,
-           "leading": 0,
-           "top": 0,
-           "trailing": 0
-          },
-          "name": "",
-          "padding": {
-           "bottom": 0,
-           "leading": 0,
-           "top": 0,
-           "trailing": 0
-          },
-          "size": {
-           "height": {
-            "type": "fixed",
-            "value": 24
-           },
-           "width": {
-            "type": "fixed",
-            "value": 24
-           }
-          },
-          "type": "icon"
-         },
-         {
-          "background": null,
-          "background_color": null,
-          "badge": null,
-          "border": null,
-          "components": [
-           {
-            "background_color": null,
-            "color": {
-             "light": {
-              "type": "hex",
-              "value": "#000000"
-             }
-            },
-            "font_name": null,
-            "font_size": 15,
-            "font_weight": "semibold",
-            "horizontal_alignment": "leading",
-            "id": "gPwYTmBjlY",
-            "margin": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "name": "",
-            "padding": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "size": {
-             "height": {
-              "type": "fit",
-              "value": null
-             },
-             "width": {
-              "type": "fit",
-              "value": null
-             }
-            },
-            "text_lid": "4k0DT8hDjb",
-            "type": "text"
-           },
-           {
-            "background_color": null,
-            "color": {
-             "light": {
-              "type": "hex",
-              "value": "#3c334399"
-             }
-            },
-            "font_name": null,
-            "font_size": 12,
-            "font_weight": "regular",
-            "horizontal_alignment": "leading",
-            "id": "wiDq9CrdrG",
-            "margin": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "name": "",
-            "padding": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "size": {
-             "height": {
-              "type": "fit",
-              "value": null
-             },
-             "width": {
-              "type": "fit",
-              "value": null
-             }
-            },
-            "text_lid": "NPUSkqLXO9",
-            "type": "text"
-           }
-          ],
-          "dimension": {
-           "alignment": "leading",
-           "distribution": "start",
-           "type": "vertical"
-          },
-          "id": "Oqc6FOdmqA",
-          "margin": {
-           "bottom": 0,
-           "leading": 0,
-           "top": 0,
-           "trailing": 0
-          },
-          "name": "Copy",
-          "padding": {
-           "bottom": 0,
-           "leading": 0,
-           "top": 0,
-           "trailing": 0
-          },
-          "shadow": null,
-          "shape": {
-           "corners": {
-            "bottom_leading": 0,
-            "bottom_trailing": 0,
-            "top_leading": 0,
-            "top_trailing": 0
-           },
-           "type": "rectangle"
-          },
-          "size": {
-           "height": {
-            "type": "fit",
-            "value": null
-           },
-           "width": {
-            "type": "fill",
-            "value": null
-           }
-          },
-          "spacing": 1,
-          "type": "stack"
-         }
-        ],
-        "dimension": {
-         "alignment": "top",
-         "distribution": "space_between",
-         "type": "horizontal"
-        },
-        "id": "XkSjvzzEj0",
-        "margin": {
-         "bottom": 0,
-         "leading": 0,
-         "top": 0,
-         "trailing": 0
-        },
-        "name": "Feature #4",
-        "padding": {
-         "bottom": 8,
-         "leading": 0,
-         "top": 8,
+         "top": 4,
          "trailing": 0
         },
         "shadow": null,
@@ -1396,9 +960,445 @@
         },
         "name": "Feature #5",
         "padding": {
-         "bottom": 8,
+         "bottom": 4,
          "leading": 0,
-         "top": 8,
+         "top": 4,
+         "trailing": 0
+        },
+        "shadow": null,
+        "shape": {
+         "corners": {
+          "bottom_leading": 0,
+          "bottom_trailing": 0,
+          "top_leading": 0,
+          "top_trailing": 0
+         },
+         "type": "rectangle"
+        },
+        "size": {
+         "height": {
+          "type": "fit",
+          "value": null
+         },
+         "width": {
+          "type": "fill",
+          "value": null
+         }
+        },
+        "spacing": 8,
+        "type": "stack"
+       },
+       {
+        "background": null,
+        "background_color": null,
+        "badge": null,
+        "border": null,
+        "components": [
+         {
+          "base_url": "https://icons.pawwalls.com/icons",
+          "color": {
+           "light": {
+            "type": "hex",
+            "value": "#2f5ae0ff"
+           }
+          },
+          "formats": {
+           "heic": "check.heic",
+           "png": "check.png",
+           "svg": "check.svg",
+           "webp": "check.webp"
+          },
+          "icon_background": null,
+          "icon_name": "check",
+          "id": "uTFPudRImc",
+          "margin": {
+           "bottom": 0,
+           "leading": 0,
+           "top": 0,
+           "trailing": 0
+          },
+          "name": "",
+          "padding": {
+           "bottom": 0,
+           "leading": 0,
+           "top": 0,
+           "trailing": 0
+          },
+          "size": {
+           "height": {
+            "type": "fixed",
+            "value": 24
+           },
+           "width": {
+            "type": "fixed",
+            "value": 24
+           }
+          },
+          "type": "icon"
+         },
+         {
+          "background": null,
+          "background_color": null,
+          "badge": null,
+          "border": null,
+          "components": [
+           {
+            "background_color": null,
+            "color": {
+             "light": {
+              "type": "hex",
+              "value": "#000000"
+             }
+            },
+            "font_name": null,
+            "font_size": 15,
+            "font_weight": "semibold",
+            "horizontal_alignment": "leading",
+            "id": "gcOBJ-R8cK",
+            "margin": {
+             "bottom": 0,
+             "leading": 0,
+             "top": 0,
+             "trailing": 0
+            },
+            "name": "",
+            "padding": {
+             "bottom": 0,
+             "leading": 0,
+             "top": 0,
+             "trailing": 0
+            },
+            "size": {
+             "height": {
+              "type": "fit",
+              "value": null
+             },
+             "width": {
+              "type": "fit",
+              "value": null
+             }
+            },
+            "text_lid": "wNFWVHWeDA",
+            "type": "text"
+           },
+           {
+            "background_color": null,
+            "color": {
+             "light": {
+              "type": "hex",
+              "value": "#3c334399"
+             }
+            },
+            "font_name": null,
+            "font_size": 12,
+            "font_weight": "regular",
+            "horizontal_alignment": "leading",
+            "id": "n6rLrcuymA",
+            "margin": {
+             "bottom": 0,
+             "leading": 0,
+             "top": 0,
+             "trailing": 0
+            },
+            "name": "",
+            "padding": {
+             "bottom": 0,
+             "leading": 0,
+             "top": 0,
+             "trailing": 0
+            },
+            "size": {
+             "height": {
+              "type": "fit",
+              "value": null
+             },
+             "width": {
+              "type": "fit",
+              "value": null
+             }
+            },
+            "text_lid": "2V3GETNpev",
+            "type": "text"
+           }
+          ],
+          "dimension": {
+           "alignment": "leading",
+           "distribution": "start",
+           "type": "vertical"
+          },
+          "id": "onP6McGgLR",
+          "margin": {
+           "bottom": 0,
+           "leading": 0,
+           "top": 0,
+           "trailing": 0
+          },
+          "name": "Copy",
+          "padding": {
+           "bottom": 0,
+           "leading": 0,
+           "top": 0,
+           "trailing": 0
+          },
+          "shadow": null,
+          "shape": {
+           "corners": {
+            "bottom_leading": 0,
+            "bottom_trailing": 0,
+            "top_leading": 0,
+            "top_trailing": 0
+           },
+           "type": "rectangle"
+          },
+          "size": {
+           "height": {
+            "type": "fit",
+            "value": null
+           },
+           "width": {
+            "type": "fill",
+            "value": null
+           }
+          },
+          "spacing": 1,
+          "type": "stack"
+         }
+        ],
+        "dimension": {
+         "alignment": "top",
+         "distribution": "space_between",
+         "type": "horizontal"
+        },
+        "id": "2WQl0UvIV_",
+        "margin": {
+         "bottom": 0,
+         "leading": 0,
+         "top": 0,
+         "trailing": 0
+        },
+        "name": "Feature #3",
+        "padding": {
+         "bottom": 4,
+         "leading": 0,
+         "top": 4,
+         "trailing": 0
+        },
+        "shadow": null,
+        "shape": {
+         "corners": {
+          "bottom_leading": 0,
+          "bottom_trailing": 0,
+          "top_leading": 0,
+          "top_trailing": 0
+         },
+         "type": "rectangle"
+        },
+        "size": {
+         "height": {
+          "type": "fit",
+          "value": null
+         },
+         "width": {
+          "type": "fill",
+          "value": null
+         }
+        },
+        "spacing": 8,
+        "type": "stack"
+       },
+       {
+        "background": null,
+        "background_color": null,
+        "badge": null,
+        "border": null,
+        "components": [
+         {
+          "base_url": "https://icons.pawwalls.com/icons",
+          "color": {
+           "light": {
+            "type": "hex",
+            "value": "#2f5ae0ff"
+           }
+          },
+          "formats": {
+           "heic": "check.heic",
+           "png": "check.png",
+           "svg": "check.svg",
+           "webp": "check.webp"
+          },
+          "icon_background": null,
+          "icon_name": "check",
+          "id": "0AyN5iIMkf",
+          "margin": {
+           "bottom": 0,
+           "leading": 0,
+           "top": 0,
+           "trailing": 0
+          },
+          "name": "",
+          "padding": {
+           "bottom": 0,
+           "leading": 0,
+           "top": 0,
+           "trailing": 0
+          },
+          "size": {
+           "height": {
+            "type": "fixed",
+            "value": 24
+           },
+           "width": {
+            "type": "fixed",
+            "value": 24
+           }
+          },
+          "type": "icon"
+         },
+         {
+          "background": null,
+          "background_color": null,
+          "badge": null,
+          "border": null,
+          "components": [
+           {
+            "background_color": null,
+            "color": {
+             "light": {
+              "type": "hex",
+              "value": "#000000"
+             }
+            },
+            "font_name": null,
+            "font_size": 15,
+            "font_weight": "semibold",
+            "horizontal_alignment": "leading",
+            "id": "gPwYTmBjlY",
+            "margin": {
+             "bottom": 0,
+             "leading": 0,
+             "top": 0,
+             "trailing": 0
+            },
+            "name": "",
+            "padding": {
+             "bottom": 0,
+             "leading": 0,
+             "top": 0,
+             "trailing": 0
+            },
+            "size": {
+             "height": {
+              "type": "fit",
+              "value": null
+             },
+             "width": {
+              "type": "fit",
+              "value": null
+             }
+            },
+            "text_lid": "4k0DT8hDjb",
+            "type": "text"
+           },
+           {
+            "background_color": null,
+            "color": {
+             "light": {
+              "type": "hex",
+              "value": "#3c334399"
+             }
+            },
+            "font_name": null,
+            "font_size": 12,
+            "font_weight": "regular",
+            "horizontal_alignment": "leading",
+            "id": "wiDq9CrdrG",
+            "margin": {
+             "bottom": 0,
+             "leading": 0,
+             "top": 0,
+             "trailing": 0
+            },
+            "name": "",
+            "padding": {
+             "bottom": 0,
+             "leading": 0,
+             "top": 0,
+             "trailing": 0
+            },
+            "size": {
+             "height": {
+              "type": "fit",
+              "value": null
+             },
+             "width": {
+              "type": "fit",
+              "value": null
+             }
+            },
+            "text_lid": "NPUSkqLXO9",
+            "type": "text"
+           }
+          ],
+          "dimension": {
+           "alignment": "leading",
+           "distribution": "start",
+           "type": "vertical"
+          },
+          "id": "Oqc6FOdmqA",
+          "margin": {
+           "bottom": 0,
+           "leading": 0,
+           "top": 0,
+           "trailing": 0
+          },
+          "name": "Copy",
+          "padding": {
+           "bottom": 0,
+           "leading": 0,
+           "top": 0,
+           "trailing": 0
+          },
+          "shadow": null,
+          "shape": {
+           "corners": {
+            "bottom_leading": 0,
+            "bottom_trailing": 0,
+            "top_leading": 0,
+            "top_trailing": 0
+           },
+           "type": "rectangle"
+          },
+          "size": {
+           "height": {
+            "type": "fit",
+            "value": null
+           },
+           "width": {
+            "type": "fill",
+            "value": null
+           }
+          },
+          "spacing": 1,
+          "type": "stack"
+         }
+        ],
+        "dimension": {
+         "alignment": "top",
+         "distribution": "space_between",
+         "type": "horizontal"
+        },
+        "id": "XkSjvzzEj0",
+        "margin": {
+         "bottom": 0,
+         "leading": 0,
+         "top": 0,
+         "trailing": 0
+        },
+        "name": "Feature #4",
+        "padding": {
+         "bottom": 4,
+         "leading": 0,
+         "top": 4,
          "trailing": 0
         },
         "shadow": null,
@@ -1432,16 +1432,16 @@
       },
       "id": "_wzQIJGmD7",
       "margin": {
-       "bottom": 16,
+       "bottom": 8,
        "leading": 4,
-       "top": 16,
+       "top": 8,
        "trailing": 4
       },
       "name": "Feature list",
       "padding": {
-       "bottom": 12,
+       "bottom": 10,
        "leading": 24,
-       "top": 12,
+       "top": 10,
        "trailing": 24
       },
       "shadow": null,
@@ -2079,9 +2079,9 @@
            }
           ],
           "padding": {
-           "bottom": 8,
+           "bottom": 6,
            "leading": 12,
-           "top": 8,
+           "top": 6,
            "trailing": 12
           },
           "shadow": null,
@@ -2548,9 +2548,9 @@
            }
           ],
           "padding": {
-           "bottom": 8,
+           "bottom": 6,
            "leading": 12,
-           "top": 8,
+           "top": 6,
            "trailing": 12
           },
           "shadow": null,
@@ -3017,9 +3017,9 @@
            }
           ],
           "padding": {
-           "bottom": 8,
+           "bottom": 6,
            "leading": 12,
-           "top": 8,
+           "top": 6,
            "trailing": 12
           },
           "shadow": null,
@@ -3688,5 +3688,5 @@
  "name": "TaxTrail Pro",
  "offering_id": "ofrng6092a617e4",
  "paywall_id": "pw582c296e2dea4c0b",
- "revision": 4
+ "revision": 5
 }

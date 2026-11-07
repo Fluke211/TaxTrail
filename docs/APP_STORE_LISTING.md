@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 4)
+## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 5)
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -545,6 +545,30 @@ the API will not rename (PATCH returns 405).
 Not acted on, again: tablet and foldable layouts, and the free-trial text
 variants that repeat the default wording. Both are real and neither blocks
 submission.
+
+### Round four: reorder beats shrink (revision 5)
+
+Revision 4 surfaced three benefits instead of two. Tyler: "Almost. Still
+blocking some." Benefits four and five were still under the fold.
+
+About 84 more vertical pixels came out: the close-button row's top margin 16 to
+8, the headline 34 to 30, the benefits card's margins 16 to 8 and padding 12 to
+10, each of the five benefit rows 8 to 4, and the plan cards 8 to 6.
+
+**But the change that actually matters is the reorder.** Squeezing pixels to
+reveal a fifth row is a losing race on a small phone; putting the right row
+third is not. "Still 100% on device" was written fifth and is the strongest
+thing this product can say, so it is third now:
+
+1. Unlimited receipt scans
+2. Every export format
+3. **Still 100% on device**
+4. Full archive, images included
+5. 29 categories, real IRS lines
+
+The two that can still fall below the fold are the two that cost least when
+they do. The ordering question had been sitting underneath the layout question
+for three rounds, and no amount of padding would have answered it.
 
 ### Creating it attached it to the offering
 
