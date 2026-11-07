@@ -146,7 +146,7 @@
       "margin": {
        "bottom": 0,
        "leading": 0,
-       "top": 8,
+       "top": 0,
        "trailing": 0
       },
       "name": "Header row",
@@ -1434,7 +1434,7 @@
       "margin": {
        "bottom": 8,
        "leading": 4,
-       "top": 8,
+       "top": 6,
        "trailing": 4
       },
       "name": "Feature list",
@@ -3661,7 +3661,7 @@
    "FB8Ij4dWgS": "Unlock unlimited scans",
    "H-ro-nGg8k": "Cancel anytime.",
    "J2crP5pQqO": "For the receipts your tax return depends on.",
-   "NPUSkqLXO9": "Schedule C, Schedule A, Form 8829, 4562 and cost of goods sold.",
+   "NPUSkqLXO9": "Schedule C, Schedule A, 8829, 4562 and COGS.",
    "OBIvM9QN7X": "Restore Purchases",
    "Tb96zGkKSL": "Every export format",
    "VFL_T8xgne": "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
@@ -3688,5 +3688,5 @@
  "name": "TaxTrail Pro",
  "offering_id": "ofrng6092a617e4",
  "paywall_id": "pw582c296e2dea4c0b",
- "revision": 5
+ "revision": 6
 }

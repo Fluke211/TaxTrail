@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 5)
+## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 6)
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -569,6 +569,33 @@ thing this product can say, so it is third now:
 The two that can still fall below the fold are the two that cost least when
 they do. The ordering question had been sitting underneath the layout question
 for three rounds, and no amount of padding would have answered it.
+
+### Round five, and where the tuning stops (revision 6)
+
+All five benefit titles were visible; only the fifth description wrapped below
+the fold. Tyler asked for the white space above the title to be used: "Just
+shift everything up, right?"
+
+Not quite, and the reason is worth recording. That gap is **the close-button
+row's own height**, not padding. The row is a vertical stack aligned trailing,
+so the X sits right while the rest of the row stays empty, and a vertical stack
+cannot put the headline alongside it. Only the 8px margin above the row was
+actually free.
+
+So: close-row top margin 8 to 0, benefits card top margin 8 to 6, and the fifth
+description from 63 characters to 44, "Schedule C, Schedule A, 8829, 4562 and
+COGS.", which is one line instead of two.
+
+**The close button was deliberately NOT shrunk.** Its icon is 28px with 4px of
+padding, about a 36px tap target, already under Apple's 44pt guidance. Buying a
+line of text by making an undersized control smaller is the wrong trade. It is
+worth ENLARGING after launch, which costs vertical space, so it is a post-
+approval item rather than a pre-submission one.
+
+**This is where the tuning should stop.** Five rounds in, every compliance row
+passes, all five benefit titles are visible and the ordering puts the privacy
+line third. Further rounds trade real time against diminishing returns on a
+screen that is already approvable.
 
 ### Creating it attached it to the offering
 
