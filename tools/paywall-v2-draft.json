@@ -1720,15 +1720,15 @@
                 "color": {
                  "light": {
                   "type": "hex",
-                  "value": "#000000"
+                  "value": "#2f5ae0ff"
                  }
                 },
                 "font_name": null,
-                "font_size": 15,
-                "font_weight": "regular",
+                "font_size": 12,
+                "font_weight": "semibold",
                 "font_weight_int": 400,
                 "horizontal_alignment": "leading",
-                "id": "0JWiTrfcug",
+                "id": "CdYG0CEkPK",
                 "margin": {
                  "bottom": 0,
                  "leading": 0,
@@ -1736,6 +1736,20 @@
                  "trailing": 0
                 },
                 "name": "",
+                "overrides": [
+                 {
+                  "conditions": [
+                   {
+                    "type": "intro_offer"
+                   }
+                  ],
+                  "properties": {
+                   "font_weight": "light",
+                   "font_weight_int": 300,
+                   "text_lid": "nPoBLOOKKc"
+                  }
+                 }
+                ],
                 "padding": {
                  "bottom": 0,
                  "leading": 0,
@@ -1752,7 +1766,7 @@
                   "value": null
                  }
                 },
-                "text_lid": "x4PDxteoED",
+                "text_lid": "rM0PH_FQw4",
                 "type": "text"
                }
               ],
@@ -1795,8 +1809,48 @@
                 "value": null
                }
               },
-              "spacing": 4,
+              "spacing": 2,
               "type": "stack"
+             },
+             {
+              "background_color": null,
+              "color": {
+               "light": {
+                "type": "hex",
+                "value": "#000000"
+               }
+              },
+              "font_name": null,
+              "font_size": 15,
+              "font_weight": "regular",
+              "font_weight_int": 400,
+              "horizontal_alignment": "trailing",
+              "id": "0JWiTrfcug",
+              "margin": {
+               "bottom": 0,
+               "leading": 0,
+               "top": 0,
+               "trailing": 0
+              },
+              "name": "",
+              "padding": {
+               "bottom": 0,
+               "leading": 0,
+               "top": 0,
+               "trailing": 0
+              },
+              "size": {
+               "height": {
+                "type": "fit",
+                "value": null
+               },
+               "width": {
+                "type": "fit",
+                "value": null
+               }
+              },
+              "text_lid": "x4PDxteoED",
+              "type": "text"
              },
              {
               "base_url": "https://icons.pawwalls.com/icons",
@@ -1889,7 +1943,7 @@
              }
             ],
             "dimension": {
-             "alignment": "top",
+             "alignment": "center",
              "distribution": "space_between",
              "type": "horizontal"
             },
@@ -1927,110 +1981,7 @@
               "value": null
              }
             },
-            "spacing": 0,
-            "type": "stack"
-           },
-           {
-            "background": null,
-            "background_color": null,
-            "badge": null,
-            "border": null,
-            "components": [
-             {
-              "background_color": null,
-              "color": {
-               "light": {
-                "type": "hex",
-                "value": "#2f5ae0ff"
-               }
-              },
-              "font_name": null,
-              "font_size": 12,
-              "font_weight": "semibold",
-              "font_weight_int": 400,
-              "horizontal_alignment": "leading",
-              "id": "CdYG0CEkPK",
-              "margin": {
-               "bottom": 0,
-               "leading": 0,
-               "top": 0,
-               "trailing": 0
-              },
-              "name": "",
-              "overrides": [
-               {
-                "conditions": [
-                 {
-                  "type": "intro_offer"
-                 }
-                ],
-                "properties": {
-                 "font_weight": "light",
-                 "font_weight_int": 300,
-                 "text_lid": "nPoBLOOKKc"
-                }
-               }
-              ],
-              "padding": {
-               "bottom": 0,
-               "leading": 0,
-               "top": 0,
-               "trailing": 0
-              },
-              "size": {
-               "height": {
-                "type": "fit",
-                "value": null
-               },
-               "width": {
-                "type": "fit",
-                "value": null
-               }
-              },
-              "text_lid": "rM0PH_FQw4",
-              "type": "text"
-             }
-            ],
-            "dimension": {
-             "alignment": "leading",
-             "distribution": "start",
-             "type": "vertical"
-            },
-            "id": "ZiKV9OHeSk",
-            "margin": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "name": "Description",
-            "padding": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "shadow": null,
-            "shape": {
-             "corners": {
-              "bottom_leading": 0,
-              "bottom_trailing": 0,
-              "top_leading": 0,
-              "top_trailing": 0
-             },
-             "type": "rectangle"
-            },
-            "size": {
-             "height": {
-              "type": "fit",
-              "value": null
-             },
-             "width": {
-              "type": "fill",
-              "value": null
-             }
-            },
-            "spacing": 0,
+            "spacing": 8,
             "type": "stack"
            }
           ],
@@ -2192,14 +2143,14 @@
                 "color": {
                  "light": {
                   "type": "hex",
-                  "value": "#000000"
+                  "value": "#3c334399"
                  }
                 },
                 "font_name": null,
-                "font_size": 15,
+                "font_size": 12,
                 "font_weight": "regular",
                 "horizontal_alignment": "leading",
-                "id": "xgfE6dDoQy",
+                "id": "QAIbD4mNqW",
                 "margin": {
                  "bottom": 0,
                  "leading": 0,
@@ -2207,6 +2158,19 @@
                  "trailing": 0
                 },
                 "name": "",
+                "overrides": [
+                 {
+                  "conditions": [
+                   {
+                    "type": "intro_offer"
+                   }
+                  ],
+                  "properties": {
+                   "font_weight": "light",
+                   "text_lid": "9ygfTEQ4mo"
+                  }
+                 }
+                ],
                 "padding": {
                  "bottom": 0,
                  "leading": 0,
@@ -2223,7 +2187,7 @@
                   "value": null
                  }
                 },
-                "text_lid": "qINkEZb-Wo",
+                "text_lid": "H-ro-nGg8k",
                 "type": "text"
                }
               ],
@@ -2266,8 +2230,47 @@
                 "value": null
                }
               },
-              "spacing": 4,
+              "spacing": 2,
               "type": "stack"
+             },
+             {
+              "background_color": null,
+              "color": {
+               "light": {
+                "type": "hex",
+                "value": "#000000"
+               }
+              },
+              "font_name": null,
+              "font_size": 15,
+              "font_weight": "regular",
+              "horizontal_alignment": "trailing",
+              "id": "xgfE6dDoQy",
+              "margin": {
+               "bottom": 0,
+               "leading": 0,
+               "top": 0,
+               "trailing": 0
+              },
+              "name": "",
+              "padding": {
+               "bottom": 0,
+               "leading": 0,
+               "top": 0,
+               "trailing": 0
+              },
+              "size": {
+               "height": {
+                "type": "fit",
+                "value": null
+               },
+               "width": {
+                "type": "fit",
+                "value": null
+               }
+              },
+              "text_lid": "qINkEZb-Wo",
+              "type": "text"
              },
              {
               "base_url": "https://icons.pawwalls.com/icons",
@@ -2360,7 +2363,7 @@
              }
             ],
             "dimension": {
-             "alignment": "top",
+             "alignment": "center",
              "distribution": "space_between",
              "type": "horizontal"
             },
@@ -2398,108 +2401,7 @@
               "value": null
              }
             },
-            "spacing": 0,
-            "type": "stack"
-           },
-           {
-            "background": null,
-            "background_color": null,
-            "badge": null,
-            "border": null,
-            "components": [
-             {
-              "background_color": null,
-              "color": {
-               "light": {
-                "type": "hex",
-                "value": "#3c334399"
-               }
-              },
-              "font_name": null,
-              "font_size": 12,
-              "font_weight": "regular",
-              "horizontal_alignment": "leading",
-              "id": "QAIbD4mNqW",
-              "margin": {
-               "bottom": 0,
-               "leading": 0,
-               "top": 0,
-               "trailing": 0
-              },
-              "name": "",
-              "overrides": [
-               {
-                "conditions": [
-                 {
-                  "type": "intro_offer"
-                 }
-                ],
-                "properties": {
-                 "font_weight": "light",
-                 "text_lid": "9ygfTEQ4mo"
-                }
-               }
-              ],
-              "padding": {
-               "bottom": 0,
-               "leading": 0,
-               "top": 0,
-               "trailing": 0
-              },
-              "size": {
-               "height": {
-                "type": "fit",
-                "value": null
-               },
-               "width": {
-                "type": "fit",
-                "value": null
-               }
-              },
-              "text_lid": "H-ro-nGg8k",
-              "type": "text"
-             }
-            ],
-            "dimension": {
-             "alignment": "leading",
-             "distribution": "start",
-             "type": "vertical"
-            },
-            "id": "ySWijVblu0",
-            "margin": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "name": "Description",
-            "padding": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "shadow": null,
-            "shape": {
-             "corners": {
-              "bottom_leading": 0,
-              "bottom_trailing": 0,
-              "top_leading": 0,
-              "top_trailing": 0
-             },
-             "type": "rectangle"
-            },
-            "size": {
-             "height": {
-              "type": "fit",
-              "value": null
-             },
-             "width": {
-              "type": "fill",
-              "value": null
-             }
-            },
-            "spacing": 0,
+            "spacing": 8,
             "type": "stack"
            }
           ],
@@ -2661,14 +2563,14 @@
                 "color": {
                  "light": {
                   "type": "hex",
-                  "value": "#000000"
+                  "value": "#3c334399"
                  }
                 },
                 "font_name": null,
-                "font_size": 15,
+                "font_size": 12,
                 "font_weight": "regular",
                 "horizontal_alignment": "leading",
-                "id": "O3iaXPidbv",
+                "id": "Cw7QEWHxSb",
                 "margin": {
                  "bottom": 0,
                  "leading": 0,
@@ -2676,6 +2578,19 @@
                  "trailing": 0
                 },
                 "name": "",
+                "overrides": [
+                 {
+                  "conditions": [
+                   {
+                    "type": "intro_offer"
+                   }
+                  ],
+                  "properties": {
+                   "font_weight": "light",
+                   "text_lid": "9U1rf3ySfy"
+                  }
+                 }
+                ],
                 "padding": {
                  "bottom": 0,
                  "leading": 0,
@@ -2692,7 +2607,7 @@
                   "value": null
                  }
                 },
-                "text_lid": "1IcOnvQjyv",
+                "text_lid": "CUM67OH4sV",
                 "type": "text"
                }
               ],
@@ -2735,8 +2650,47 @@
                 "value": null
                }
               },
-              "spacing": 4,
+              "spacing": 2,
               "type": "stack"
+             },
+             {
+              "background_color": null,
+              "color": {
+               "light": {
+                "type": "hex",
+                "value": "#000000"
+               }
+              },
+              "font_name": null,
+              "font_size": 15,
+              "font_weight": "regular",
+              "horizontal_alignment": "trailing",
+              "id": "O3iaXPidbv",
+              "margin": {
+               "bottom": 0,
+               "leading": 0,
+               "top": 0,
+               "trailing": 0
+              },
+              "name": "",
+              "padding": {
+               "bottom": 0,
+               "leading": 0,
+               "top": 0,
+               "trailing": 0
+              },
+              "size": {
+               "height": {
+                "type": "fit",
+                "value": null
+               },
+               "width": {
+                "type": "fit",
+                "value": null
+               }
+              },
+              "text_lid": "1IcOnvQjyv",
+              "type": "text"
              },
              {
               "base_url": "https://icons.pawwalls.com/icons",
@@ -2829,7 +2783,7 @@
              }
             ],
             "dimension": {
-             "alignment": "top",
+             "alignment": "center",
              "distribution": "space_between",
              "type": "horizontal"
             },
@@ -2867,108 +2821,7 @@
               "value": null
              }
             },
-            "spacing": 0,
-            "type": "stack"
-           },
-           {
-            "background": null,
-            "background_color": null,
-            "badge": null,
-            "border": null,
-            "components": [
-             {
-              "background_color": null,
-              "color": {
-               "light": {
-                "type": "hex",
-                "value": "#3c334399"
-               }
-              },
-              "font_name": null,
-              "font_size": 12,
-              "font_weight": "regular",
-              "horizontal_alignment": "leading",
-              "id": "Cw7QEWHxSb",
-              "margin": {
-               "bottom": 0,
-               "leading": 0,
-               "top": 0,
-               "trailing": 0
-              },
-              "name": "",
-              "overrides": [
-               {
-                "conditions": [
-                 {
-                  "type": "intro_offer"
-                 }
-                ],
-                "properties": {
-                 "font_weight": "light",
-                 "text_lid": "9U1rf3ySfy"
-                }
-               }
-              ],
-              "padding": {
-               "bottom": 0,
-               "leading": 0,
-               "top": 0,
-               "trailing": 0
-              },
-              "size": {
-               "height": {
-                "type": "fit",
-                "value": null
-               },
-               "width": {
-                "type": "fit",
-                "value": null
-               }
-              },
-              "text_lid": "CUM67OH4sV",
-              "type": "text"
-             }
-            ],
-            "dimension": {
-             "alignment": "leading",
-             "distribution": "start",
-             "type": "vertical"
-            },
-            "id": "HI58Mh49Aw",
-            "margin": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "name": "Description",
-            "padding": {
-             "bottom": 0,
-             "leading": 0,
-             "top": 0,
-             "trailing": 0
-            },
-            "shadow": null,
-            "shape": {
-             "corners": {
-              "bottom_leading": 0,
-              "bottom_trailing": 0,
-              "top_leading": 0,
-              "top_trailing": 0
-             },
-             "type": "rectangle"
-            },
-            "size": {
-             "height": {
-              "type": "fit",
-              "value": null
-             },
-             "width": {
-              "type": "fill",
-              "value": null
-             }
-            },
-            "spacing": 0,
+            "spacing": 8,
             "type": "stack"
            }
           ],
@@ -3688,5 +3541,5 @@
  "name": "TaxTrail Pro",
  "offering_id": "ofrng6092a617e4",
  "paywall_id": "pw582c296e2dea4c0b",
- "revision": 7
+ "revision": 8
 }

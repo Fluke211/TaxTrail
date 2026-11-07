@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 7)
+## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 8)
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -617,6 +617,34 @@ The five benefits as they now stand, every description on one line:
 Compliance re-verified after seven rounds of edits: the disclosure is present,
 Terms points at Apple's standard EULA, Privacy at `taxtrail.app/privacy`, and
 all three packages are attached.
+
+### The plan cards: two rows, not three (revision 8)
+
+Tyler asked whether the blank middle of each plan card could be used, or
+whether that is "a pretty standard look we shouldn't mess with". Both, as it
+turned out.
+
+The card was already a horizontal row: a text column on the left and the radio
+on the right, with `space_between` pushing them apart, so the gap in the middle
+is inherent to that arrangement rather than wasted padding. But the PRICE did
+not have to sit under the title. Moving it into that gap, right-aligned beside
+the radio, is a standard plan-picker pattern and turns each card from three
+rows into two.
+
+Before and after, per card:
+
+    Annual                        Annual                  $69.99/yr  (o)
+    $69.99/yr          ->         Only $5.83/mo
+    Only $5.83/mo
+
+That is roughly 18px a card, 54px over the three, which is where the whitespace
+under the benefits box comes from: the sticky footer shrinks, so the scrolling
+area above it grows.
+
+Checked afterwards, because a restructure can silently drop things a text diff
+would not show: the annual badge survives on annual and does not appear on the
+other two, all three prices are still bound to their variables, and the
+disclosure and all three packages are intact.
 
 ### Creating it attached it to the offering
 
