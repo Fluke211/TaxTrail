@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 6)
+## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 7)
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -596,6 +596,27 @@ approval item rather than a pre-submission one.
 passes, all five benefit titles are visible and the ordering puts the privacy
 line third. Further rounds trade real time against diminishing returns on a
 screen that is already approvable.
+
+### The final copy (revision 7)
+
+Tyler shortened the fourth description himself, from "Every receipt photo
+beside the data, the copies the IRS expects." to "Every receipt photo the IRS
+expects.", 64 characters to 36. Nothing is lost: "beside the data" was already
+carried by the title above it, "Full archive, images included".
+
+The five benefits as they now stand, every description on one line:
+
+| | Title | Description |
+|---|---|---|
+| 1 | Unlimited receipt scans | No monthly cap. Scan every receipt you get. |
+| 2 | Every export format | Excel, TXF for tax software, and QuickBooks Online. |
+| 3 | **Still 100% on device** | No account, no cloud, no trackers. Ever. |
+| 4 | Full archive, images included | Every receipt photo the IRS expects. |
+| 5 | 29 categories, real IRS lines | Schedule C, Schedule A, 8829, 4562 and COGS. |
+
+Compliance re-verified after seven rounds of edits: the disclosure is present,
+Terms points at Apple's standard EULA, Privacy at `taxtrail.app/privacy`, and
+all three packages are attached.
 
 ### Creating it attached it to the offering
 

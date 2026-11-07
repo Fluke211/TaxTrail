@@ -3651,7 +3651,7 @@
    "0B1RuOuUwn": "https://taxtrail.app/privacy",
    "1IcOnvQjyv": "{{ product.price }}",
    "1rbBizXZ6a": "No monthly cap. Scan every receipt you get.",
-   "2V3GETNpev": "Every receipt photo beside the data, the copies the IRS expects.",
+   "2V3GETNpev": "Every receipt photo the IRS expects.",
    "4k0DT8hDjb": "29 categories, real IRS lines",
    "5-cMAYlyz8": "SAVE {{ product.relative_discount }}",
    "8zj3qBRQrX": "Annual",
@@ -3688,5 +3688,5 @@
  "name": "TaxTrail Pro",
  "offering_id": "ofrng6092a617e4",
  "paywall_id": "pw582c296e2dea4c0b",
- "revision": 6
+ "revision": 7
 }
