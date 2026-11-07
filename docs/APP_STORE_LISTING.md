@@ -431,6 +431,59 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
+## A v2 paywall draft is BUILT and waiting for Tyler to publish
+
+Built through the v2 API on 2026-11-07, after Tyler chose migration over
+patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
+`published_at: null`.**
+
+| What | State |
+|---|---|
+| Packages | `$rc_annual` (selected by default), `$rc_monthly`, `$rc_lifetime` |
+| Terms of Use | `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` |
+| Privacy Policy | `https://taxtrail.app/privacy` |
+| Auto-renewal disclosure | present, in the sticky footer, ending "Pro Lifetime is a one-time purchase and does not renew" |
+| Restore Purchases | present (the template ships it) |
+| Price with period | `{{ product.price_per_period_abbreviated }}`, plus `{{ product.relative_discount }} OFF` on annual |
+| Title | TaxTrail Pro |
+
+**Three things the generated template got wrong and that had to be fixed**, none
+of which would have been obvious without reading the JSON:
+
+1. **Its Terms and Privacy buttons pointed at `revenuecat.com/terms` and
+   `revenuecat.com/privacy`.** Shipping that is worse than having no links.
+2. **It carried only two packages.** `$rc_lifetime` was absent, so publishing
+   it unaltered would have silently dropped the tier D-002 settled and Tyler
+   had just reconfirmed. Added by cloning the monthly package component, with
+   fresh component ids and its own localizations.
+3. **It was full of "Cat.io" placeholder copy and a stock cat photograph**
+   (`assets.pawwalls.com`). The image was item 0 of an `[image, text, text]`
+   hero block and was removed outright rather than replaced.
+
+The template did get two things right that the legacy paywall had wrong:
+`$rc_annual` already carried `is_selected_by_default: true`, matching D-002,
+and it uses period-bearing price variables.
+
+### Creating it attached it to the offering
+
+`POST /paywalls` requires `offering_id`, and the offering's `paywall_id` went
+from `null` to `pw582c296e2dea4c0b` immediately, while `published_at` stayed
+null. **What the app serves in that state was not verified from here** and has
+to be checked on the device. If the paywall fails to load, `FallbackPaywall`
+renders, and that one is compliant, so the downside is cosmetic rather than a
+rejection risk.
+
+### What was NOT done, deliberately
+
+**It is not published.** Publishing is outward-facing and the whole lesson of
+D-107 is that a remote-configured screen has to be judged by looking at the
+artifact. This draft was assembled from JSON by something that cannot see it
+render, so it must be previewed in the dashboard, run through RevenueCat's AI
+audit, and published by a person. The screenshot for App Review has to be
+retaken afterwards, because the current one shows the legacy paywall.
+
+---
+
 ## RevenueCat paywall: what to put in the editor (D-107)
 
 **This paywall is a LEGACY (v1) paywall.** Established against the API on
