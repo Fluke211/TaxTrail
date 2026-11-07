@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 8)
+## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 9)
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -645,6 +645,29 @@ Checked afterwards, because a restructure can silently drop things a text diff
 would not show: the annual badge survives on annual and does not appear on the
 other two, all three prices are still bound to their variables, and the
 disclosure and all three packages are intact.
+
+### Revision 9: the regression the restructure caused, and the overshoot
+
+Moving the price beside the radio in revision 8 introduced a defect and
+overshot the space it was meant to free. Both are fixed.
+
+**The prices did not line up.** Each price was `width: fit` and sat as the
+MIDDLE child of a `space_between` row, so its position was decided by its own
+text width and the width of the title column beside it. Three different
+titles and three different prices therefore produced three different
+positions, visibly ragged. The price is `width: fill` now, with
+`horizontal_alignment: trailing`, so each one expands into the leftover space
+and renders hard against the same right edge, just inside the radio. Identical
+on all three cards, checked rather than assumed.
+
+That is the risk of a restructure that cannot be previewed: the markup was
+correct, the layout rule was not, and only looking at it showed the difference.
+
+**And it freed more room than was wanted.** The gap under the benefits box went
+from too little to too much. About 30 of the 54 reclaimed pixels are given back
+(benefit rows 4 to 6, benefits card padding 10 to 12, plan cards 6 to 7), which
+leaves a deliberate gap rather than closing it: a little whitespace under that
+box is what was asked for in the first place.
 
 ### Creating it attached it to the offering
 

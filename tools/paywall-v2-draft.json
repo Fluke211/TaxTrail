@@ -524,9 +524,9 @@
         },
         "name": "Feature #1",
         "padding": {
-         "bottom": 4,
+         "bottom": 6,
          "leading": 0,
-         "top": 4,
+         "top": 6,
          "trailing": 0
         },
         "shadow": null,
@@ -742,9 +742,9 @@
         },
         "name": "Feature #2",
         "padding": {
-         "bottom": 4,
+         "bottom": 6,
          "leading": 0,
-         "top": 4,
+         "top": 6,
          "trailing": 0
         },
         "shadow": null,
@@ -960,9 +960,9 @@
         },
         "name": "Feature #5",
         "padding": {
-         "bottom": 4,
+         "bottom": 6,
          "leading": 0,
-         "top": 4,
+         "top": 6,
          "trailing": 0
         },
         "shadow": null,
@@ -1178,9 +1178,9 @@
         },
         "name": "Feature #3",
         "padding": {
-         "bottom": 4,
+         "bottom": 6,
          "leading": 0,
-         "top": 4,
+         "top": 6,
          "trailing": 0
         },
         "shadow": null,
@@ -1396,9 +1396,9 @@
         },
         "name": "Feature #4",
         "padding": {
-         "bottom": 4,
+         "bottom": 6,
          "leading": 0,
-         "top": 4,
+         "top": 6,
          "trailing": 0
         },
         "shadow": null,
@@ -1439,9 +1439,9 @@
       },
       "name": "Feature list",
       "padding": {
-       "bottom": 10,
+       "bottom": 12,
        "leading": 24,
-       "top": 10,
+       "top": 12,
        "trailing": 24
       },
       "shadow": null,
@@ -1845,7 +1845,7 @@
                 "value": null
                },
                "width": {
-                "type": "fit",
+                "type": "fill",
                 "value": null
                }
               },
@@ -2030,9 +2030,9 @@
            }
           ],
           "padding": {
-           "bottom": 6,
+           "bottom": 7,
            "leading": 12,
-           "top": 6,
+           "top": 7,
            "trailing": 12
           },
           "shadow": null,
@@ -2265,7 +2265,7 @@
                 "value": null
                },
                "width": {
-                "type": "fit",
+                "type": "fill",
                 "value": null
                }
               },
@@ -2450,9 +2450,9 @@
            }
           ],
           "padding": {
-           "bottom": 6,
+           "bottom": 7,
            "leading": 12,
-           "top": 6,
+           "top": 7,
            "trailing": 12
           },
           "shadow": null,
@@ -2685,7 +2685,7 @@
                 "value": null
                },
                "width": {
-                "type": "fit",
+                "type": "fill",
                 "value": null
                }
               },
@@ -2870,9 +2870,9 @@
            }
           ],
           "padding": {
-           "bottom": 6,
+           "bottom": 7,
            "leading": 12,
-           "top": 6,
+           "top": 7,
            "trailing": 12
           },
           "shadow": null,
@@ -3541,5 +3541,5 @@
  "name": "TaxTrail Pro",
  "offering_id": "ofrng6092a617e4",
  "paywall_id": "pw582c296e2dea4c0b",
- "revision": 8
+ "revision": 9
 }
