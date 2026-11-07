@@ -328,18 +328,38 @@ and [manage your App Store assets](https://developer.apple.com/help/app-store-co
       (test message arrived in Gmail via the Cloudflare forward, 2026-08-29)
 - [x] Both URLs load — 200 after a 308 to the extensionless form. Use the
       extensionless URLs in App Store Connect
-- [ ] Production build (`channel: production`) — the dev-only update button
-      disappears automatically (D-019)
-- [x] Screenshots at required sizes — **six built at 1179x2556** (D-106). The
-      6.9-inch sizes this repo recorded were refused; read the size off the
-      iPhone tab. Uploading them is still outstanding
-- [ ] App Review notes pasted
+- [x] Production build (`channel: production`) — the dev-only update button
+      disappears automatically (D-019). Build 7 is the newest live binary,
+      `test:publishable` agrees, and Tyler has run r43 through r49 over the air
+      on build 7, so the OTA chain is proved on the exact binary under review
+- [x] Screenshots at required sizes — **six built at 1179x2556** (D-106), and
+      **uploaded 2026-11-07**. The 6.9-inch sizes this repo recorded were
+      refused; read the size off the iPhone tab
+- [x] App Review notes pasted 2026-11-07, with Face ID disclosed. Verified
+      against commit `88a5061` (build 7): `expo-local-authentication` is a
+      dependency there, `appLockNative.ts` ships, the purpose string is in
+      `app.json` and Settings references it, and `expo-location` is absent.
+      The notes describe the binary a reviewer actually runs
 - [x] **Age rating completed 2026-11-06** (Tyler) — the TestFlight purchase sheet renders the app
       as "UNRATED" until this is done, and Apple will not accept a submission
       without it. App Store → the app → Age Rating → Edit; every answer is
       "None" for this app
-- [ ] Export compliance — `ITSAppUsesNonExemptEncryption: false` is already set
+- [x] Export compliance — `ITSAppUsesNonExemptEncryption: false` is set in
+      `app.json`, confirmed 2026-11-07, so App Store Connect should not ask at
+      all. If it ever does, the answer is No
 - [x] **App Store Small Business Program enrolled** — Tyler confirmed acceptance
       2026-11-06. 15% instead of 30%. It is not retroactive, which is why it
       had to land before the first sale; it has, so this is closed
-- [ ] Paid Applications agreement signed, or products won't load
+- [ ] **Paid Applications agreement active, or products won't load.** The one
+      item still open, and the highest-risk one. `src/lib/purchases.ts` falls
+      back to `Alert.alert('Purchases not configured', 'TaxTrail Pro is
+      unavailable in this build.')` when RevenueCat has no products, so a
+      reviewer who taps Upgrade would read exactly that: a Guideline 2.1
+      rejection. Sandbox purchases worked on build 7 on 2026-09-07, so it was
+      active then; confirm it still reads Active before submitting
+- [ ] **The Pro products attached to THIS version, each "Ready to Submit".** On
+      a first release subscriptions are submitted with the build; unattached
+      means shipping a dead paywall
+- [ ] **A review screenshot and localized name plus description on each
+      subscription.** Set per subscription, not on the version, which is why it
+      is missed; a missing one is a common Metadata Rejected cause
