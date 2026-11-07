@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 3)
+## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 4)
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -506,6 +506,45 @@ left open: the legacy paywall keeps serving until the v2 one is published.
 The offering's `display_name` is still "ReceiptSnap Default". A PATCH to the
 offerings endpoint returns **405**, so it cannot be renamed through the API. It
 is internal and no customer sees it.
+
+### Round three: the footer was eating the screen (revision 4)
+
+Compliance passed again, on every row. The audit's remaining complaint, which
+Tyler had already spotted himself ("It's covering up the benefits of
+subscribing... those subscribe boxes could probably be shrank"), was that the
+sticky footer took about 60% of the screen and hid two of the five benefits,
+including "Still 100% on device", which is the strongest thing the app has to
+say.
+
+| Change | From | To |
+|---|---|---|
+| Plan card vertical padding | 12 | 8 |
+| Plan card inner spacing | 8 | 3 |
+| Gap between plans | 8 | 6 |
+| Footer spacing | 12 | 8 |
+| Footer top padding | 16 | 10 |
+| Annual resting background | `#f2f2f7ff`, same as the others | `#2f5ae026`, so it reads as recommended BEFORE it is selected |
+| Badge | "{{ product.relative_discount }} OFF" | "SAVE {{ product.relative_discount }}" |
+| Per-month line | 12pt grey, identical to "Cancel anytime" | 12pt semibold in the accent blue |
+| Call to action | "Continue" | "Unlock unlimited scans" |
+
+**The legal block was deliberately NOT moved into the scrolling area**, which
+is what the audit recommended for space. Guideline 3.1.2 wants the disclosure
+on the screen that offers the subscription, and a reviewer who does not scroll
+is exactly the case the rule exists for. Trading a certain compliance position
+for a probable conversion gain is the wrong way round on a submission that is
+already blocked on compliance. The space came out of the cards instead, which
+is where the audit itself said most of it was. If more room is needed later,
+moving it is a conversion decision to take after approval, not before.
+
+**The audit's "the paywall itself is named ReceiptSnap" is stale.** The API
+reports `name: "TaxTrail Pro"` as of revision 3. What is still called
+ReceiptSnap is the OFFERING's `display_name`, which no customer sees and which
+the API will not rename (PATCH returns 405).
+
+Not acted on, again: tablet and foldable layouts, and the free-trial text
+variants that repeat the default wording. Both are real and neither blocks
+submission.
 
 ### Creating it attached it to the offering
 

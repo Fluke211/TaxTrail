@@ -1544,7 +1544,7 @@
            "value": {
             "light": {
              "type": "hex",
-             "value": "#f2f2f7ff"
+             "value": "#2f5ae026"
             }
            }
           },
@@ -1941,12 +1941,12 @@
               "color": {
                "light": {
                 "type": "hex",
-                "value": "#3c334399"
+                "value": "#2f5ae0ff"
                }
               },
               "font_name": null,
               "font_size": 12,
-              "font_weight": "regular",
+              "font_weight": "semibold",
               "font_weight_int": 400,
               "horizontal_alignment": "leading",
               "id": "CdYG0CEkPK",
@@ -2079,9 +2079,9 @@
            }
           ],
           "padding": {
-           "bottom": 12,
+           "bottom": 8,
            "leading": 12,
-           "top": 12,
+           "top": 8,
            "trailing": 12
           },
           "shadow": null,
@@ -2104,7 +2104,7 @@
             "value": null
            }
           },
-          "spacing": 8,
+          "spacing": 3,
           "type": "stack"
          },
          "type": "package"
@@ -2548,9 +2548,9 @@
            }
           ],
           "padding": {
-           "bottom": 12,
+           "bottom": 8,
            "leading": 12,
-           "top": 12,
+           "top": 8,
            "trailing": 12
           },
           "shadow": null,
@@ -2573,7 +2573,7 @@
             "value": null
            }
           },
-          "spacing": 8,
+          "spacing": 3,
           "type": "stack"
          },
          "type": "package"
@@ -3017,9 +3017,9 @@
            }
           ],
           "padding": {
-           "bottom": 12,
+           "bottom": 8,
            "leading": 12,
-           "top": 12,
+           "top": 8,
            "trailing": 12
           },
           "shadow": null,
@@ -3042,7 +3042,7 @@
             "value": null
            }
           },
-          "spacing": 8,
+          "spacing": 3,
           "type": "stack"
          },
          "type": "package"
@@ -3087,7 +3087,7 @@
          "value": null
         }
        },
-       "spacing": 8,
+       "spacing": 6,
        "type": "stack"
       },
       {
@@ -3605,9 +3605,9 @@
      "name": "Footer",
      "padding": {
       "bottom": 0,
-      "leading": 24,
-      "top": 16,
-      "trailing": 24
+      "leading": 20,
+      "top": 10,
+      "trailing": 20
      },
      "shadow": {
       "color": {
@@ -3639,7 +3639,7 @@
        "value": null
       }
      },
-     "spacing": 12,
+     "spacing": 8,
      "type": "stack"
     },
     "type": "footer"
@@ -3653,12 +3653,12 @@
    "1rbBizXZ6a": "No monthly cap. Scan every receipt you get.",
    "2V3GETNpev": "Every receipt photo beside the data, the copies the IRS expects.",
    "4k0DT8hDjb": "29 categories, real IRS lines",
-   "5-cMAYlyz8": "{{ product.relative_discount }} OFF",
+   "5-cMAYlyz8": "SAVE {{ product.relative_discount }}",
    "8zj3qBRQrX": "Annual",
    "9U1rf3ySfy": "One-time purchase. Does not renew.",
    "9ygfTEQ4mo": "Billed at {{ product.price_per_period_abbreviated }} after free trial.",
    "CUM67OH4sV": "One-time purchase. Does not renew.",
-   "FB8Ij4dWgS": "Continue",
+   "FB8Ij4dWgS": "Unlock unlimited scans",
    "H-ro-nGg8k": "Cancel anytime.",
    "J2crP5pQqO": "For the receipts your tax return depends on.",
    "NPUSkqLXO9": "Schedule C, Schedule A, Form 8829, 4562 and cost of goods sold.",
@@ -3688,5 +3688,5 @@
  "name": "TaxTrail Pro",
  "offering_id": "ofrng6092a617e4",
  "paywall_id": "pw582c296e2dea4c0b",
- "revision": 3
+ "revision": 4
 }
