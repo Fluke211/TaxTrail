@@ -5906,3 +5906,53 @@ Chromium, so adding it would mean installing a browser in CI to check six files
 that change a few times a year. It exits nonzero so it can be wired in later if
 that changes.
 
+## D-107
+
+**The compliant paywall is the one nobody sees** (2026-11-07)
+
+`FallbackPaywall.tsx` was built carefully against Guideline 3.1.2. Its own
+header says why:
+
+    The primary paywall is RevenueCat's remote-configured template. This shows
+    only when that fails to load -- but "only in an edge case" is not a defence
+    at review time: if it renders for a reviewer, it is the paywall.
+
+It carries every required element: the period beside each price, the
+auto-renewal disclosure, a EULA link, a privacy policy link and Restore.
+
+**The reasoning was right and it was applied to the wrong screen.** The primary
+paywall is `RevenueCatUI.presentPaywallIfNeeded`, configured remotely in the
+RevenueCat dashboard, and the fallback runs only when that call throws. So the
+screen that always renders is the dashboard template, and a screenshot of it
+taken on 2026-11-07, while preparing the App Review screenshot, shows:
+
+- an app icon, the word TaxTrail, three priced rows, Purchase, Restore
+- **no auto-renewal disclosure**
+- **no Terms of Use link**
+- **no Privacy Policy link**
+- **no period**: the rows read "$6.99" and "$39.99", not per month or per year
+
+Guideline 3.1.2 requires all of those on the screen that offers the
+subscription. The fallback nobody sees is compliant; the one everybody sees is
+not.
+
+**It is also losing money, against this project's own pricing decision.** D-002
+settled annual as the "highlighted default" with a 7-day trial. The template
+preselects **Pro Monthly**, never mentions the trial, and states no saving,
+though $39.99 against $6.99 a month is 52% off. It gives no reason to buy at
+all: it never says what Pro includes, while the unused fallback manages
+"Unlimited scans, plus Excel, TXF and QuickBooks exports. Everything still stays
+on your device."
+
+**The lesson is about where a rule gets enforced.** The compliance work went
+into the code, because that is where the code review happens. The screen that
+ships is configuration, and nothing in the repository can test it, lint it or
+fail CI over it. A remote-configured surface needs checking the way a dependency
+needs checking, by looking at the artifact, not by reading the source that was
+supposed to produce it.
+
+**Fixing it needs no build and no OTA**, since the template is dashboard
+configuration and takes effect immediately for everyone. That also means it can
+be fixed after submission, which is exactly the trap: it must be fixed BEFORE
+review, because the reviewer sees it.
+

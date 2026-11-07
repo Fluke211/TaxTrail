@@ -763,6 +763,48 @@ Fixing what it reports:
   rebalance across a forced break. Shorten the words or move the break, and
   prefer shortening: the break is already at the only natural clause boundary.
 
+## Get an App Review screenshot of the paywall
+
+Apple wants "a screenshot of the In-App Purchase that clearly shows the item or
+service being offered". The paywall is gated on `!pro` in both places that open
+it (`SummaryScreen` and the Settings subscription card), so **you cannot reach
+it while a test purchase is active**.
+
+**Order matters, and getting it wrong costs a sandbox account.**
+
+1. **Clear the entitlement.** Delete the app and reinstall.
+   `Purchases.configure({ apiKey })` passes no `appUserID`, so RevenueCat uses
+   an anonymous user ID held in app storage; deleting discards it and a fresh
+   install starts a new anonymous user with no entitlements. Do NOT tap Restore
+   Purchases afterwards. Confirmed working 2026-11-07.
+2. **Take the paywall screenshot NOW, before testing any purchase.**
+3. Convert it: `node tools/screenshots/review-shot.js <grab.png>`. A raw
+   iPhone 14 grab is 1170x2532, which App Store Connect refuses, and Apple's
+   rule here is "a screenshot that meets any of the screenshot specifications
+   your app supports". This scales to 1179x2556 by width and pads the 5px
+   remainder, so nothing a reviewer reads is stretched. Not `build.js`, which
+   stamps a marketing caption over it.
+4. One screenshot serves all three products, because the paywall shows all
+   three options.
+5. **Only then** sandbox-test purchases.
+
+**Why step 2 comes before step 5.** The lifetime tier is a non-consumable, and
+a non-consumable NEVER expires for a sandbox Apple ID. Buy it before taking the
+screenshot and that account can never see the paywall again: the only way back
+is a brand new sandbox tester (Users and Access, Sandbox, Test Accounts, on an
+email with no Apple ID attached, then Settings, Apps, App Store, SANDBOX
+ACCOUNT on the phone). Subscriptions lapse on their own under accelerated
+sandbox renewal; the non-consumable does not.
+
+**A black placeholder passes Apple's automated check.** `step: asc-iap`
+reported `READY_TO_SUBMIT` across all three products while the screenshot was a
+black image, because the completeness check only asks whether a file exists.
+The requirement it fails is the human one. Also note "once you've uploaded a
+screenshot, you can update it but not remove it", so a placeholder can be
+replaced but never deleted.
+
+---
+
 ## Register a new device
 
 Do it in a browser, not the CLI (`eas device:create` accepts no flags at all

@@ -315,6 +315,122 @@ and [manage your App Store assets](https://developer.apple.com/help/app-store-co
 
 ---
 
+## In-app purchase naming: what is locked and what is not
+
+The products were created under the old name and read **RS Pro Monthly** and
+**RS Pro Annual**. Three separate fields are involved and only one is
+customer-facing. Apple's own wording, checked 2026-11-07:
+
+| Field | Customer sees it | Editable |
+|---|---|---|
+| Product ID | No. StoreKit only | **Never.** "The product ID isn't editable after you save the In-App Purchase", and it "can't be reused for another In-App Purchase within the same app, even if you delete the original" |
+| Reference Name | No. "not visible to customers, but used in App Store Connect and Sales and Trends reports" | Yes, "can be edited at any time without review". Up to 64 characters |
+| Display Name | **Yes, on the store and in the purchase sheet** | Yes, but "changes to the localized information require review". 2 to 30 characters |
+
+**The locked `RS` product IDs are harmless.** Verified against the code: `src/`
+contains no product IDs at all, because `presentPaywall` renders
+`offerings.current.availablePackages` from RevenueCat, which matches on product
+ID internally. So a rename cannot break the offering and no user ever sees the
+identifier.
+
+**A stale Display Name is worth fixing before submitting, not after**, since the
+change needs review either way: done now it rides along with this submission,
+done later it costs a separate review round. "TaxTrail Pro Monthly" is 20
+characters and "TaxTrail Pro Annual" is 19, both inside the limit.
+
+Check both fields, because they are usually set to the same string at creation.
+
+### The display names are already correct
+
+"Pro Monthly" and "Pro Annual" need no change. The **subscription group**
+display name was set to **"TaxTrail Pro"** on 2026-08-29, to fix a blocker where
+the group had no localization and the products would not fetch. So a customer
+reads "TaxTrail Pro" and then "Pro Annual" beneath it, which carries the brand
+once rather than twice.
+
+The group's reference name is still "ReceiptSnap Pro" and the product IDs are
+still `receiptsnap_pro_*`. Both are internal, neither is editable in the case of
+the IDs, and no customer sees either. Tyler changed the product reference names
+from RS to TT on 2026-11-07, which needs no review.
+
+## The third tier: lifetime EXISTS, and D-002 says it ships
+
+Tyler asked whether lifetime had been dropped, remembering a decision to keep
+to monthly and annual. **It was not dropped, and nothing supersedes D-002**,
+which settled "Pro at $6.99/mo, $39.99/yr (7-day trial, highlighted default),
+$99.99 lifetime" on 2026-08-01. Its reasoning: "Lifetime at ~2.5x annual limits
+cannibalization and monetizes ad-averse privacy buyers."
+
+**It already exists and is wired up.** `receiptsnap_pro_lifetime` ($99.99
+non-consumable) was created 2026-08-02, is attached to the RevenueCat `pro`
+entitlement, sits in the `default` offering as `$rc_lifetime`, and all three
+products were verified fetchable and `READY_TO_SUBMIT` on 2026-08-29.
+
+The reason it looks absent is structural: a non-consumable lives under **In-App
+Purchases**, not **Subscriptions**, and this one is deliberately **outside** the
+subscription group. Looking at the Subscriptions section shows two products, and
+that is correct.
+
+**What it has never had is a sandbox test.** The ROADMAP item covering monthly,
+annual and the lifetime unlock is still open, and only monthly and annual are
+confirmed working. That is the one real argument for deferring it, and it is
+cheap to remove rather than live with, because a non-consumable grant is
+permanent and cannot be undone per customer.
+
+If it were ever pulled, nothing would break: the paywall renders whatever the
+offering returns, and `DISPLAY_PRICES`, which carries the $99.99 string, has
+exactly one reference in the whole app, its own definition. It is dead code and
+displays nowhere.
+
+**One real inaccuracy only if lifetime is pulled.**
+`src/components/FallbackPaywall.tsx` ends its auto-renew disclosure with "The
+lifetime option is a one-time purchase and does not renew." That line is inside
+`{anyAutoRenewing && (...)}`, so it renders whenever any auto-renewing package
+exists, whether or not a lifetime package does. Launching without lifetime
+means that screen describes an option that is not there. It only appears when
+RevenueCat's remote template fails, but the file's own comment is right that
+"if it renders for a reviewer, it is the paywall", so the sentence should
+become conditional on a non-renewing package being present.
+
+---
+
+## The RevenueCat paywall template must be fixed before review (D-107)
+
+A screenshot of the live paywall, taken 2026-11-07, shows an app icon, the word
+TaxTrail, three priced rows, Purchase and Restore. **Guideline 3.1.2 requires
+more than that on the screen that offers a subscription**, and the template is
+missing all of it:
+
+| Required on the offer screen | Present? |
+|---|---|
+| Title of each subscription | Yes |
+| Price | Yes |
+| **Length of the period** | **No.** Rows read "$6.99", not "$6.99 per month" |
+| **Auto-renewal disclosure** | **No** |
+| **Link to Terms of Use / EULA** | **No** |
+| **Link to a privacy policy** | **No** |
+
+`FallbackPaywall.tsx` has every one of them, but it renders only when the
+remote template throws, so it is not what a reviewer sees.
+
+**The same edit should fix the selling, which is weak against D-002:**
+
+- **Preselect annual, not monthly.** D-002 made annual the "highlighted
+  default"; the template preselects Pro Monthly.
+- **Say the trial exists.** D-002 specifies a 7-day trial on annual and the
+  screen never mentions it.
+- **Show the saving.** $39.99 a year against $6.99 a month is **52% off**, and
+  the screen does not say so.
+- **Say what Pro is.** The template gives no reason to buy. The unused fallback
+  manages it in one line: "Unlimited scans, plus Excel, TXF and QuickBooks
+  exports. Everything still stays on your device."
+
+All of this is **dashboard configuration**: no build, no OTA, live immediately.
+Which is the trap, because it also means it can be done after submitting, and it
+must not be: the reviewer sees the template as configured at review time.
+
+---
+
 ## Pre-submission checklist
 
 - [x] D-022 resolved; App Privacy answers match reality — **re-verified
@@ -350,16 +466,43 @@ and [manage your App Store assets](https://developer.apple.com/help/app-store-co
 - [x] **App Store Small Business Program enrolled** — Tyler confirmed acceptance
       2026-11-06. 15% instead of 30%. It is not retroactive, which is why it
       had to land before the first sale; it has, so this is closed
-- [ ] **Paid Applications agreement active, or products won't load.** The one
-      item still open, and the highest-risk one. `src/lib/purchases.ts` falls
-      back to `Alert.alert('Purchases not configured', 'TaxTrail Pro is
-      unavailable in this build.')` when RevenueCat has no products, so a
-      reviewer who taps Upgrade would read exactly that: a Guideline 2.1
-      rejection. Sandbox purchases worked on build 7 on 2026-09-07, so it was
-      active then; confirm it still reads Active before submitting
-- [ ] **The Pro products attached to THIS version, each "Ready to Submit".** On
-      a first release subscriptions are submitted with the build; unattached
-      means shipping a dead paywall
-- [ ] **A review screenshot and localized name plus description on each
-      subscription.** Set per subscription, not on the version, which is why it
-      is missed; a missing one is a common Metadata Rejected cause
+- [x] **Paid Applications agreement active.** Tyler checked 2026-11-07 and it
+      had **lapsed**, showing out of date that morning; he reactivated it. Worth
+      the check: `src/lib/purchases.ts` falls back to
+      `Alert.alert('Purchases not configured', 'TaxTrail Pro is unavailable in
+      this build.')` when RevenueCat has no products, so a reviewer who tapped
+      Upgrade would have read exactly that, which is Guideline 2.1
+- [ ] **"Add for Review" on each Pro product.** THE STOP-SHIP ITEM. The three
+      products sat at **Prepare for Submission** on 2026-11-07, which Apple
+      defines as: "Your In-App Purchase has been created, but you haven't yet
+      submitted it for review. Use Add for Review to add it to a submission."
+      So the status does NOT mean metadata is missing, it means the products are
+      attached to no submission. **Submitting the version while they sit there
+      ships an app whose paywall cannot work.** Each must reach **Ready for
+      Review**, which Apple defines as "added to a submission, but you haven't
+      sent the submission to App Review yet"
+- [ ] **A real App Review screenshot on each subscription.** It was a black
+      placeholder on 2026-11-07. Apple requires "a screenshot of the In-App
+      Purchase that clearly shows the item or service being offered", so a black
+      image fails the requirement as written. Two things make this easy to get
+      wrong:
+      - The size. Apple says "upload a screenshot that meets any of the
+        screenshot specifications your app supports", and a raw iPhone 14 grab
+        is 1170x2532, which App Store Connect refuses, exactly as it refused the
+        marketing slides. Run the capture through
+        `node tools/screenshots/review-shot.js <grab.png>`, which resizes to
+        1179x2556 by scaling to width and padding, so no pixel a reviewer reads
+        is stretched. Do NOT use `build.js`, which adds a marketing caption.
+      - It cannot be undone. "Once you've uploaded a screenshot, you can update
+        it but not remove it." Replacing the placeholder is fine; deleting it is
+        not possible
+- [x] **Retention messages and the 1024x1024 promotional image are NOT needed.**
+      Apple: an image "is required if you want to promote your In-App Purchase
+      on your App Store product page or set up win-back offers." We want
+      neither, so both are skipped deliberately rather than left undone
+- [ ] **Review notes on each subscription** (optional, 4000 character limit).
+      Apple describes them as "additional information about the In-App Purchase
+      that might help Apple review the submission". Worth one line telling the
+      reviewer where the paywall is, since it sits behind a scan limit
+- [x] **Manual release selected** 2026-11-07, so the listing can be checked
+      before it is public
