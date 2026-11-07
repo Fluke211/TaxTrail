@@ -455,6 +455,14 @@ under "Parked, deliberately" below until then.
 
 ## Parked, deliberately
 
+**App Store creative assets (product page header, search results image).**
+Apple's asset library offers these and we have uploaded none. Verified against
+Apple's docs 2026-11-07 that they are **optional**, separate from screenshots,
+and displayed only on iOS 27 / iPadOS 27 or later, so they reach almost nobody
+at launch. Sizes are recorded in `docs/APP_STORE_LISTING.md`. Worth making once
+there is a reason to design a 21:9 banner; not worth delaying submission.
+
+
 - **Store receipt image paths relative, and migrate the existing rows.** r30
   reads both forms, and repairs a stale absolute path at the moment of use, but
   it still WRITES the absolute one on purpose: expo-updates can drop a phone
