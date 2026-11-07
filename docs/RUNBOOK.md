@@ -60,6 +60,43 @@ D-040, where a whole PR's worth of app changes vanished this way and only the
 canon edits, re-applied afterwards, made it into the commit. The commit message
 still described the lost work, so nothing downstream caught it.
 
+### `checkout -B` repoints the upstream at `main`, which fakes "unpushed commits"
+
+`git checkout -B <branch> origin/main` sets the branch's **upstream** to
+`origin/main`, not to its own remote branch. Nothing warns you. For the rest of
+the session every tool that measures "am I pushed?" against `@{u}` compares the
+feature branch to `main` instead, and reports the already-merged pre-squash
+commits as unpushed work. In this session the stop hook claimed "1 unpushed
+commit" three times on a branch that was clean and fully merged.
+
+After the reset, or any time a push reports a non-fast-forward you cannot
+explain, check what the upstream actually is:
+
+```bash
+git rev-parse --abbrev-ref @{u}        # want origin/<branch>, NOT origin/main
+git branch --set-upstream-to=origin/<branch> <branch>
+```
+
+Then `git status -sb` and `git log @{u}..HEAD` tell the truth.
+
+**Do not reach for `--force-with-lease` on the strength of that warning**, which
+is the trap: the geometry really is strange after a squash merge, so the warning
+looks plausible. Confirm it first, and the cheapest confirmation is a content
+comparison rather than a commit count:
+
+```bash
+git diff --stat origin/main HEAD        # empty means nothing of yours is unmerged
+```
+
+An identical tree hash (`git rev-parse HEAD^{tree}` against
+`origin/main^{tree}`) is the same proof in one line. If the content matches
+`main` there is nothing to push, whatever the commit count says.
+
+Where force-push is blocked, as it is in the cloud sessions, you can still make
+a stale remote branch agree with your local one without rewriting anything:
+`git merge origin/<branch>` and push the merge commit. Verify the tree hash is
+unchanged afterwards, since the point is bookkeeping, not content.
+
 If you only notice after committing, replay just the unmerged commits — do not
 resolve a conflict against yourself:
 
