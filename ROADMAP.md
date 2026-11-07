@@ -455,6 +455,14 @@ under "Parked, deliberately" below until then.
 
 ## Parked, deliberately
 
+**Settings screen reorganization, with collapsible sections.** Tyler called it
+cluttered and badly organized on 2026-11-07 and asked for each section's text
+and detail to collapse. It is JS only, so an OTA rather than a build. Held
+until the app is approved rather than done before submitting, so the binary
+under review is not changed mid-flight; nothing in it is a compliance matter,
+so there is no reason to race it.
+
+
 **App Store creative assets (product page header, search results image).**
 Apple's asset library offers these and we have uploaded none. Verified against
 Apple's docs 2026-11-07 that they are **optional**, separate from screenshots,

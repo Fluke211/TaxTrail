@@ -394,6 +394,43 @@ become conditional on a non-renewing package being present.
 
 ---
 
+## The RevenueCat paywall template must be fixed before review (D-107)
+
+A screenshot of the live paywall, taken 2026-11-07, shows an app icon, the word
+TaxTrail, three priced rows, Purchase and Restore. **Guideline 3.1.2 requires
+more than that on the screen that offers a subscription**, and the template is
+missing all of it:
+
+| Required on the offer screen | Present? |
+|---|---|
+| Title of each subscription | Yes |
+| Price | Yes |
+| **Length of the period** | **No.** Rows read "$6.99", not "$6.99 per month" |
+| **Auto-renewal disclosure** | **No** |
+| **Link to Terms of Use / EULA** | **No** |
+| **Link to a privacy policy** | **No** |
+
+`FallbackPaywall.tsx` has every one of them, but it renders only when the
+remote template throws, so it is not what a reviewer sees.
+
+**The same edit should fix the selling, which is weak against D-002:**
+
+- **Preselect annual, not monthly.** D-002 made annual the "highlighted
+  default"; the template preselects Pro Monthly.
+- **Say the trial exists.** D-002 specifies a 7-day trial on annual and the
+  screen never mentions it.
+- **Show the saving.** $39.99 a year against $6.99 a month is **52% off**, and
+  the screen does not say so.
+- **Say what Pro is.** The template gives no reason to buy. The unused fallback
+  manages it in one line: "Unlimited scans, plus Excel, TXF and QuickBooks
+  exports. Everything still stays on your device."
+
+All of this is **dashboard configuration**: no build, no OTA, live immediately.
+Which is the trap, because it also means it can be done after submitting, and it
+must not be: the reviewer sees the template as configured at review time.
+
+---
+
 ## Pre-submission checklist
 
 - [x] D-022 resolved; App Privacy answers match reality — **re-verified
