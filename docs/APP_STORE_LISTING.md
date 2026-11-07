@@ -431,7 +431,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 10)
+## The v2 paywall is PUBLISHED at revision 10; revision 11 is a draft
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -689,6 +689,39 @@ Three attempts at one row (8, 9, 10), each correct about the thing it was
 aiming at and wrong about what it displaced. That is the cost of editing a
 layout that cannot be previewed from here, and it is the practical shape of
 what D-107 states as a principle.
+
+### Published, and what the live screen proved (revision 10)
+
+Tyler published it on 2026-11-07 and sent a device screenshot. Three things
+that had been recorded as unverified are now settled, by looking at the real
+app rather than the editor:
+
+- **The prices are real.** $39.99/yr, $6.99/mo, $99.99. The editor's $69.99 /
+  $9.99 / $119.99 were placeholders exactly as documented, so products fetch
+  correctly.
+- **SAVE 52%** renders, which is the arithmetic this file recorded
+  ($39.99 against 12 x $6.99 = $83.88). `{{ product.relative_discount }}`
+  computes it rather than anyone hardcoding it.
+- **The 7-day trial exists.** The card reads "Only $3.33/mo after free trial."
+  and the button reads "Get started for free", so the intro-offer variants are
+  live and eligible. This file had warned not to advertise the trial until it
+  was confirmed configured. It is.
+
+### Revision 11 (draft): the close button meets Apple's tap-target minimum
+
+Flagged at revision 6 and deliberately deferred then, because buying a line of
+text by shrinking an already undersized control was the wrong trade. With the
+layout settled there is room, and Tyler asked for it.
+
+The icon is 28x28 with 4px of padding, a **36x36pt** tap target against
+Apple's **44x44pt** minimum. The padding goes to 8, which makes the tap target
+exactly 44 **while the icon stays 28x28**, so the X does not look bigger: the
+extra area is invisible padding, which is the standard way to meet the
+guidance without redesigning a control.
+
+**Publishing cleared the draft**, so this was built from the PUBLISHED config
+rather than a stale draft. Revision 11 is a draft and the live paywall is still
+revision 10, so **this needs publishing again to reach anyone**.
 
 ### Creating it attached it to the offering
 
