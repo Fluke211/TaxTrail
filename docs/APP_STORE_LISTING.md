@@ -433,10 +433,55 @@ must not be: the reviewer sees the template as configured at review time.
 
 ## RevenueCat paywall: what to put in the editor (D-107)
 
-Paste-ready content for the fixes D-107 calls for. **Check first whether the
-paywall is v1 or v2**, because the variable names differ: v2 prefixes them with
-`product.`, v1 does not (`sub_offer_duration` is a v1 name). Everything below is
-v2, which is what RevenueCat's current documentation uses.
+**This paywall is a LEGACY (v1) paywall.** Established against the API on
+2026-11-07, not inferred:
+
+    GET /v2/projects/proj63a7fa32/paywalls            -> 0 items
+    GET /v2/projects/proj63a7fa32/offerings/ofrng6092a617e4
+                                                      -> paywall_id: null
+
+and yet the app renders a RevenueCat paywall, which is not `FallbackPaywall`
+(that one has a subtitle, legal text, Terms and Privacy links and a "Not now"
+button, and renders no app icon). So a paywall exists and the v2 API cannot see
+it, which is what a legacy paywall looks like from v2.
+
+**Consequences, both of which bite:**
+
+1. **The v2 variable names do not work here.** v2 writes
+   `{{ product.price_per_period }}`; v1 writes `{{ price_per_period }}` with no
+   prefix. A v2 name on a v1 paywall renders as literal text on a live screen.
+2. **A legacy paywall has no Footer component.** v2 has a `sticky_footer`,
+   which is exactly where the auto-renewal disclosure and the Terms and Privacy
+   links belong. On v1 the configurable fields are Title, Subtitle, Package
+   details, Package details for an introductory offer, Call to action, and Call
+   to action for an introductory offer. The disclosure has to be squeezed into
+   one of those.
+
+The offering is `ofrng6092a617e4` (`default`, display name still "ReceiptSnap
+Default", internal only) and it carries all three packages: `$rc_annual`,
+`$rc_monthly`, `$rc_lifetime`. So lifetime is live in the offering, which the
+paywall screenshot confirms.
+
+### Legacy (v1) variable names, if the legacy paywall is kept
+
+| Need | v1 variable |
+|---|---|
+| Price with its period | `{{ price_per_period }}` or `{{ price_per_period_full }}` |
+| Full billed amount plus monthly equivalent | `{{ total_price_and_per_month }}` |
+| Saving against the monthly plan | `{{ sub_relative_discount }}`, which computes it rather than hardcoding 52% |
+| Trial length | `{{ sub_offer_duration }}` |
+| Trial price | `{{ sub_offer_price }}` |
+
+Terms and Privacy on a legacy paywall: the documentation says components such
+as "Terms of Service" and "Privacy Policy" are localized automatically, and the
+only documented way to put a link in a string is Markdown,
+`[Terms of Use](https://...)`. It does not confirm Markdown is the right
+mechanism for the legal links, so that needs checking in the editor.
+
+### The v2 content below is kept for a migration
+
+Everything from here down assumes v2 and does NOT apply to the paywall as it
+stands today.
 
 ### Title and subtitle
 
