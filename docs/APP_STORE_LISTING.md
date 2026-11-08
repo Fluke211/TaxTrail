@@ -954,6 +954,29 @@ Submission" without a separate pass.
 
 ---
 
+## SUBMITTED 2026-11-08
+
+TaxTrail 1.0 (build 7) went to App Review on 2026-11-08, with the three Pro
+products in the same submission. Release is MANUAL, so approval does not put it
+on sale.
+
+What to expect, and what each outcome costs:
+
+- **Approved.** Nothing happens until Tyler presses Release. The date is his.
+- **Metadata Rejected.** The usual causes are the description, the screenshots
+  or the subscription review screenshot. All of them are fixed in App Store
+  Connect and resubmitted **without a new build**.
+- **Rejected on the binary.** Would need a new build, which is the expensive
+  case, and the work in D-066, D-085 and D-107 was aimed squarely at not
+  landing here: no unused permissions, no undisclosed Face ID, a paywall that
+  states its periods and carries its legal links.
+
+Parked until the outcome is known: the Settings reorganization with collapsible
+sections, enlarging nothing else, and the further receipt-scanning improvements
+Tyler expects to want.
+
+---
+
 ## Pre-submission checklist
 
 - [x] D-022 resolved; App Privacy answers match reality — **re-verified
