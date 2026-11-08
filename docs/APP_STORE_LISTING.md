@@ -936,6 +936,24 @@ editor UI. Do not take the steps above as a click path.
 
 ---
 
+## The three fields that block "Add for Review"
+
+App Store Connect refused the submission on 2026-11-08 with "Unable to Add for
+Review" and three required items. The answers, each checked against the repo
+rather than guessed:
+
+| Required | Answer | Why |
+|---|---|---|
+| **Content Rights Information** (App Information) | **No**, it does not contain, show or access third-party content | The app processes the user's own receipts on-device and displays nothing from anyone else. A user supplying their own documents is not third-party content in Apple's sense |
+| **Choose a build** | **1.0 (7)** | `APP_BUILD = 7` in `version.ts`, VALID in App Store Connect, confirmed launching on device 2026-09-07, and the build that dropped `expo-location`, which is what unblocked submission (D-085) |
+| **Price tier** (Pricing) | **Free** | The app downloads free with a 10-scan monthly tier (`FREE_SCANS_PER_MONTH = 10`) and monetizes entirely through the Pro IAPs. A paid tier here would charge for the download AND the subscription |
+
+The chevron beside "Add for Review" is also where in-app purchases are attached
+to the same submission, which is how the three products leave "Prepare for
+Submission" without a separate pass.
+
+---
+
 ## Pre-submission checklist
 
 - [x] D-022 resolved; App Privacy answers match reality — **re-verified
