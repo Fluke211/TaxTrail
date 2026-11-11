@@ -963,15 +963,15 @@ Submission" without a separate pass.
 
 ---
 
-## REJECTED 2026-11-11, metadata only (D-108)
+## RESUBMITTED 2026-11-11, after a metadata-only rejection (D-108)
 
 Rejected under **3.1.2 Business: Payments - Subscriptions**: "does not include a
 functional link to the Terms of Use (EULA) in the app metadata that appears on
 the app's App Store product page". The in-app paywall was not the problem; the
 App Store **description** was. Fixed above: the description now ends with the
 subscription terms, a Terms of Use link to Apple's standard EULA, and a privacy
-policy link. Paste it into App Store Connect and press **Resubmit to App
-Review**. No new build. The three IAPs and the subscription group were accepted
+policy link. Pasted into App Store Connect and resubmitted the same day,
+with no new build. The three IAPs and the subscription group were accepted
 and are unaffected.
 
 ## SUBMITTED 2026-11-08
