@@ -5956,3 +5956,51 @@ configuration and takes effect immediately for everyone. That also means it can
 be fixed after submission, which is exactly the trap: it must be fixed BEFORE
 review, because the reviewer sees it.
 
+## D-108
+
+**Guideline 3.1.2 has two surfaces, and we only fixed one** (2026-11-11)
+
+TaxTrail 1.0 (7) was rejected under **3.1.2 Business: Payments -
+Subscriptions**, one day after submission. The reason was not the paywall:
+
+    The submission offers auto-renewable subscriptions ... but does not include
+    a functional link to the Terms of Use (EULA) in the app metadata that
+    appears on the app's App Store product page.
+
+**D-107 was about the in-app offer screen, and it was right about that.** Twelve
+paywall revisions put the period beside every price, an auto-renewal
+disclosure in the sticky footer, and working Terms and Privacy links on the
+screen that sells the subscription. RevenueCat's own audit passed every
+compliance row. None of that was wasted and none of it was the problem.
+
+**3.1.2 also governs the App Store product page**, which is metadata and lives
+nowhere near the app. A reviewer reading the listing before ever launching the
+binary must find a Terms of Use link in the **App Description**, in every
+localization, when the standard Apple EULA is used. Ours had none. The
+Privacy Policy URL field was filled, which is a different field and does not
+satisfy this.
+
+So the rule has two independent surfaces and passing one says nothing about the
+other:
+
+| Surface | What it needs | Where it is set |
+|---|---|---|
+| The in-app offer screen | Title, length, price per period, auto-renewal disclosure, EULA and privacy links | RevenueCat paywall config (D-107) |
+| The App Store product page | A functional EULA link in the App Description, per localization | App Store Connect metadata |
+
+**The lesson is the same one D-107 states and is worth stating twice, because
+it recurred in a form D-107 did not cover.** A requirement was verified on the
+artifact we could see, and satisfied there, while a second artifact the same
+rule governs was never checked at all. The in-app paywall was inspected
+obsessively, from the JSON and then from device screenshots; the App Store
+listing's own compliance was assumed because its text had been reviewed for
+accuracy, which is a different question from whether it carries the links Apple
+requires.
+
+**The fix is metadata only, no binary.** The description now ends with the
+subscription terms in plain language, a Terms of Use link to Apple's standard
+EULA, and a privacy policy link. 2188 characters of 4000. The three in-app
+purchases and the subscription group were all accepted and read "Ready for
+Review"; only the app version was rejected, so resubmission does not disturb
+them.
+

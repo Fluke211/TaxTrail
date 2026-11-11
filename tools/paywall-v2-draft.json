@@ -81,11 +81,11 @@
            "size": {
             "height": {
              "type": "fixed",
-             "value": 28
+             "value": 36
             },
             "width": {
              "type": "fixed",
-             "value": 28
+             "value": 36
             }
            },
            "type": "icon"
@@ -3541,5 +3541,5 @@
  "name": "TaxTrail Pro",
  "offering_id": "ofrng6092a617e4",
  "paywall_id": "pw582c296e2dea4c0b",
- "revision": 10
+ "revision": 12
 }

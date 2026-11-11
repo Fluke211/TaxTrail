@@ -79,6 +79,15 @@ advertising business.
 
 TaxTrail is a record-keeping tool, not tax advice. Check with your tax
 professional about your situation.
+
+TaxTrail Pro is an auto-renewing subscription. Payment is charged to your Apple
+Account at confirmation of purchase. The subscription renews automatically
+unless auto-renew is turned off at least 24 hours before the end of the current
+period. Manage or cancel in your Apple Account settings. TaxTrail Pro Lifetime
+is a one-time purchase and does not renew.
+
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://taxtrail.app/privacy
 ```
 
 ## Keywords (100 max, comma-separated, no spaces)
@@ -431,7 +440,7 @@ must not be: the reviewer sees the template as configured at review time.
 
 ---
 
-## A v2 paywall draft is BUILT and waiting for Tyler to publish (rev 10)
+## The v2 paywall is PUBLISHED at revision 12. Done.
 
 Built through the v2 API on 2026-11-07, after Tyler chose migration over
 patching the legacy paywall. **Paywall `pw582c296e2dea4c0b`, revision 2,
@@ -690,6 +699,81 @@ aiming at and wrong about what it displaced. That is the cost of editing a
 layout that cannot be previewed from here, and it is the practical shape of
 what D-107 states as a principle.
 
+### Published, and what the live screen proved (revision 10)
+
+Tyler published it on 2026-11-07 and sent a device screenshot. Three things
+that had been recorded as unverified are now settled, by looking at the real
+app rather than the editor:
+
+- **The prices are real.** $39.99/yr, $6.99/mo, $99.99. The editor's $69.99 /
+  $9.99 / $119.99 were placeholders exactly as documented, so products fetch
+  correctly.
+- **SAVE 52%** renders, which is the arithmetic this file recorded
+  ($39.99 against 12 x $6.99 = $83.88). `{{ product.relative_discount }}`
+  computes it rather than anyone hardcoding it.
+- **The 7-day trial exists.** The card reads "Only $3.33/mo after free trial."
+  and the button reads "Get started for free", so the intro-offer variants are
+  live and eligible. This file had warned not to advertise the trial until it
+  was confirmed configured. It is.
+
+### Revisions 11 and 12: meeting the guidance is not the same as looking right
+
+Flagged at revision 6 and deliberately deferred then, because buying a line of
+text by shrinking an already undersized control was the wrong trade. With the
+layout settled there is room, and Tyler asked for it.
+
+The icon is 28x28 with 4px of padding, a **36x36pt** tap target against
+Apple's **44x44pt** minimum. The padding goes to 8, which makes the tap target
+exactly 44 **while the icon stays 28x28**, so the X does not look bigger: the
+extra area is invisible padding, which is the standard way to meet the
+guidance without redesigning a control.
+
+**Publishing cleared the draft**, so this was built from the PUBLISHED config
+rather than a stale draft. Revision 11 is a draft and the live paywall is still
+revision 10, so **this needs publishing again to reach anyone**.
+
+### Revision 12: the fix that was invisible on purpose
+
+Revision 11 shipped and Tyler said "X still small". He was right, and the
+reason is worth recording, because the change had done exactly what it was
+designed to do.
+
+Apple's 44pt rule is about the **tap target**, not the glyph, and the standard
+way to satisfy it is invisible padding: leave the artwork alone and grow the
+hit area around it. That is what revision 11 did, 28pt glyph inside a 44pt
+circle, and it is a correct reading of the guidance.
+
+**It was the wrong reading of the request.** "The X does look too small" is a
+complaint about appearance, and "we should meet the Apple guidance on that
+size" was the justification for fixing it, not the specification. Satisfying
+the rule while deliberately changing nothing visible answered the citation and
+not the person.
+
+Revision 12 enlarges the glyph itself, 28pt to 36pt, and drops the padding back
+to 4 so the circle stays exactly 44pt. The control still meets the minimum, and
+now it also looks like it does.
+
+### Settled at revision 12
+
+Published 2026-11-07. The close button is a 36pt glyph in a 44pt circle, which
+meets Apple's minimum and reads as a real control. The App Review screenshot
+was taken from this build and converted to 1179x2556 with
+`tools/screenshots/review-shot.js`.
+
+Twelve revisions, and the honest summary of why: three of them (8, 9, 10) were
+one row's layout rule being got right by elimination, and two (11, 12) were a
+tap target. Both are the same cost, paid twice. This paywall is remote
+configuration, so nothing in this repository can render it, and every judgement
+about how it LOOKS had to come back from a person with a screenshot. That is
+what D-107 means in practice, and it is the argument for the snapshot at
+`tools/paywall-v2-draft.json`: the configuration is at least reviewable here,
+even though it cannot be tested here.
+
+What the published screen is worth, against where it started: the original
+template had no period on its prices, no auto-renewal disclosure, no legal
+links, Terms and Privacy pointing at `revenuecat.com`, two of the three
+packages, placeholder copy about cats, and monthly preselected against D-002.
+
 ### Creating it attached it to the offering
 
 `POST /paywalls` requires `offering_id`, and the offering's `paywall_id` went
@@ -858,6 +942,58 @@ Apple's required elements and the variable names above come from RevenueCat's
 documentation. **How to set the preselected package, and the exact control for
 a Restore button, are not in the documentation** and have to be found in the
 editor UI. Do not take the steps above as a click path.
+
+---
+
+## The three fields that block "Add for Review"
+
+App Store Connect refused the submission on 2026-11-08 with "Unable to Add for
+Review" and three required items. The answers, each checked against the repo
+rather than guessed:
+
+| Required | Answer | Why |
+|---|---|---|
+| **Content Rights Information** (App Information) | **No**, it does not contain, show or access third-party content | The app processes the user's own receipts on-device and displays nothing from anyone else. A user supplying their own documents is not third-party content in Apple's sense |
+| **Choose a build** | **1.0 (7)** | `APP_BUILD = 7` in `version.ts`, VALID in App Store Connect, confirmed launching on device 2026-09-07, and the build that dropped `expo-location`, which is what unblocked submission (D-085) |
+| **Price tier** (Pricing) | **Free** | The app downloads free with a 10-scan monthly tier (`FREE_SCANS_PER_MONTH = 10`) and monetizes entirely through the Pro IAPs. A paid tier here would charge for the download AND the subscription |
+
+The chevron beside "Add for Review" is also where in-app purchases are attached
+to the same submission, which is how the three products leave "Prepare for
+Submission" without a separate pass.
+
+---
+
+## REJECTED 2026-11-11, metadata only (D-108)
+
+Rejected under **3.1.2 Business: Payments - Subscriptions**: "does not include a
+functional link to the Terms of Use (EULA) in the app metadata that appears on
+the app's App Store product page". The in-app paywall was not the problem; the
+App Store **description** was. Fixed above: the description now ends with the
+subscription terms, a Terms of Use link to Apple's standard EULA, and a privacy
+policy link. Paste it into App Store Connect and press **Resubmit to App
+Review**. No new build. The three IAPs and the subscription group were accepted
+and are unaffected.
+
+## SUBMITTED 2026-11-08
+
+TaxTrail 1.0 (build 7) went to App Review on 2026-11-08, with the three Pro
+products in the same submission. Release is MANUAL, so approval does not put it
+on sale.
+
+What to expect, and what each outcome costs:
+
+- **Approved.** Nothing happens until Tyler presses Release. The date is his.
+- **Metadata Rejected.** The usual causes are the description, the screenshots
+  or the subscription review screenshot. All of them are fixed in App Store
+  Connect and resubmitted **without a new build**.
+- **Rejected on the binary.** Would need a new build, which is the expensive
+  case, and the work in D-066, D-085 and D-107 was aimed squarely at not
+  landing here: no unused permissions, no undisclosed Face ID, a paywall that
+  states its periods and carries its legal links.
+
+Parked until the outcome is known: the Settings reorganization with collapsible
+sections, enlarging nothing else, and the further receipt-scanning improvements
+Tyler expects to want.
 
 ---
 
