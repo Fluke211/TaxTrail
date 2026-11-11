@@ -79,6 +79,15 @@ advertising business.
 
 TaxTrail is a record-keeping tool, not tax advice. Check with your tax
 professional about your situation.
+
+TaxTrail Pro is an auto-renewing subscription. Payment is charged to your Apple
+Account at confirmation of purchase. The subscription renews automatically
+unless auto-renew is turned off at least 24 hours before the end of the current
+period. Manage or cancel in your Apple Account settings. TaxTrail Pro Lifetime
+is a one-time purchase and does not renew.
+
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://taxtrail.app/privacy
 ```
 
 ## Keywords (100 max, comma-separated, no spaces)
@@ -953,6 +962,17 @@ to the same submission, which is how the three products leave "Prepare for
 Submission" without a separate pass.
 
 ---
+
+## REJECTED 2026-11-11, metadata only (D-108)
+
+Rejected under **3.1.2 Business: Payments - Subscriptions**: "does not include a
+functional link to the Terms of Use (EULA) in the app metadata that appears on
+the app's App Store product page". The in-app paywall was not the problem; the
+App Store **description** was. Fixed above: the description now ends with the
+subscription terms, a Terms of Use link to Apple's standard EULA, and a privacy
+policy link. Paste it into App Store Connect and press **Resubmit to App
+Review**. No new build. The three IAPs and the subscription group were accepted
+and are unaffected.
 
 ## SUBMITTED 2026-11-08
 
