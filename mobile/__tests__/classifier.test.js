@@ -2016,5 +2016,82 @@ check('and its tax and total are read correctly',
   JSON.stringify({ tax: costcoHi.taxTotal, total: costcoHi.total }));
 
 
+/*
+ * r50 (D-109). Tyler's Aberdeen Safeway receipt, paid in cash: the parser read
+ * the $204.00 he handed over as the total, lost the $2.36 tax, and took "Total
+ * Savings Value 10%" as a printed sales-tax rate, which would have been learned
+ * for Aberdeen. Every Safeway receipt before it was paid by card, where the
+ * tender equals the balance, so the bug was invisible.
+ */
+const SW_CASH = C.parseReceipt(fx(path.join('corpus', 'safeway-aberdeen-cash-2026-11-13.txt')));
+check('a cash Safeway receipt reads the balance, not the cash tendered',
+  SW_CASH.total === 143.85, SW_CASH.total);
+check('and finds its tax past forty item amounts',
+  SW_CASH.taxTotal === 2.36, SW_CASH.taxTotal);
+check('and does not mistake "Total Savings Value 10%" for a printed tax rate',
+  SW_CASH.taxRatePrinted === null, SW_CASH.taxRatePrinted);
+
+// The cash proof must never touch a card receipt: Visa and BALANCE agree there,
+// and the answer it already had is the one it keeps.
+const SW_CARD = C.parseReceipt(fx(path.join('corpus', 'safeway-2026-03-22-23.txt')));
+check('a card Safeway receipt keeps the total it always had',
+  SW_CARD.total === 48.42, SW_CARD.total);
+
+// Exact change: CASH equals the BALANCE and CHANGE prints 0.00.
+const exact = C.parseReceipt(['CORNER MART', '123 Main St', 'Spokane, WA 99201',
+  'COFFEE', 'TAX', '**** BALANCE', 'Cash', 'CHANGE',
+  '4.50', '0.40', '4.90', '4.90', '0.00'].join('\n'));
+check('an exact-change cash receipt reads the balance',
+  exact.total === 4.90, exact.total);
+
+/*
+ * The proof needs three ADJACENT amounts whose balance is at least every amount
+ * before it. The search runs from the end, and a savings block prints AFTER the
+ * tender, so a coincidence there is met first: 8.00 - 5.00 = 3.00 reads as
+ * balance 3.00, cash 8.00, change 5.00. The guard is what refuses it, since a
+ * $3.00 "bill" cannot be smaller than the $19.62 printed above it.
+ */
+const decoy = C.parseReceipt(['CORNER MART', '123 Main St', 'Spokane, WA 99201',
+  'A', 'B', 'C', 'TAX', '**** BALANCE', 'Cash', 'CHANGE',
+  '4.00', '9.00', '5.00', '1.62', '19.62', '40.00', '20.38',
+  'YOUR SAVINGS', '3.00', '8.00', '5.00'].join('\n'));
+check('a coincidental difference in a later savings block does not become the total',
+  decoy.total === 19.62, decoy.total);
+
+// A tax-labelled percentage is still a printed rate; a savings one is not.
+const getPct = C.parseReceipt(['ISLAND DELI', 'Honolulu, HI 96813',
+  'SANDWICH', 'Subtotal', 'GET', '4.712%', 'Total',
+  '10.00', '0.47', '10.47'].join('\n'));
+check('a percentage under a tax label is still read as the printed rate',
+  Math.abs(getPct.taxRatePrinted - 0.04712) < 1e-9, getPct.taxRatePrinted);
+const savPct = C.parseReceipt(['ISLAND DELI', 'Honolulu, HI 96813',
+  'SANDWICH', 'Subtotal', 'GET', 'Total', '10.00', '0.47', '10.47',
+  'YOUR SAVINGS', 'Member Savings', 'Total Savings Value', '1.00', '9%'].join('\n'));
+check('a percentage under a savings label is not a tax rate',
+  savPct.taxRatePrinted === null, savPct.taxRatePrinted);
+
+/*
+ * Only a printed rate is remembered for the city. A derived rate is tax over
+ * subtotal, a floor rather than a rate wherever groceries go untaxed, and a
+ * remembered city rate outranks every later receipt's own derived one.
+ */
+const RS = require('../src/lib/rateSource.js');
+const pr = (p, m) => RS.pickRate(p, m);
+check('rate priority: printed beats a remembered city rate',
+  pr({ taxRatePrinted: 0.047, taxRate: 0.04 }, { rate: 0.05, fromCity: true }).rateSource === RS.PRINTED);
+check('rate priority: a remembered city rate beats a derived one',
+  pr({ taxRatePrinted: null, taxRate: 0.0167 }, { rate: 0.091, fromCity: true }).taxRate === 0.091);
+check('rate priority: derived beats last used',
+  pr({ taxRatePrinted: null, taxRate: 0.0167 }, { rate: 0.05, fromCity: false }).rateSource === RS.DERIVED);
+check('rate priority: nothing at all reads as not detected',
+  pr({ taxRatePrinted: null, taxRate: null }, null).rateSource === RS.NONE);
+check('a printed rate is learned for the city', RS.shouldLearn(RS.PRINTED, 0.047));
+check('a derived rate is NOT learned (it is a floor, not a rate)',
+  RS.shouldLearn(RS.DERIVED, 0.0167) === false);
+check('a remembered or last-used rate is not re-learned',
+  !RS.shouldLearn(RS.REMEMBERED, 0.091) && !RS.shouldLearn(RS.LAST_USED, 0.05));
+check('a zero or missing rate is never learned',
+  !RS.shouldLearn(RS.PRINTED, 0) && !RS.shouldLearn(RS.PRINTED, null));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

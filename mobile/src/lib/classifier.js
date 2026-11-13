@@ -377,6 +377,48 @@
     return i > 0 && /\bsavings\b/i.test(lines[i - 1] || '');
   }
 
+  /*
+   * The balance on a cash receipt, proved by CASH - CHANGE = BALANCE.
+   *
+   * Three CONSECUTIVE amounts in print order, searched from the end because the
+   * tender block follows the items. Consecutive and ordered is what keeps this a
+   * proof: "a - b = c" holds for some triple of numbers on almost any itemised
+   * receipt, which is the universal-identity trap D-096 records, but it does not
+   * hold for three adjacent amounts that are also preceded only by smaller ones.
+   * The balance has to be at least every amount printed before it, because no
+   * line on a bill can exceed the bill.
+   *
+   * Returns null unless the receipt prints both labels and the identity closes.
+   */
+  function cashTenderTotal(lines) {
+    var hasCash = false, hasChange = false;
+    for (var i = 0; i < lines.length; i++) {
+      if (/^\s*[*=\s]*cash\s*(tend(ere)?d)?\s*:?\s*$/i.test(lines[i])) hasCash = true;
+      else if (/^\s*[*=\s]*change(\s*due)?\s*:?\s*$/i.test(lines[i])) hasChange = true;
+    }
+    if (!hasCash || !hasChange) return null;
+
+    var amounts = [];
+    for (var k = 0; k < lines.length; k++) {
+      var m = matchMoney(lines[k]);
+      if (!m || isCredit(lines[k], m)) continue;
+      // Value lines only: an amount carrying a label of its own is not part of
+      // the tender column. Same allowance as columnTotals, room for "5.49 S".
+      if (lines[k].replace(m[0], '').replace(/[^A-Za-z]/g, '').length > 6) continue;
+      var v = normalizeAmount(m[1]);
+      if (v !== null && v >= 0 && v < 1000000) amounts.push(v);
+    }
+    for (var t = amounts.length - 3; t >= 0; t--) {
+      var bal = amounts[t], cash = amounts[t + 1], chg = amounts[t + 2];
+      if (!(bal > 0) || cash < bal || chg < 0) continue;
+      if (Math.abs(cash - chg - bal) >= 0.005) continue;
+      var biggest = true;
+      for (var e = 0; e < t; e++) if (amounts[e] > bal) { biggest = false; break; }
+      if (biggest) return bal;
+    }
+    return null;
+  }
+
   function extractTotal(lines) {
     var candidates = [];
     var credits = [];
@@ -409,6 +451,28 @@
       candidates.sort(function (a, b) { return a.priority - b.priority || b.value - a.value; });
       return candidates[0].value;
     }
+    /*
+     * Cash tendered is not the total.
+     *
+     * The fallback below takes the largest amount on the receipt, and on a card
+     * receipt that is right by coincidence: Safeway prints the Visa line for the
+     * exact balance, so the biggest number IS the bill. Every Safeway fixture in
+     * the corpus was paid by card, which is why this never failed.
+     *
+     * Paid in cash, the biggest number is what the customer handed over. Tyler's
+     * Aberdeen receipt read $204.00 for a $143.85 bill, because the column layout
+     * strands "**** BALANCE" from its value and no labelled candidate survives
+     * to outrank the max. Then strategy 2 in columnTotals anchored on $204.00,
+     * found nothing plausible before it, and the tax was lost as well (D-109).
+     *
+     * A cash slip proves its own total: CASH minus CHANGE is the BALANCE. That
+     * is an identity the receipt prints, not a guess, and it only runs when the
+     * receipt literally prints bare "Cash" and "Change" labels, so a card
+     * receipt never reaches it and keeps exactly the answer it has today.
+     */
+    var tendered = cashTenderTotal(lines);
+    if (tendered !== null) return tendered;
+
     // Fallback: largest money amount on the receipt (skipping credit/discount lines)
     var max = null;
     var creditMax = null;
@@ -1347,13 +1411,24 @@
        * every triple in it.
        */
       var values = [];
+      /*
+       * Amounts past the cap, kept for strategy 2 and nothing else.
+       *
+       * Safeway's column block puts the totals AFTER both item columns, the
+       * regular price and then "You Pay", so a twenty-item basket has forty
+       * amounts ahead of the tax. The cap of 25 stopped at item 25 and the tax
+       * was never reached; smaller baskets fit, which is why every Safeway
+       * receipt in the corpus passed. The cap stays exactly where it is for
+       * strategy 1, whose triple search is what it protects (D-109).
+       */
+      var beyond = [];
       var gap = 0;
       for (var k = j; k < lines.length && gap < 20; k++) {
         var v = valueOf(lines[k]);
         if (v === null) { gap++; continue; }
         gap = 0;
-        values.push(v);
-        if (values.length > 24) break;
+        if (values.length <= 24) values.push(v);
+        else beyond.push(v);
       }
       if (values.length < 2) continue;
 
@@ -1602,14 +1677,59 @@
        * the row order every receipt prints.
        */
       if (!grandTotal) continue;
-      for (var t2 = values.length - 1; t2 >= 1; t2--) {
-        if (Math.abs(values[t2] - grandTotal) >= 0.02) continue;
-        var tax2 = values[t2 - 1];
-        if (tax2 == null || tax2 <= 0 || tax2 > grandTotal * 0.25) continue;
-        return { subtotal: null, tax: tax2, total: grandTotal };
+      /*
+       * The capped run first, unchanged, so any receipt this answered before
+       * still gets the same answer. Only when that finds nothing does the
+       * search widen to the amounts past the cap.
+       */
+      var runs = beyond.length ? [values, values.concat(beyond)] : [values];
+      for (var r2 = 0; r2 < runs.length; r2++) {
+        var run2 = runs[r2];
+        for (var t2 = run2.length - 1; t2 >= 1; t2--) {
+          if (Math.abs(run2[t2] - grandTotal) >= 0.02) continue;
+          var tax2 = run2[t2 - 1];
+          if (tax2 == null || tax2 <= 0 || tax2 > grandTotal * 0.25) continue;
+          return { subtotal: null, tax: tax2, total: grandTotal };
+        }
       }
     }
     return null;
+  }
+
+  /*
+   * A savings percentage is not a tax rate.
+   *
+   * Safeway closes every receipt with
+   *     YOUR SAVINGS / Member Savings / for U Savings / Total / Total Savings Value
+   *     13.00 / 2.75 / 15.75 / 10%
+   * and the printed-rate scan takes the first percentage it meets. At 18% the
+   * 12% ceiling threw it out, by luck. At 10% it did not, and Tyler's Aberdeen
+   * receipt reported "10% printed on receipt", which `taxMemLearn` would have
+   * stored against the city. A receipt already in the corpus had been doing the
+   * same with 5% since July, unseen because nothing pinned its printed rate.
+   *
+   * The arithmetic veto below cannot catch this one. It is one-sided on purpose,
+   * keeping a printed rate ABOVE the derived one, because untaxed groceries
+   * make the derived rate understate, and a grocery receipt is exactly where
+   * this percentage lives. So it is decided by the label.
+   *
+   * In a column layout the percentage is a bare line whose label is the nearest
+   * line above it with words in it, past the amounts between them. Mamaya's
+   * "4.712%" resolves to GET and is kept; Safeway's "10%" resolves to "Total
+   * Savings Value" and is not a rate at all (D-109).
+   */
+  function savingsPercent(lines, p) {
+    if (/\bsav(e|ed|ings?)\b/i.test(lines[p])) return true;
+    if (!/^\s*\d{1,2}(?:[.,]\d{1,4})?\s*%\s*$/.test(lines[p])) return false;
+    for (var q = p - 1; q >= 0 && q >= p - 12; q--) {
+      var rest = lines[q];
+      var m = matchMoney(rest);
+      if (m) rest = rest.replace(m[0], '');
+      rest = rest.replace(/\d+(?:[.,]\d+)?\s*%/g, '');
+      if (!/[A-Za-z]{3}/.test(rest)) continue;
+      return /\bsavings?\b/i.test(lines[q]);
+    }
+    return false;
   }
 
   // Tax rate: an explicitly printed percentage (e.g. "A 4.712% GET") is the most
@@ -1620,6 +1740,7 @@
     var moneyRe = MONEY;
     for (var p = 0; p < lines.length; p++) {
       var pm = lines[p].match(/(\d{1,2}(?:[.,]\d{1,4})?)\s*%/);
+      if (pm && savingsPercent(lines, p)) continue;
       if (pm) {
         var pr = parseFloat(pm[1].replace(',', '.')) / 100;
         /*

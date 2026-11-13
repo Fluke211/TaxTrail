@@ -9,6 +9,31 @@ visible version, and it gets recorded here.
 
 ---
 
+## js r50 (2026-11-13), built, NOT yet published
+
+Held back from the `production` channel while build 7 is in App Review, so the
+reviewer runs exactly the bundle that was submitted. Publish after approval and
+before pressing Release.
+
+- **A cash receipt reads its balance, not the cash tendered** (D-109). Tyler's
+  Aberdeen Safeway receipt read $204.00 for a $143.85 bill. Cash minus change
+  now proves the balance; card receipts never reach the rule.
+- **A large basket finds its tax.** Safeway's totals sit after both item
+  columns, and the column reader stopped at 25 amounts. A twenty-item receipt
+  has forty ahead of its tax. $2.36 is found now.
+- **"Total Savings Value 10%" is not a tax rate.** It was being reported as
+  "printed on receipt". A fixture already in the corpus had been doing the same
+  with 5% since July.
+- **A derived tax rate is no longer remembered for the city.** Tax over subtotal
+  understates wherever groceries go untaxed, so Aberdeen would have learned 1.67%
+  against a real rate near 9.1%. Only printed rates are learned.
+- **The corpus pins gate CI.** `test:score` existed and was never run there.
+
+If the earlier Aberdeen scan was saved, Aberdeen is stored at 10%: Settings,
+Forget learned sales-tax rates, clears it.
+
+---
+
 ## Tooling (no OTA: screenshots only)
 
 - **The screenshot builder targets 1179x2556.** App Store Connect organises

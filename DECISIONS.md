@@ -6004,3 +6004,95 @@ purchases and the subscription group were all accepted and read "Ready for
 Review"; only the app version was rejected, so resubmission does not disturb
 them.
 
+## D-109
+
+**A cash receipt, and three bugs a card receipt can never show** (2026-11-13)
+
+Tyler scanned a Safeway receipt in Aberdeen, Washington and reported that it
+"missed the total and tax". It was worse than that. The parser returned:
+
+| Field | Parsed | Receipt |
+|---|---|---|
+| Total | **$204.00** | $143.85 |
+| Tax | none | $2.36 |
+| Printed tax rate | **10%** | none printed |
+
+**The receipt was paid in cash. Every Safeway receipt in the corpus was paid by
+card.** That one difference explains all of it, and it is why seven Safeway
+fixtures never caught any of this.
+
+### 1. Cash tendered read as the total
+
+The column layout strands "**** BALANCE" from its value, so `extractTotal` finds
+no labelled candidate and falls back to the largest amount on the receipt. On a
+card receipt the largest amount is the Visa line, which equals the balance, so
+the fallback is right **by coincidence**. In cash, the largest amount is what the
+customer handed over.
+
+Fixed by a proof the receipt prints itself: **CASH minus CHANGE is the
+BALANCE**. It runs only when the receipt prints bare "Cash" and "Change" labels,
+so no card receipt can reach it. It needs three ADJACENT amounts, searched from
+the end, whose balance is at least every amount above it. Without that last
+guard a savings block printed after the tender is met first, and "8.00 - 5.00 =
+3.00" books a $3.00 bill; the unit test for it was confirmed to fail with the
+guard removed.
+
+### 2. A cap that small baskets never reach
+
+`columnTotals` reads at most 25 amounts after the labels. Safeway prints the
+totals AFTER both item columns, regular price and then "You Pay", so a
+twenty-item basket has forty amounts ahead of its tax. Every Safeway fixture was
+a small basket. Strategy 2 now searches past the cap, but only after the capped
+search finds nothing, so a receipt that answered before still answers the same.
+
+### 3. A savings percentage read as a tax rate
+
+Safeway ends every receipt with "Total Savings Value" and a percentage. The
+printed-rate scan takes the first percentage it meets. At 18% the 12% ceiling
+threw it out, by luck. At 10% it did not.
+
+**A receipt already in the corpus had been doing this since July**, reading
+"Total Savings Value 5%" as a printed rate. It went unnoticed because its
+expectation pinned the total and the tax but not the printed rate.
+
+The existing arithmetic veto cannot catch it, and correctly so: it is one-sided,
+keeping a printed rate ABOVE the derived one, because untaxed groceries make the
+derived rate understate, and a grocery receipt is exactly where this percentage
+lives. So it is decided by the label. A bare percentage belongs to the nearest
+line above it that has words, past the amounts between them. Mamaya's "4.712%"
+resolves to GET and is kept; Safeway's "10%" resolves to "Total Savings Value".
+
+### 4. A derived rate is not learned any more
+
+Fixing 3 exposed a fourth. With the savings percentage gone, Aberdeen derives
+$2.36 / $141.49 = **1.67%**, because Washington does not tax most groceries. The
+real rate is near 9.1%. `CaptureScreen` learned whatever rate a receipt ended
+with, so fixing the parser alone would have taught Aberdeen 1.67% instead of
+10%: **further from the truth than the bug it replaced**.
+
+The classifier's own notes already state why a derived rate is not a rate:
+"tax / subtotal can only ever UNDERSTATE the true rate, because non-taxable
+items sit inside the subtotal." It is a floor. And a remembered city rate
+outranks a later receipt's own derived one, so storing a floor makes it the
+answer for every receipt after it.
+
+**Only a printed rate is learned now.** The priority itself is unchanged and
+moved into `src/lib/rateSource.js` so it can be tested (D-043). The cost is less
+learning, from receipts that print no rate; the alternative was that most US
+states, which exempt groceries, would teach every user's city a rate several
+points low from their first grocery scan.
+
+### And the reason none of this was caught
+
+`test:score` compares every pinned field and exits non-zero on a mismatch, but it
+was **never in CI**. The pins were checked only when someone ran the script by
+hand. It gates CI now.
+
+### What this does NOT fix
+
+A rate that is genuinely per-item. Safeway marks taxable lines "T" and the rest
+"S"; $2.36 over the $25.96 marked "T" is 9.09%, the real Aberdeen rate. Reading
+those flags would recover true rates from grocery receipts, but the letters are
+store-specific, and a guess there is a confident wrong rate rather than a
+missing one. Recorded here as the obvious next step, not taken.
+

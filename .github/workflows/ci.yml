@@ -65,6 +65,15 @@ jobs:
       - name: Corpus fixtures are distinct and pinned
         run: npm run test:corpus
 
+      # The pins above are only worth something if they are checked. test:score
+      # compares every field in every .expected.json and exits non-zero on a
+      # mismatch, but it was never in CI, so a parser change that broke a pinned
+      # receipt passed. A Safeway receipt had been reading "Total Savings Value
+      # 5%" as its printed tax rate since July, and nothing would have failed
+      # even had the rate been pinned (D-109).
+      - name: Corpus expectations hold (every pinned field)
+        run: npm run test:score
+
       # The App Store copy states a category count. It has been wrong twice,
       # because the copy lives in files no test read.
       - name: Category count in the listing matches the code

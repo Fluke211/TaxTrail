@@ -455,6 +455,15 @@ under "Parked, deliberately" below until then.
 
 ## Parked, deliberately
 
+**Read per-item tax flags to recover the true rate from grocery receipts.**
+Safeway marks taxable lines "T" and the rest "S"; on the Aberdeen receipt $2.36
+over the $25.96 marked "T" is 9.09%, the real rate, where tax over the whole
+subtotal gives 1.67% (D-109). Parked because the letters are store-specific
+(Honolulu Safeway prints "B" on everything), and a wrong guess yields a confident
+wrong rate rather than an absent one. Worth doing per store, with fixtures,
+once there are receipts from more than one chain that flag items.
+
+
 **Settings screen reorganization, with collapsible sections.** Tyler called it
 cluttered and badly organized on 2026-11-07 and asked for each section's text
 and detail to collapse. It is JS only, so an OTA rather than a build. Held
