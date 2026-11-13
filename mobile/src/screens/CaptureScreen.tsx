@@ -15,6 +15,7 @@ import { styled, useTheme } from '../lib/theme';
 import { addReceipt, updateReceipt, countAll, countThisMonth, type Allocation, type Receipt } from '../lib/db';
 import { processReceiptPages } from '../lib/ocr';
 import { memLookup, memLearn, memForget, taxMemLookup, taxMemLearn } from '../lib/memory';
+const RS = require('../lib/rateSource.js');
 import { isPro, presentPaywall } from '../lib/purchases';
 import { FREE_SCANS_PER_MONTH, ASK_REVIEW_AFTER_SCANS } from '../lib/config';
 const G = require('../lib/gates.js');
@@ -251,13 +252,10 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
        * was reported to the user as "low confidence" (D-102).
        */
       const resolved = RC.resolveCategory(parsed, remembered, (name: string) => C.classify(text, name));
-      // Tax-rate priority: printed on receipt > saved city rate > derived > last used
+      // Tax-rate priority: printed on receipt > saved city rate > derived > last used.
+      // The rule lives in rateSource.js so it can be tested (D-043, D-109).
       const mem = await taxMemLookup(parsed.city);
-      let taxRate: number | null = null; let rateSource = 'not detected';
-      if (parsed.taxRatePrinted) { taxRate = parsed.taxRatePrinted; rateSource = 'printed on receipt'; }
-      else if (mem?.fromCity) { taxRate = mem.rate; rateSource = 'remembered for this city'; }
-      else if (parsed.taxRate) { taxRate = parsed.taxRate; rateSource = 'derived from receipt'; }
-      else if (mem) { taxRate = mem.rate; rateSource = 'last used'; }
+      const { taxRate, rateSource } = RS.pickRate(parsed, mem);
 
       // A refund parses negative (D-088). The fields hold magnitudes and the
       // flag holds the sign, so the minus survives editing on a keypad that
@@ -524,7 +522,9 @@ export default function CaptureScreen({ onSaved, onSeeAll, receipts, pro, onProC
      */
     const edited = merchant !== pending.offeredMerchant.trim();
     const learned = edited ? await memLearn(pending.ocrText, merchant) : false;
-    await taxMemLearn(pending.city, pending.taxRate);
+    // Printed rates only. A derived rate is a floor, not a rate, and a stored
+    // one outranks every later receipt's own evidence (D-109).
+    if (RS.shouldLearn(pending.rateSource, pending.taxRate)) await taxMemLearn(pending.city, pending.taxRate);
     setPending(null);
     onSaved();
     /*
