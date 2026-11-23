@@ -29,6 +29,7 @@ on:
           - asc-bundle-id
           - asc-iap
           - asc-builds
+          - asc-review
           - submit
       update_message:
         description: 'Message for the EAS Update (used by step: update)'
@@ -608,6 +609,106 @@ jobs:
                     "TestFlight; the fix is a new build, not a resubmit of this one.")
               raise SystemExit(1)
           print("\nNo build has failed processing.")
+          PYEOF
+
+      # Where is the App Review submission, really?
+      #
+      # Added when TaxTrail 1.0 had sat for twelve days after a resubmit with
+      # nothing from Apple. App Store Connect's web page showed the SAME
+      # submission ID as the rejection and "Last Updated By Apple", which reads
+      # the same whether the app is queued, in review, or still waiting on us.
+      # The API says which. Read-only: it changes nothing and costs nothing.
+      #
+      # It cannot read App Review's messages. Apple publishes no API for the
+      # Resolution Center, so a question from a reviewer only shows on the web.
+      - name: Apple API — App Review submission state
+        if: inputs.step == 'asc-review'
+        env:
+          ASC_APP_ID: "6797163508"
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_ASC_API_KEY_PATH:-}" ]; then
+            echo "::error::No Apple API key. Needs ASC_API_KEY_P8, ASC_KEY_ID and ASC_ISSUER_ID."
+            exit 1
+          fi
+          pip install --quiet "pyjwt[crypto]" >/dev/null
+          python3 - <<'PYEOF'
+          import json, os, time, urllib.request, urllib.error, jwt
+
+          KEY  = open(os.environ["EXPO_ASC_API_KEY_PATH"]).read()
+          KID  = os.environ["EXPO_ASC_KEY_ID"]
+          ISS  = os.environ["EXPO_ASC_ISSUER_ID"]
+          APP  = os.environ["ASC_APP_ID"]
+          BASE = "https://api.appstoreconnect.apple.com"
+
+          now = int(time.time())
+          token = jwt.encode(
+              {"iss": ISS, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+              KEY, algorithm="ES256", headers={"kid": KID, "typ": "JWT"})
+
+          def get(path):
+              req = urllib.request.Request(
+                  BASE + path, headers={"Authorization": f"Bearer {token}"})
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as r:
+                      return r.status, json.loads(r.read() or b"{}")
+              except urllib.error.HTTPError as e:
+                  raw = e.read()
+                  try: return e.code, json.loads(raw or b"{}")
+                  except Exception: return e.code, {"raw": raw[:300].decode("utf-8", "replace")}
+
+          SUBMISSION = {
+              "READY_FOR_REVIEW":  "ADDED BUT NOT SENT. Nothing reaches Apple until 'Submit for Review' is pressed",
+              "WAITING_FOR_REVIEW":"in Apple's queue",
+              "IN_REVIEW":         "a reviewer has it now",
+              "UNRESOLVED_ISSUES": "REJECTED, and waiting on US, not on Apple",
+              "CANCELING":         "being withdrawn",
+              "COMPLETING":        "review finished, being finalised",
+              "COMPLETE":          "done",
+          }
+          VERSION = {
+              "PREPARE_FOR_SUBMISSION":   "not submitted",
+              "WAITING_FOR_REVIEW":       "in Apple's queue",
+              "IN_REVIEW":                "being reviewed",
+              "REJECTED":                 "rejected, waiting on us",
+              "METADATA_REJECTED":        "metadata rejected, waiting on us",
+              "DEVELOPER_REJECTED":       "withdrawn by us",
+              "PENDING_DEVELOPER_RELEASE":"APPROVED, waiting for us to press Release",
+              "READY_FOR_SALE":           "live on the App Store",
+          }
+
+          print("=== app store versions ===")
+          code, data = get(f"/v1/apps/{APP}/appStoreVersions?limit=5")
+          print(f"  HTTP {code}")
+          for v in data.get("data", []):
+              at = v.get("attributes", {})
+              st = at.get("appVersionState") or at.get("appStoreState")
+              print(f"  {at.get('versionString'):<8} {str(st):<26} {VERSION.get(st, '')}"
+                    f"   release={at.get('releaseType')}  created {str(at.get('createdDate'))[:10]}")
+
+          print("\n=== review submissions, newest first ===")
+          code, data = get(f"/v1/reviewSubmissions?filter[app]={APP}&limit=10")
+          print(f"  HTTP {code}")
+          subs = sorted(data.get("data", []),
+                        key=lambda d: str(d.get("attributes", {}).get("submittedDate") or ""),
+                        reverse=True)
+          if not subs:
+              print("  (none)")
+          for d in subs:
+              at = d.get("attributes", {})
+              st = at.get("state")
+              print(f"\n  {d.get('id')}")
+              print(f"    state      {st}   {SUBMISSION.get(st, '')}")
+              print(f"    submitted  {at.get('submittedDate')}   platform {at.get('platform')}")
+              c2, items = get(f"/v1/reviewSubmissions/{d.get('id')}/items?limit=20")
+              for it in items.get("data", []):
+                  ia = it.get("attributes", {})
+                  rel = [k for k, r in (it.get("relationships") or {}).items()
+                         if (r.get("data") is not None)]
+                  print(f"    item       {str(ia.get('state')):<18} {', '.join(rel) or '(type not linked)'}")
+
+          print("\nRead-only. Nothing was changed.")
+          print("App Review MESSAGES are not available through the API; check the web page for those.")
           PYEOF
 
       - name: Apple API — in-app purchase state
