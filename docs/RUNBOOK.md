@@ -805,6 +805,42 @@ replaced but never deleted.
 
 ---
 
+## Check where an App Review submission really is
+
+**Cost: free. Read-only.** Dispatch `.github/workflows/eas.yml` with
+`step: asc-review`. It reads the app store versions, every review submission
+and each submission's items through the App Store Connect API, using the key
+already in repository secrets, and prints what each state means.
+
+Use it instead of reading the web page, because the web page cannot tell these
+apart: after a rejection and a resubmit it keeps the SAME submission ID and reads
+"Last Updated By Apple" whether the app is queued, in review, or waiting on us.
+
+The two states that mean the wait is OURS, not Apple's:
+
+| State | Means |
+|---|---|
+| submission `READY_FOR_REVIEW` | Added but never sent. Nothing reaches Apple until Submit is pressed |
+| submission `UNRESOLVED_ISSUES` | Rejected, waiting on a reply or a fix from us |
+
+Anything else is Apple's: `WAITING_FOR_REVIEW` is the queue, `IN_REVIEW` is a
+reviewer, and a version in `PENDING_DEVELOPER_RELEASE` is APPROVED and waiting
+for Release to be pressed.
+
+It cannot read App Review's messages: Apple publishes no API for them, so a
+reviewer's question only ever shows on the web page.
+
+**What a long wait does and does not justify.** Apple's own page says it reviews
+"90% in less than 48 hours", and offers an expedited review only for
+"extenuating circumstances, such as fixing a critical bug in your app or
+releasing your app to coincide with an event you're directly associated with".
+A slow queue is neither, so do not dress it up as one. Cancelling and
+resubmitting gives the app a new submission date, which is not a way to the
+front. A polite status question on the submission's App Review page costs
+nothing and promises nothing.
+
+---
+
 ## Register a new device
 
 Do it in a browser, not the CLI (`eas device:create` accepts no flags at all
